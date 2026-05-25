@@ -89,23 +89,25 @@ async function loadLinks() {
     const html = `
       <table>
         <thead>
-          <tr><th>Token</th><th>PVS Patienten-ID</th><th>Verifizierung</th><th>Status</th><th>Erstellt</th><th>Gültig bis</th><th>Aktion</th></tr>
+          <tr><th>Token</th><th>PVS Patienten-ID</th><th>Verifizierung</th><th>Verknüpfter npub</th><th>Status</th><th>Erstellt</th><th>Gültig bis</th><th>Aktion</th></tr>
         </thead>
         <tbody>
           ${rows.map(r => {
             const statusClass = r.status === 'linked' ? 'badge-linked' : r.status === 'expired' ? 'badge-expired' : 'badge-pending';
             const verifyIcon = r.has_pin ? '🔒 DOB+PIN' : r.patient_dob ? '📅 DOB' : '—';
+            const linkedNpub = r.linked_npub ? `<code style="font-size:0.75rem;background:#f1f5f9;padding:2px 6px;border-radius:4px;">${r.linked_npub.slice(0, 20)}…</code>` : '—';
             const baseUrl = window.location.origin.replace('/admin', '');
             const linkUrl = `${baseUrl}/anamnese/${r.token}`;
             return `<tr>
               <td><code style="font-size:0.8rem;">${r.token.slice(0, 12)}…</code></td>
               <td><strong>${r.pvs_patient_id || '—'}</strong></td>
               <td>${verifyIcon}</td>
+              <td>${linkedNpub}</td>
               <td><span class="badge ${statusClass}">${r.status}</span></td>
               <td>${new Date(r.created_at).toLocaleDateString('de-DE')}</td>
               <td>${new Date(r.expires_at).toLocaleDateString('de-DE')}</td>
               <td>
-                <button class="btn btn-sm" onclick="showLinkDetail('${r.token}', '${linkUrl}', '${r.pvs_patient_id || ''}')">Detail</button>
+                <button class="btn btn-sm" onclick="showLinkDetail('${r.token}', '${linkUrl}', '${r.pvs_patient_id || ''}', '${r.linked_npub || ''}')">Detail</button>
               </td>
             </tr>`;
           }).join('')}
@@ -117,9 +119,10 @@ async function loadLinks() {
   }
 }
 
-function showLinkDetail(token, url, pvsId) {
+function showLinkDetail(token, url, pvsId, linkedNpub) {
   showModal('Link Detail', `
     <p><strong>PVS Patienten-ID:</strong> ${pvsId || '—'}</p>
+    <p><strong>Verknüpfter npub:</strong> <code style="font-size:0.8rem;background:#f1f5f9;padding:2px 6px;border-radius:4px;">${linkedNpub || '—'}</code></p>
     <p><strong>Token:</strong> <code>${token}</code></p>
     <p><strong>URL:</strong></p>
     <div class="url-box">${url}</div>

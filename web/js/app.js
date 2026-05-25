@@ -50,6 +50,16 @@ function generateKeys() {
   return npub;
 }
 
+// TESTING ONLY: Generiere neue NOSTR Identität für Testzwecke
+function regenerateKeys() {
+  if (!confirm('Eine neue Identität generieren? Ihre bisherigen Daten bleiben der Praxis erhalten, aber Sie erhalten eine neue Browser-ID.')) return;
+  keys = null;
+  localStorage.removeItem('myhistoree_keys');
+  generateKeys();
+  showKeys();
+  alert('Neue Identität generiert: ' + keys.npub.slice(0, 20) + '...');
+}
+
 function showKeys() {
   document.getElementById('key-status').classList.add('hidden');
   document.getElementById('key-info').classList.remove('hidden');
