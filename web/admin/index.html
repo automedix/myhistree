@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>myhistoree – Praxis Admin</title>
+<style>
+:root { --primary:#2563eb; --primary-dark:#1d4ed8; --bg:#f1f5f9; --card:#fff; --text:#1e293b; --text-light:#64748b; --border:#e2e8f0; --success:#22c55e; --warning:#f59e0b; --danger:#ef4444; --radius:12px; }
+* { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif; background:var(--bg); color:var(--text); line-height:1.5; }
+.container { max-width:1100px; margin:0 auto; padding:20px; }
+header { background:var(--primary); color:#fff; padding:16px 20px; border-radius:var(--radius); margin-bottom:24px; display:flex; justify-content:space-between; align-items:center; }
+header h1 { font-size:1.3rem; }
+header .version { font-size:0.8rem; opacity:0.8; }
+.card { background:var(--card); border-radius:var(--radius); padding:20px; margin-bottom:20px; box-shadow:0 2px 8px rgba(0,0,0,0.04); border:1px solid var(--border); }
+.card h2 { font-size:1.1rem; margin-bottom:16px; color:var(--text); }
+.card h3 { font-size:0.95rem; margin:16px 0 8px; color:var(--text-light); }
+.form-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px; }
+@media(max-width:600px){ .form-row { grid-template-columns:1fr; } }
+label { font-size:0.9rem; font-weight:600; color:var(--text-light); display:block; margin-bottom:4px; }
+input, select, textarea { width:100%; padding:10px 12px; border:2px solid var(--border); border-radius:8px; font-size:0.95rem; font-family:inherit; }
+input:focus, select:focus, textarea:focus { outline:none; border-color:var(--primary); }
+.btn { padding:10px 18px; border-radius:8px; font-size:0.95rem; font-weight:600; border:none; cursor:pointer; }
+.btn-primary { background:var(--primary); color:#fff; }
+.btn-primary:hover { background:var(--primary-dark); }
+.btn-secondary { background:var(--bg); color:var(--text); border:2px solid var(--border); }
+.btn-sm { padding:6px 12px; font-size:0.8rem; }
+.btn-success { background:var(--success); color:#fff; }
+.btn-danger { background:var(--danger); color:#fff; }
+table { width:100%; border-collapse:collapse; font-size:0.9rem; }
+th, td { text-align:left; padding:10px; border-bottom:1px solid var(--border); }
+th { font-weight:600; color:var(--text-light); font-size:0.8rem; text-transform:uppercase; letter-spacing:0.5px; }
+tr:hover { background:#f8fafc; }
+.badge { display:inline-block; padding:3px 8px; border-radius:4px; font-size:0.75rem; font-weight:600; }
+.badge-pending { background:#dbeafe; color:#1d4ed8; }
+.badge-linked { background:#dcfce7; color:#166534; }
+.badge-expired { background:#fee2e2; color:#991b1b; }
+.badge-completed { background:#dcfce7; color:#166534; }
+.badge-inprogress { background:#fef3c7; color:#92400e; }
+.url-box { background:#f1f5f9; padding:12px; border-radius:8px; font-family:ui-monospace,monospace; font-size:0.85rem; word-break:break-all; margin:8px 0; }
+.tabs { display:flex; gap:4px; margin-bottom:20px; border-bottom:2px solid var(--border); }
+.tab { padding:10px 16px; border:none; background:none; font-size:0.95rem; cursor:pointer; color:var(--text-light); border-bottom:2px solid transparent; margin-bottom:-2px; }
+.tab.active { color:var(--primary); border-bottom-color:var(--primary); font-weight:600; }
+.tab:hover { color:var(--primary); }
+.tab-content { display:none; }
+.tab-content.active { display:block; }
+.empty { text-align:center; padding:40px; color:var(--text-light); }
+.spinner { width:24px; height:24px; border:3px solid var(--border); border-top-color:var(--primary); border-radius:50%; animation:spin .8s linear infinite; margin:20px auto; }
+@keyframes spin{to{transform:rotate(360deg)}}
+.modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:200; justify-content:center; align-items:center; }
+.modal-overlay.active { display:flex; }
+.modal { background:var(--card); border-radius:var(--radius); max-width:600px; width:90%; max-height:80vh; overflow:auto; padding:24px; }
+.modal-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
+.modal h2 { font-size:1.1rem; }
+.close-btn { background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-light); }
+pre.json { background:#1e293b; color:#e2e8f0; padding:16px; border-radius:8px; overflow:auto; font-size:0.8rem; max-height:400px; }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <div>
+      <h1>🏥 myhistoree Praxis-Admin</h1>
+      <div class="version">Dashboard v0.2.0</div>
+    </div>
+    <div id="practice-badge" style="background:rgba(255,255,255,0.15);padding:6px 14px;border-radius:8px;font-size:0.85rem;">
+      Hausärzte im Grillepark
+    </div>
+  </header>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="links" onclick="switchTab('links')">📎 Einladungslinks</button>
+    <button class="tab" data-tab="patients" onclick="switchTab('patients')">👤 Patienten</button>
+    <button class="tab" data-tab="encounters" onclick="switchTab('encounters')">📝 Encounters</button>
+    <button class="tab" data-tab="nostr" onclick="switchTab('nostr')">⚡ NOSTR</button>
+  </div>
+
+  <!-- TAB: Links -->
+  <div id="tab-links" class="tab-content active">
+    <div class="card">
+      <h2>Neuen Einladungslink erstellen</h2>
+      <div class="form-row">
+        <div>
+          <label>Patientenname (optional)</label>
+          <input type="text" id="new-patient-name" placeholder="z.B. Max Mustermann">
+        </div>
+        <div>
+          <label>E-Mail (optional, für Versand)</label>
+          <input type="text" id="new-patient-email" placeholder="z.B. max@muster.de">
+        </div>
+      </div>
+      <div class="form-row">
+        <div>
+          <label>Gültigkeit</label>
+          <select id="new-expiry">
+            <option value="24">24 Stunden</option>
+            <option value="72" selected>72 Stunden</option>
+            <option value="168">7 Tage</option>
+            <option value="720">30 Tage</option>
+          </select>
+        </div>
+        <div style="display:flex;align-items:flex-end;">
+          <button class="btn btn-primary" onclick="createLink()" id="btn-create">Link erstellen</button>
+        </div>
+      </div>
+      <div id="link-result" style="display:none; margin-top:16px;"></div>
+    </div>
+
+    <div class="card">
+      <h2>Aktuelle Einladungslinks</h2>
+      <div id="links-table-container"><div class="spinner"></div></div>
+    </div>
+  </div>
+
+  <!-- TAB: Patients -->
+  <div id="tab-patients" class="tab-content">
+    <div class="card">
+      <h2>Registrierte Patienten (anonym)</h2>
+      <div id="patients-table-container"><div class="empty">Bitte Tab wechseln zum Laden</div></div>
+    </div>
+  </div>
+
+  <!-- TAB: Encounters -->
+  <div id="tab-encounters" class="tab-content">
+    <div class="card">
+      <h2>Alle Encounters</h2>
+      <div id="encounters-table-container"><div class="empty">Bitte Tab wechseln zum Laden</div></div>
+    </div>
+  </div>
+
+  <!-- TAB: NOSTR -->
+  <div id="tab-nostr" class="tab-content">
+    <div class="card">
+      <h2>NOSTR Events</h2>
+      <div class="form-row" style="grid-template-columns:3fr 1fr;">
+        <input type="text" id="nostr-search" placeholder="npub oder pubkey eingeben...">
+        <button class="btn btn-primary" onclick="loadNostrEvents()">Suchen</button>
+      </div>
+      <div id="nostr-table-container"><div class="empty">Pubkey eingeben und suchen</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modal-title">Detail</h2>
+      <button class="close-btn" onclick="closeModal()">&times;</button>
+    </div>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<script src="/admin/js/admin.js"></script>
+</body>
+</html>
