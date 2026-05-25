@@ -14,11 +14,16 @@ function switchTab(tab) {
 // ─── Link erstellen ─────────────────────────────────────────────
 async function createLink() {
   const pvsId = document.getElementById('new-pvs-id').value.trim();
+  const dob = document.getElementById('new-patient-dob').value;
   const email = document.getElementById('new-patient-email').value.trim();
+  const usePin = document.getElementById('new-use-pin').checked;
+  const pin = usePin ? document.getElementById('new-pin').value.trim() : undefined;
   const expiry = parseInt(document.getElementById('new-expiry').value);
   const btn = document.getElementById('btn-create');
 
   if (!pvsId) { alert('Bitte PVS Patienten-ID eingeben.'); return; }
+  if (!dob) { alert('Bitte Geburtsdatum eingeben.'); return; }
+  if (usePin && (!pin || pin.length < 4)) { alert('Bitte eine PIN mit mindestens 4 Ziffern eingeben.'); return; }
 
   btn.disabled = true;
   btn.textContent = 'Wird erstellt...';
@@ -27,7 +32,7 @@ async function createLink() {
     const res = await fetch(`${API}/link/create`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ practiceId: CURRENT_PRACTICE, pvsPatientId: pvsId, patientEmail: email, expiresHours: expiry })
+      body: JSON.stringify({ practiceId: CURRENT_PRACTICE, pvsPatientId: pvsId, patientDob: dob, patientEmail: email, pin, expiresHours: expiry })
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Fehler');
@@ -39,6 +44,8 @@ async function createLink() {
       <div style="background:#dcfce7;border:1px solid #22c55e;border-radius:8px;padding:16px;">
         <div style="font-weight:600;color:#166534;margin-bottom:8px;">✅ Link erfolgreich erstellt!</div>
         <div style="font-size:0.85rem;color:#64748b;margin-bottom:4px;">PVS Patienten-ID: ${pvsId}</div>
+        <div style="font-size:0.85rem;color:#64748b;margin-bottom:4px;">Geburtsdatum: ${new Date(dob).toLocaleDateString('de-DE')}</div>
+        ${usePin ? `<div style="font-size:0.85rem;color:#64748b;margin-bottom:4px;">🔒 PIN: ${pin}</div>` : ''}
         <div style="font-size:0.85rem;color:#64748b;margin-bottom:8px;">Gültig bis: ${new Date(data.expiresAt).toLocaleString('de-DE')}</div>
         <div class="url-box" id="link-url">${fullUrl}</div>
         <div style="display:flex;gap:8px;margin-top:8px;">
@@ -49,6 +56,11 @@ async function createLink() {
     `;
     document.getElementById('link-result').style.display = 'block';
     document.getElementById('new-pvs-id').value = '';
+    document.getElementById('new-patient-dob').value = '';
+    document.getElementById('new-patient-email').value = '';
+    document.getElementById('new-use-pin').checked = false;
+    document.getElementById('pin-row').style.display = 'none';
+    document.getElementById('new-pin').value = '';
     loadLinks();
   } catch(e) {
     alert('Fehler: ' + e.message);
@@ -77,18 +89,18 @@ async function loadLinks() {
     const html = `
       <table>
         <thead>
-          <tr><th>Token</th><th>PVS Patienten-ID</th><th>Npub</th><th>Status</th><th>Erstellt</th><th>Gültig bis</th><th>Aktion</th></tr>
+          <tr><th>Token</th><th>PVS Patienten-ID</th><th>Verifizierung</th><th>Status</th><th>Erstellt</th><th>Gültig bis</th><th>Aktion</th></tr>
         </thead>
         <tbody>
           ${rows.map(r => {
             const statusClass = r.status === 'linked' ? 'badge-linked' : r.status === 'expired' ? 'badge-expired' : 'badge-pending';
-            const npubShort = r.linked_npub ? r.linked_npub.slice(0, 16) + '…' : '—';
+            const verifyIcon = r.has_pin ? '🔒 DOB+PIN' : r.patient_dob ? '📅 DOB' : '—';
             const baseUrl = window.location.origin.replace('/admin', '');
             const linkUrl = `${baseUrl}/anamnese/${r.token}`;
             return `<tr>
               <td><code style="font-size:0.8rem;">${r.token.slice(0, 12)}…</code></td>
               <td><strong>${r.pvs_patient_id || '—'}</strong></td>
-              <td>${npubShort}</td>
+              <td>${verifyIcon}</td>
               <td><span class="badge ${statusClass}">${r.status}</span></td>
               <td>${new Date(r.created_at).toLocaleDateString('de-DE')}</td>
               <td>${new Date(r.expires_at).toLocaleDateString('de-DE')}</td>

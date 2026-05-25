@@ -139,6 +139,11 @@ const wizard = {
 function updateCheckinScreen() {
   const praxisInfo = document.getElementById('checkin-praxis-info');
   const tokenDisplay = document.getElementById('checkin-token');
+  const verifyForm = document.getElementById('link-verify-form');
+  const pinGroup = document.getElementById('verify-pin-group');
+  const errorBanner = document.getElementById('checkin-error');
+  const btn = document.getElementById('btn-checkin');
+
   if (linkData && praxisInfo) {
     praxisInfo.innerHTML = `
       <div class="npub-box"><strong>Praxis:</strong> ${linkData.practiceName || 'Unbekannt'}<br>` +
@@ -146,6 +151,23 @@ function updateCheckinScreen() {
       `</div>`;
     if (linkData.pvsPatientId) {
       document.getElementById('practice-select').style.display = 'none';
+    }
+
+    // Harte Blockade: Link bereits verwendet
+    if (linkData.linkedNpub) {
+      errorBanner.style.display = 'block';
+      errorBanner.innerHTML = '❌ Dieser Link wurde bereits verwendet. Bitte wenden Sie sich an Ihre Praxis, um einen neuen Link zu erhalten.';
+      if (btn) { btn.disabled = true; btn.style.opacity = '0.5'; btn.textContent = 'Link bereits verwendet'; }
+      if (verifyForm) verifyForm.style.display = 'none';
+      return;
+    }
+
+    // Verifizierungsformular anzeigen
+    if (verifyForm) {
+      verifyForm.style.display = 'block';
+      if (pinGroup && linkData.requiresPin) {
+        pinGroup.style.display = 'block';
+      }
     }
   }
   if (tokenDisplay) tokenDisplay.textContent = (linkToken || '').slice(0, 12) + '…';
@@ -155,6 +177,12 @@ async function doLinkCheckin() {
   if (!keys) { alert('Bitte warten Sie, bis Ihre Identität erzeugt wurde.'); return; }
   if (!linkToken) { alert('Kein gültiger Einladungslink erkannt.'); return; }
 
+  const dob = document.getElementById('verify-dob')?.value;
+  const pin = document.getElementById('verify-pin')?.value;
+
+  if (!dob) { alert('Bitte geben Sie Ihr Geburtsdatum ein.'); return; }
+  if (linkData?.requiresPin && !pin) { alert('Bitte geben Sie die PIN ein.'); return; }
+
   const btn = document.getElementById('btn-checkin');
   if (btn) { btn.disabled = true; btn.textContent = 'Wird eingecheckt...'; }
 
@@ -162,7 +190,7 @@ async function doLinkCheckin() {
     const res = await fetch(`${API}/api/link/checkin`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ token: linkToken, npub: keys.npub })
+      body: JSON.stringify({ token: linkToken, npub: keys.npub, patientDob: dob, pin: pin || undefined })
     });
     const json = await res.json();
     if (!res.ok) throw new Error(json.error || 'Checkin fehlgeschlagen');
@@ -236,13 +264,7 @@ async function initPage() {
       const res = await fetch(`${API}/api/link/validate/${linkToken}`);
       if (res.ok) {
         linkData = await res.json();
-        if (linkData.status === 'linked' && !keys) {
-          // Patient hat bereits verknüpften npub aber Keys gelöscht -> Warnung
-          document.getElementById('welcome-info').innerHTML += `
-            <div style="background:#fff3cd;border-left:4px solid #c9a000;padding:12px;margin-top:16px;border-radius:0 8px 8px 0;font-size:0.9rem;">
-              ⚠️ Dieser Link wurde bereits verwendet. Falls Sie seit Ihrem letzten Besuch Ihre Browserdaten gelöscht haben, nennen Sie der Praxis Ihre Patienten-ID.
-            </div>`;
-        }
+        // updateCheckinScreen wird später aufgerufen
       }
     } catch(e) { console.log('Link validation optional', e); }
   }

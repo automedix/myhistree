@@ -18,7 +18,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
   // ─── PATIENT LINK SYSTEM ────────────────────────────────────────
 
   fastify.post('/link/create', async (request, reply) => {
-    const body = request.body as { practiceId: string; pvsPatientId?: string; patientEmail?: string; expiresHours?: number };
+    const body = request.body as { practiceId: string; pvsPatientId?: string; patientDob?: string; patientEmail?: string; pin?: string; expiresHours?: number };
     const practiceId = body.practiceId || 'demo-practice';
     const expiresHours = body.expiresHours || 72;
     const token = randomUUID().replace(/-/g, '');
@@ -28,9 +28,9 @@ export default async function apiRoutes(fastify: FastifyInstance) {
     if (!practice) { reply.code(404); return { error: 'Practice not found' }; }
 
     db.prepare(`
-      INSERT INTO patient_links (id, token, practice_id, pvs_patient_id, patient_email, status, expires_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(randomUUID(), token, practiceId, body.pvsPatientId || null, body.patientEmail || null, 'pending', expiresAt);
+      INSERT INTO patient_links (id, token, practice_id, pvs_patient_id, patient_dob, patient_email, pin, status, expires_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(randomUUID(), token, practiceId, body.pvsPatientId || null, body.patientDob || null, body.patientEmail || null, body.pin || null, 'pending', expiresAt);
 
     return { token, expiresAt, link: `/anamnese/${token}` };
   });
@@ -38,7 +38,8 @@ export default async function apiRoutes(fastify: FastifyInstance) {
   fastify.get('/link/list/:practiceId', async (request) => {
     const { practiceId } = request.params as { practiceId: string };
     const rows = db.prepare(`
-      SELECT token, pvs_patient_id, linked_npub, status, created_at, expires_at, linked_at
+      SELECT token, pvs_patient_id, patient_dob, linked_npub, status, created_at, expires_at, linked_at,
+             CASE WHEN pin IS NOT NULL AND pin != '' THEN 1 ELSE 0 END as has_pin
       FROM patient_links WHERE practice_id = ? ORDER BY created_at DESC
     `).all(practiceId);
     return rows;
@@ -63,6 +64,8 @@ export default async function apiRoutes(fastify: FastifyInstance) {
       practiceId: link.practice_id,
       practiceName: link.practice_name,
       pvsPatientId: link.pvs_patient_id,
+      patientDob: link.patient_dob,
+      requiresPin: !!link.pin,
       patientEmail: link.patient_email,
       linkedNpub: link.linked_npub,
       status: link.status,
@@ -71,13 +74,28 @@ export default async function apiRoutes(fastify: FastifyInstance) {
   });
 
   fastify.post('/link/checkin', async (request, reply) => {
-    const body = request.body as { token: string; npub: string };
-    if (!body.token || !body.npub) { reply.code(400); return { error: 'token and npub required' }; }
+    const body = request.body as { token: string; npub: string; patientDob: string; pin?: string };
+    if (!body.token || !body.npub || !body.patientDob) { reply.code(400); return { error: 'token, npub and patientDob required' }; }
 
     const link = db.prepare('SELECT * FROM patient_links WHERE token = ?').get(body.token) as any;
     if (!link) { reply.code(404); return { error: 'Link not found' }; }
     if (link.status === 'expired' || new Date(link.expires_at) < new Date()) {
       reply.code(410); return { error: 'Link expired' };
+    }
+
+    // Harte Blockade: Link bereits verwendet
+    if (link.linked_npub) {
+      reply.code(409); return { error: 'Link already used. Please contact your practice for a new link.' };
+    }
+
+    // Verifizierung: Geburtsdatum
+    if (link.patient_dob && link.patient_dob !== body.patientDob) {
+      reply.code(403); return { error: 'Invalid date of birth. Please check and try again.' };
+    }
+
+    // Verifizierung: PIN (falls gesetzt)
+    if (link.pin && link.pin !== body.pin) {
+      reply.code(403); return { error: 'Invalid PIN. Please check and try again.' };
     }
 
     let patient = db.prepare('SELECT id FROM patients WHERE npub = ?').get(body.npub) as { id: string } | undefined;
@@ -93,10 +111,8 @@ export default async function apiRoutes(fastify: FastifyInstance) {
     db.prepare('INSERT INTO encounters (id, patient_id, practice_id, source_link_id, status) VALUES (?, ?, ?, ?, ?)')
       .run(encounterId, patient.id, link.practice_id, body.token, 'in-progress');
 
-    if (!link.linked_npub) {
-      db.prepare(`UPDATE patient_links SET linked_npub = ?, status = ?, linked_at = CURRENT_TIMESTAMP WHERE id = ?`)
-        .run(body.npub, 'linked', link.id);
-    }
+    db.prepare(`UPDATE patient_links SET linked_npub = ?, status = ?, linked_at = CURRENT_TIMESTAMP WHERE id = ?`)
+      .run(body.npub, 'linked', link.id);
 
     return { encounterId, patientId: patient.id, isNew, practiceId: link.practice_id };
   });

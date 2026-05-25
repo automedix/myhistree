@@ -102,8 +102,22 @@ pre.json { background:#1e293b; color:#e2e8f0; padding:16px; border-radius:8px; o
           <input type="text" id="new-pvs-id" placeholder="z.B. 12345" inputmode="numeric" pattern="[0-9]*">
         </div>
         <div>
+          <label>Geburtsdatum <span style="color:var(--danger);">*</span></label>
+          <input type="date" id="new-patient-dob" required>
+        </div>
+      </div>
+      <div class="form-row">
+        <div>
           <label>E-Mail (optional, für Versand)</label>
           <input type="text" id="new-patient-email" placeholder="z.B. max@muster.de">
+        </div>
+        <div>
+          <label>
+            <input type="checkbox" id="new-use-pin" style="width:auto;margin-right:8px;" onchange="document.getElementById('pin-row').style.display=this.checked?'flex':'none'"> Zusätzliche PIN verwenden
+          </label>
+          <div id="pin-row" class="form-row" style="display:none;margin-top:12px;margin-bottom:0;">
+            <input type="text" id="new-pin" placeholder="4-6 Ziffern" maxlength="6" inputmode="numeric" pattern="[0-9]*">
+          </div>
         </div>
       </div>
       <div class="form-row">

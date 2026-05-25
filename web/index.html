@@ -5,7 +5,11 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <meta name="theme-color" content="#2563eb">
 <title>myhistoree – Online Anamnese</title>
-<link rel="stylesheet" href="/css/app.css">
+  <link rel="stylesheet" href="/css/app.css">
+  <style>
+    .error-banner { background:#fee2e2;border-left:4px solid #ef4444;padding:12px 16px;border-radius:0 8px 8px 0;color:#991b1b;font-size:0.95rem;margin-bottom:16px; }
+    .error-banner:empty { display:none; }
+  </style>
 </head>
 <body>
 
@@ -55,12 +59,23 @@
     <section id="screen-checkin" class="screen">
       <div class="card">
         <h2>Praxis-Checkin</h2>
+        <div id="checkin-error" style="display:none;" class="error-banner"></div>
         <div id="checkin-praxis-info"></div>
         <div class="form-group">
           <label>Praxis</label>
           <select id="practice-select">
             <option value="demo-practice">H&auml;us&auml;rzte im Grillepark</option>
           </select>
+        </div>
+        <div id="link-verify-form" style="display:none;">
+          <div class="form-group">
+            <label>Ihr Geburtsdatum <span style="color:var(--error);">*</span></label>
+            <input type="date" id="verify-dob" required style="font-size:1rem;">
+          </div>
+          <div class="form-group" id="verify-pin-group" style="display:none;">
+            <label>PIN <span style="color:var(--error);">*</span></label>
+            <input type="text" id="verify-pin" placeholder="Von der Praxis mitgeteilt" inputmode="numeric" pattern="[0-9]*" maxlength="6" style="font-size:1rem;">
+          </div>
         </div>
         <div id="link-token-info" style="display:none;margin-bottom:16px;font-size:0.85rem;color:var(--text-light);">Link: <code id="checkin-token"></code></div>
         <div class="form-group">
