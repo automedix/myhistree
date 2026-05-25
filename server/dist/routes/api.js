@@ -26,15 +26,15 @@ async function apiRoutes(fastify) {
             return { error: 'Practice not found' };
         }
         index_1.db.prepare(`
-      INSERT INTO patient_links (id, token, practice_id, patient_name, patient_email, status, expires_at)
+      INSERT INTO patient_links (id, token, practice_id, pvs_patient_id, patient_email, status, expires_at)
       VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run((0, crypto_1.randomUUID)(), token, practiceId, body.patientName || null, body.patientEmail || null, 'pending', expiresAt);
+    `).run((0, crypto_1.randomUUID)(), token, practiceId, body.pvsPatientId || null, body.patientEmail || null, 'pending', expiresAt);
         return { token, expiresAt, link: `/anamnese/${token}` };
     });
     fastify.get('/link/list/:practiceId', async (request) => {
         const { practiceId } = request.params;
         const rows = index_1.db.prepare(`
-      SELECT token, patient_name, linked_npub, status, created_at, expires_at, linked_at
+      SELECT token, pvs_patient_id, linked_npub, status, created_at, expires_at, linked_at
       FROM patient_links WHERE practice_id = ? ORDER BY created_at DESC
     `).all(practiceId);
         return rows;
@@ -59,7 +59,7 @@ async function apiRoutes(fastify) {
         return {
             practiceId: link.practice_id,
             practiceName: link.practice_name,
-            patientName: link.patient_name,
+            pvsPatientId: link.pvs_patient_id,
             patientEmail: link.patient_email,
             linkedNpub: link.linked_npub,
             status: link.status,
@@ -154,9 +154,10 @@ async function apiRoutes(fastify) {
     fastify.get('/encounters/list/:practiceId', async (request) => {
         const { practiceId } = request.params;
         const rows = index_1.db.prepare(`
-      SELECT e.id, e.status, e.source_link_id, e.created_at, p.npub
+      SELECT e.id, e.status, e.source_link_id, e.created_at, p.npub, l.pvs_patient_id
       FROM encounters e
       JOIN patients p ON e.patient_id = p.id
+      LEFT JOIN patient_links l ON e.source_link_id = l.token
       WHERE e.practice_id = ?
       ORDER BY e.created_at DESC
     `).all(practiceId);

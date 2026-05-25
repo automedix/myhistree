@@ -47,13 +47,31 @@ tr:hover { background:#f8fafc; }
 .empty { text-align:center; padding:40px; color:var(--text-light); }
 .spinner { width:24px; height:24px; border:3px solid var(--border); border-top-color:var(--primary); border-radius:50%; animation:spin .8s linear infinite; margin:20px auto; }
 @keyframes spin{to{transform:rotate(360deg)}}
+
+/* Modal */
 .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:200; justify-content:center; align-items:center; }
 .modal-overlay.active { display:flex; }
-.modal { background:var(--card); border-radius:var(--radius); max-width:600px; width:90%; max-height:80vh; overflow:auto; padding:24px; }
+.modal { background:var(--card); border-radius:var(--radius); max-width:700px; width:90%; max-height:85vh; overflow:auto; padding:24px; }
 .modal-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
 .modal h2 { font-size:1.1rem; }
 .close-btn { background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-light); }
 pre.json { background:#1e293b; color:#e2e8f0; padding:16px; border-radius:8px; overflow:auto; font-size:0.8rem; max-height:400px; }
+
+/* Print view inside modal */
+.print-view { background:#fff; padding:20px; border:1px solid var(--border); border-radius:8px; }
+.print-view h3 { color:var(--primary); border-bottom:2px solid var(--primary); padding-bottom:6px; margin-top:20px; }
+.print-view .field { margin:8px 0; }
+.print-view .field-label { font-weight:600; color:var(--text-light); font-size:0.85rem; }
+.print-view .field-value { color:var(--text); }
+.print-actions { display:flex; gap:8px; margin-top:16px; padding-top:16px; border-top:1px solid var(--border); }
+@media print {
+  body * { visibility:hidden; }
+  .modal-overlay, .modal-overlay * { visibility:visible; }
+  .modal-overlay { position:absolute; left:0; top:0; width:100%; height:100%; background:#fff; display:block; }
+  .modal { max-width:100%; width:100%; max-height:none; box-shadow:none; }
+  .modal-header, .print-actions { display:none; }
+  .print-view { border:none; }
+}
 </style>
 </head>
 <body>
@@ -61,7 +79,7 @@ pre.json { background:#1e293b; color:#e2e8f0; padding:16px; border-radius:8px; o
   <header>
     <div>
       <h1>🏥 myhistoree Praxis-Admin</h1>
-      <div class="version">Dashboard v0.2.0</div>
+      <div class="version">Dashboard v0.3.0</div>
     </div>
     <div id="practice-badge" style="background:rgba(255,255,255,0.15);padding:6px 14px;border-radius:8px;font-size:0.85rem;">
       Hausärzte im Grillepark
@@ -70,8 +88,7 @@ pre.json { background:#1e293b; color:#e2e8f0; padding:16px; border-radius:8px; o
 
   <div class="tabs">
     <button class="tab active" data-tab="links" onclick="switchTab('links')">📎 Einladungslinks</button>
-    <button class="tab" data-tab="patients" onclick="switchTab('patients')">👤 Patienten</button>
-    <button class="tab" data-tab="encounters" onclick="switchTab('encounters')">📝 Encounters</button>
+    <button class="tab" data-tab="encounters" onclick="switchTab('encounters')">📝 Anamnesen</button>
     <button class="tab" data-tab="nostr" onclick="switchTab('nostr')">⚡ NOSTR</button>
   </div>
 
@@ -81,8 +98,8 @@ pre.json { background:#1e293b; color:#e2e8f0; padding:16px; border-radius:8px; o
       <h2>Neuen Einladungslink erstellen</h2>
       <div class="form-row">
         <div>
-          <label>Patientenname (optional)</label>
-          <input type="text" id="new-patient-name" placeholder="z.B. Max Mustermann">
+          <label>PVS Patienten-ID</label>
+          <input type="text" id="new-pvs-id" placeholder="z.B. 12345" inputmode="numeric" pattern="[0-9]*">
         </div>
         <div>
           <label>E-Mail (optional, für Versand)</label>
@@ -112,18 +129,10 @@ pre.json { background:#1e293b; color:#e2e8f0; padding:16px; border-radius:8px; o
     </div>
   </div>
 
-  <!-- TAB: Patients -->
-  <div id="tab-patients" class="tab-content">
-    <div class="card">
-      <h2>Registrierte Patienten (anonym)</h2>
-      <div id="patients-table-container"><div class="empty">Bitte Tab wechseln zum Laden</div></div>
-    </div>
-  </div>
-
   <!-- TAB: Encounters -->
   <div id="tab-encounters" class="tab-content">
     <div class="card">
-      <h2>Alle Encounters</h2>
+      <h2>Ausgefüllte Anamnesen</h2>
       <div id="encounters-table-container"><div class="empty">Bitte Tab wechseln zum Laden</div></div>
     </div>
   </div>

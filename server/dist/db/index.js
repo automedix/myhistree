@@ -56,7 +56,7 @@ function initSchema() {
       id TEXT PRIMARY KEY,
       token TEXT UNIQUE NOT NULL,
       practice_id TEXT NOT NULL REFERENCES practices(id),
-      patient_name TEXT,
+      pvs_patient_id TEXT,
       patient_email TEXT,
       linked_npub TEXT,
       status TEXT DEFAULT 'pending',

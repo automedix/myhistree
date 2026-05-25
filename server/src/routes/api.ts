@@ -18,7 +18,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
   // ─── PATIENT LINK SYSTEM ────────────────────────────────────────
 
   fastify.post('/link/create', async (request, reply) => {
-    const body = request.body as { practiceId: string; patientName?: string; patientEmail?: string; expiresHours?: number };
+    const body = request.body as { practiceId: string; pvsPatientId?: string; patientEmail?: string; expiresHours?: number };
     const practiceId = body.practiceId || 'demo-practice';
     const expiresHours = body.expiresHours || 72;
     const token = randomUUID().replace(/-/g, '');
@@ -28,9 +28,9 @@ export default async function apiRoutes(fastify: FastifyInstance) {
     if (!practice) { reply.code(404); return { error: 'Practice not found' }; }
 
     db.prepare(`
-      INSERT INTO patient_links (id, token, practice_id, patient_name, patient_email, status, expires_at)
+      INSERT INTO patient_links (id, token, practice_id, pvs_patient_id, patient_email, status, expires_at)
       VALUES (?, ?, ?, ?, ?, ?, ?)
-    `).run(randomUUID(), token, practiceId, body.patientName || null, body.patientEmail || null, 'pending', expiresAt);
+    `).run(randomUUID(), token, practiceId, body.pvsPatientId || null, body.patientEmail || null, 'pending', expiresAt);
 
     return { token, expiresAt, link: `/anamnese/${token}` };
   });
@@ -38,7 +38,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
   fastify.get('/link/list/:practiceId', async (request) => {
     const { practiceId } = request.params as { practiceId: string };
     const rows = db.prepare(`
-      SELECT token, patient_name, linked_npub, status, created_at, expires_at, linked_at
+      SELECT token, pvs_patient_id, linked_npub, status, created_at, expires_at, linked_at
       FROM patient_links WHERE practice_id = ? ORDER BY created_at DESC
     `).all(practiceId);
     return rows;
@@ -62,7 +62,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
     return {
       practiceId: link.practice_id,
       practiceName: link.practice_name,
-      patientName: link.patient_name,
+      pvsPatientId: link.pvs_patient_id,
       patientEmail: link.patient_email,
       linkedNpub: link.linked_npub,
       status: link.status,
@@ -163,9 +163,10 @@ export default async function apiRoutes(fastify: FastifyInstance) {
   fastify.get('/encounters/list/:practiceId', async (request) => {
     const { practiceId } = request.params as { practiceId: string };
     const rows = db.prepare(`
-      SELECT e.id, e.status, e.source_link_id, e.created_at, p.npub
+      SELECT e.id, e.status, e.source_link_id, e.created_at, p.npub, l.pvs_patient_id
       FROM encounters e
       JOIN patients p ON e.patient_id = p.id
+      LEFT JOIN patient_links l ON e.source_link_id = l.token
       WHERE e.practice_id = ?
       ORDER BY e.created_at DESC
     `).all(practiceId);

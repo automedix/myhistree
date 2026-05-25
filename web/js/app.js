@@ -142,9 +142,9 @@ function updateCheckinScreen() {
   if (linkData && praxisInfo) {
     praxisInfo.innerHTML = `
       <div class="npub-box"><strong>Praxis:</strong> ${linkData.practiceName || 'Unbekannt'}<br>` +
-      (linkData.patientName ? `<strong>Patient:</strong> ${linkData.patientName}` : '') +
+      (linkData.pvsPatientId ? `<strong>Patienten-ID:</strong> ${linkData.pvsPatientId}` : '') +
       `</div>`;
-    if (linkData.patientName) {
+    if (linkData.pvsPatientId) {
       document.getElementById('practice-select').style.display = 'none';
     }
   }
@@ -240,7 +240,7 @@ async function initPage() {
           // Patient hat bereits verknüpften npub aber Keys gelöscht -> Warnung
           document.getElementById('welcome-info').innerHTML += `
             <div style="background:#fff3cd;border-left:4px solid #c9a000;padding:12px;margin-top:16px;border-radius:0 8px 8px 0;font-size:0.9rem;">
-              ⚠️ Dieser Link wurde bereits verwendet. Falls Sie seit Ihrem letzten Besuch Ihre Browserdaten gelöscht haben, zeigen Sie Ihre Praxis-ID in der Praxis vor.
+              ⚠️ Dieser Link wurde bereits verwendet. Falls Sie seit Ihrem letzten Besuch Ihre Browserdaten gelöscht haben, nennen Sie der Praxis Ihre Patienten-ID.
             </div>`;
         }
       }
