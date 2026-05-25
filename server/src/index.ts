@@ -27,15 +27,15 @@ app.register(apiRoutes, { prefix: '/api' });
 
 // SPA fallback: /anamnese/:token -> index.html
 app.get('/anamnese/:token', async (request, reply) => {
-  reply.sendFile('index.html');
+  return reply.sendFile('index.html');
 });
 
 // Admin Dashboard
 app.get('/admin', async (request, reply) => {
-  reply.sendFile('admin/index.html');
+  return reply.sendFile('admin/index.html');
 });
 app.get('/admin/*', async (request, reply) => {
-  reply.sendFile('admin/index.html');
+  return reply.sendFile('admin/index.html');
 });
 
 // Health

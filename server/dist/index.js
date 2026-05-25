@@ -26,14 +26,14 @@ app.register(static_1.default, {
 app.register(api_1.default, { prefix: '/api' });
 // SPA fallback: /anamnese/:token -> index.html
 app.get('/anamnese/:token', async (request, reply) => {
-    reply.sendFile('index.html');
+    return reply.sendFile('index.html');
 });
 // Admin Dashboard
 app.get('/admin', async (request, reply) => {
-    reply.sendFile('admin/index.html');
+    return reply.sendFile('admin/index.html');
 });
 app.get('/admin/*', async (request, reply) => {
-    reply.sendFile('admin/index.html');
+    return reply.sendFile('admin/index.html');
 });
 // Health
 app.get('/health', async () => ({ status: 'ok', version: '0.2.0-nostr' }));
