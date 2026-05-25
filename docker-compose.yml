@@ -1,5 +1,8 @@
 services:
   myhistoree:
+    build:
+      context: .
+      dockerfile: Dockerfile
     image: myhistoree-myhistoree:latest
     container_name: myhistoree
     restart: unless-stopped
@@ -22,7 +25,7 @@ services:
       - "7777:7777"
     volumes:
       - /opt/myhistoree/strfry/data:/app/strfry-db
-      - /opt/myhistoree/strfry.conf:/etc/strfry.conf:ro
+      - /opt/myhistoree/strfry/strfry.conf:/etc/strfry.conf:ro
     networks:
       - myhistoree
     command: ["relay"]

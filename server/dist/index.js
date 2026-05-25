@@ -20,12 +20,20 @@ app.register(cors_1.default, { origin: true, credentials: true });
 app.register(static_1.default, {
     root: (0, path_1.join)(__dirname, '../../web'),
     prefix: '/',
+    wildcard: false,
 });
 // API Routes
 app.register(api_1.default, { prefix: '/api' });
 // SPA fallback: /anamnese/:token -> index.html
 app.get('/anamnese/:token', async (request, reply) => {
     reply.sendFile('index.html');
+});
+// Admin Dashboard
+app.get('/admin', async (request, reply) => {
+    reply.sendFile('admin/index.html');
+});
+app.get('/admin/*', async (request, reply) => {
+    reply.sendFile('admin/index.html');
 });
 // Health
 app.get('/health', async () => ({ status: 'ok', version: '0.2.0-nostr' }));
