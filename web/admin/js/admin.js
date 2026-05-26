@@ -409,4 +409,38 @@ async function applyRetentionNow() {
   } catch(e) {
     alert('Fehler: ' + e.message);
   }
+
+
+// ─── Email Send ─────────────────────────────────────────────────
+async function sendEmailForLink(linkToken, to, pvsId, dob, pin) {
+  if (!to) { alert("Keine E-Mail-Adresse hinterlegt."); return; }
+
+  // Validate
+  try {
+    const vRes = await fetch(`${API}/email/validate`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email: to })
+    });
+    const v = await vRes.json();
+    if (!v.valid) { alert("E-Mail-Validierung: " + v.error); return; }
+  } catch(e) {}
+
+  const fullUrl = window.location.origin.replace("/admin", "") + "/anamnese/" + linkToken;
+  const btn = document.activeElement;
+  if (btn) btn.textContent = "⏳ Sende...";
+
+  try {
+    const res = await fetch(`${API}/link/send-email`, {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ to, pvsPatientId: pvsId, linkUrl: fullUrl, patientDob: dob, pin })
+    });
+    const data = await res.json();
+    if (btn) btn.textContent = data.success ? "✅ Gesendet" : "❌ Fehler";
+    if (!data.success) alert("Fehler: " + (data.error || "Unbekannter Fehler"));
+    else setTimeout(() => { if (btn) btn.textContent = "📧 Per E-Mail senden"; }, 3000);
+  } catch(e) {
+    if (btn) btn.textContent = "❌ Fehler";
+    alert("Fehler: " + e.message);
+  }
+}
 }
