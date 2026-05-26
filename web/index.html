@@ -1,22 +1,14 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<meta name="theme-color" content="#2563eb">
-<title>myhistoree – Online Anamnese</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <meta name="theme-color" content="#2563eb">
+  <title>myhistoree – Online Anamnese</title>
   <link rel="stylesheet" href="/css/app.css">
   <style>
-    .error-banner { background:#fee2e2;border-left:4px solid #ef4444;padding:12px 16px;border-radius:0 8px 8px 0;color:#991b1b;font-size:0.95rem;margin-bottom:16px; }
-    .error-banner:empty { display:none; }
+    .error-banner { background:#fee2e2;border-left:4px solid #ef4444;padding:12px 16px;border-radius:0 8px 8px 0;color:#991b1b;font-size:0.95rem;margin-bottom:16px;display:none; }
   </style>
-  <link rel="manifest" href="/manifest.json">
-  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="myhistoree">
-  <meta name="mobile-web-app-capable" content="yes">
 </head>
 <body>
 
@@ -27,128 +19,27 @@
   </header>
 
   <main id="main">
-    <!-- Screen: QR Landing (fuer iOS In-App-Browser / Kamera-Scan) -->
-    <section id="screen-qr-landing" class="screen active">
+    <!-- Screen: Verify Link -->
+    <section id="screen-verify" class="screen active">
       <div class="hero">
-        <h1>🏥 Willkommen</h1>
-        <p class="subtitle">Hausaerzte im Grillepark</p>
+        <h1>🏥 Digitale Anamnese</h1>
+        <p class="subtitle">Willkommen zur Online-Anamnese</p>
       </div>
-      <div class="card" id="qr-landing-content">
-        <div id="qr-landing-known" style="display:none;">
-          <h3>👋 Guten Tag!</h3>
-          <p>Sie sind als bestehender Patient erkannt. Praxis-ID:</p>
-          <div class="npub-box" style="margin:12px 0;"><code id="landing-npub"></code></div>
-          <button class="btn-primary" onclick="startQuickFlowFromLanding()" style="margin-top:16px;width:100%">Schnell einchecken →</button>
-        </div>
-        <div id="qr-landing-new">
-          <h3>QR-Code gescannt</h3>
-          <p>Fuer <strong>automatische Wiedererkennung</strong> beim naechsten Besuch:</p>
-          <div style="margin:16px 0;padding:16px;background:#eff6ff;border-radius:12px;border:1px solid #bfdbfe;">
-            <strong>👆 iOS / Android:</strong> Tippen Sie auf das <em>Teilen/Safari-Symbol</em> (<span>&#10548;&#65039;</span>) rechts unten in Ihrer Browser-Leiste<br><br>
-            <strong>💡 Alternative:</strong> Kopieren Sie den Link und oeffnen Sie ihn in Chrome/Safari
-          </div>
-          <div style="margin:12px 0;">
-            <code style="display:block;padding:8px;background:#f1f5f9;border-radius:6px;word-break:break-all;font-size:0.8rem;" id="browser-link">https://myhistoree.automedix.de/anamnese?source=qr</code>
-          </div>
-          <button class="btn-primary" onclick="continueInAppBrowser()" style="margin-top:16px;width:100%">Hier fortfahren (ohne Speicherung) →</button>
-          <p style="margin-top:12px;font-size:0.8rem;color:#94a3b8;text-align:center;">Ihr Browser-Speicher wird beim naechsten Scan nicht erkannt. Bitte nutzen Sie Chrome/Safari.</p>
-        </div>
-      </div>
-      <div class="card" style="margin-top:16px;">
-        <h4>🆕 Erstbesuch?</h4>
-        <p style="font-size:0.9rem;color:var(--text-light);">Fuer neue Patienten ist eine ausfuehrliche Anamnese noetig. Bitte melden Sie sich am Empfang oder nutzen Sie einen Einladungslink.</p>
-        <button class="btn-secondary" onclick="startFullFlowFromLanding()" style="margin-top:8px;width:100%">Erstbesuch-Anamnese starten</button>
-      </div>
-    </section>
-
-    <!-- Screen: Welcome -->
-    <section id="screen-welcome" class="screen">
-      <div class="hero">
-        <h1>Willkommen bei myhistoree</h1>
-        <p class="subtitle">Digitale Anamnese &amp; Self-Checkin</p>
-      </div>
-      <div class="card" id="welcome-info">
-        <p>Sind Sie bereits Patient bei uns?</p>
-        <div class="radio-group" style="margin-top:16px;">
-          <label class="radio-card" onclick="selectMode('quick')" style="cursor:pointer;">
-            <input type="radio" name="mode" value="quick" style="display:none;">
-            <strong>✅ Ja, ich bin bereits Patient</strong><br>
-            <span style="font-size:0.85rem;color:var(--text-light);">Schneller Self-Checkin – nur 2 Minuten</span>
-          </label>
-          <label class="radio-card" onclick="selectMode('full')" style="cursor:pointer;">
-            <input type="radio" name="mode" value="full" style="display:none;">
-            <strong>🆕 Nein, Erstbesuch</strong><br>
-            <span style="font-size:0.85rem;color:var(--text-light);">Ausführliche Anamnese für neue Patienten</span>
-          </label>
-        </div>
-        <div style="margin-top:16px;padding:12px;background:#fef3c7;border-radius:8px;font-size:0.85rem;color:#92400e;">
-          <strong>Hinweis:</strong> Falls Sie keinen Einladungslink haben, melden Sie sich bitte am Empfang.
-        </div>
-      </div>
-    </section>
-
-    <!-- Screen: NOSTR Identity -->
-    <section id="screen-identity" class="screen">
       <div class="card">
-        <h2>Ihre anonyme Identit&auml;t</h2>
-        <p class="help">F&uuml;r maximale Datensicherheit erzeugt Ihr Browser auf diesem Ger&auml;t einen verschl&uuml;sselten Schl&uuml;ssel. Ihre Praxis erkennt Sie damit wieder &mdash; ohne dass pers&ouml;nliche Daten auf unseren Servern gespeichert werden.</p>
-        <div id="key-status">
-          <div class="spinner"></div>
-          <p>Schl&uuml;ssel wird erzeugt...</p>
+        <div id="verify-info"></div>
+        <div id="verify-error" class="error-banner"></div>
+        <div class="form-group" id="verify-dob-group">
+          <label>Ihr Geburtsdatum <span style="color:var(--error);">*</span></label>
+          <input type="date" id="verify-dob" required style="font-size:1rem;">
         </div>
-        <div id="key-info" class="hidden">
-          <div class="npub-box">
-            <label>Ihre anonyme ID</label>
-            <code id="display-npub"></code>
-          </div>
-          <p style="font-size:0.85rem;color:var(--text-light);margin-top:8px;">
-            Diese ID bleibt auf Ihrem Ger&auml;t gespeichert. Bitte l&ouml;schen Sie nicht den Browser-Speicher, sonst m&uuml;ssen Sie sich neu registrieren.
-          </p>
-          <button class="btn-primary" onclick="wizard.next()" style="margin-top:16px">Weiter zum Checkin</button>
-          <button onclick="regenerateKeys()" style="margin-top:12px;background:none;border:1px solid var(--border);color:var(--text-light);padding:8px 16px;border-radius:8px;font-size:0.8rem;cursor:pointer;">
-            🔄 Neue Identität generieren
-          </button>
-          <p style="font-size:0.7rem;color:#94a3b8;margin-top:8px;">TESTING ONLY: Nur für Testzwecke</p>
+        <div class="form-group" id="verify-pin-group" style="display:none;">
+          <label>PIN <span style="color:var(--error);">*</span></label>
+          <input type="text" id="verify-pin" placeholder="Von der Praxis mitgeteilt" inputmode="numeric" pattern="[0-9]*" maxlength="6" style="font-size:1rem;">
         </div>
-      </div>
-    </section>
-
-    <!-- Screen: Checkin -->
-    <section id="screen-checkin" class="screen">
-      <div class="card">
-        <h2>Praxis-Checkin</h2>
-        <div id="checkin-error" style="display:none;" class="error-banner"></div>
-        <div id="checkin-praxis-info"></div>
-        <div class="form-group">
-          <label>Praxis</label>
-          <select id="practice-select">
-            <option value="demo-practice">H&auml;us&auml;rzte im Grillepark</option>
-          </select>
-        </div>
-        <div id="link-verify-form" style="display:none;">
-          <div class="form-group">
-            <label>Ihr Geburtsdatum <span style="color:var(--error);">*</span></label>
-            <input type="date" id="verify-dob" required style="font-size:1rem;">
-          </div>
-          <div class="form-group" id="verify-pin-group" style="display:none;">
-            <label>PIN <span style="color:var(--error);">*</span></label>
-            <input type="text" id="verify-pin" placeholder="Von der Praxis mitgeteilt" inputmode="numeric" pattern="[0-9]*" maxlength="6" style="font-size:1rem;">
-          </div>
-        </div>
-        <div id="link-token-info" style="display:none;margin-bottom:16px;font-size:0.85rem;color:var(--text-light);">Link: <code id="checkin-token"></code></div>
-        <div class="form-group">
-          <label>Ihr Anliegen (optional)</label>
-          <select id="reason-select">
-            <option value="">-- Bitte w&auml;hlen --</option>
-            <option value="erstbesuch">Erstbesuch</option>
-            <option value="kontrolle">Kontrolle / Nachsorge</option>
-            <option value="akut">Akute Beschwerden</option>
-            <option value="ueberweisung">&Uuml;berweisung vom Hausarzt</option>
-            <option value="impfung">Impfung</option>
-            <option value="andere">Anderes Anliegen</option>
-          </select>
-        </div>
-        <button class="btn-primary" id="btn-checkin" onclick="checkin()">Einchecken</button>
+        <p style="font-size:0.85rem;color:var(--text-light);margin-top:8px;">
+          Ihre Angaben werden verschlüsselt übertragen und nur für Ihre Behandlung gespeichert.
+        </p>
+        <button class="btn-primary" id="btn-verify" onclick="verifyAndStart()" style="margin-top:16px;width:100%">Anamnese starten</button>
       </div>
     </section>
 
@@ -185,7 +76,7 @@
         </div>
         <div class="nav-btns">
           <button class="btn-secondary" onclick="wizard.prev()">Zur&uuml;ck</button>
-          <button class="btn-primary" onclick="wizard.saveAndNext('demographics', collectDemographics1)">Weiter</button>
+          <button class="btn-primary" onclick="wizard.saveAndNext('language', collectLanguage)">Weiter</button>
         </div>
       </div>
     </section>
@@ -222,7 +113,7 @@
         </div>
         <div class="nav-btns">
           <button class="btn-secondary" onclick="wizard.prev()">Zur&uuml;ck</button>
-          <button class="btn-primary" onclick="wizard.saveAndNext('demographics', collectDemographics2)">Weiter</button>
+          <button class="btn-primary" onclick="wizard.saveAndNext('origin', collectDemographics2)">Weiter</button>
         </div>
       </div>
     </section>
@@ -273,7 +164,7 @@
         </div>
         <div class="nav-btns">
           <button class="btn-secondary" onclick="wizard.prev()">Zur&uuml;ck</button>
-          <button class="btn-primary" onclick="wizard.saveAndNext('demographics', collectDemographics3)">Weiter</button>
+          <button class="btn-primary" onclick="wizard.saveAndNext('job', collectDemographics3)">Weiter</button>
         </div>
       </div>
     </section>
@@ -331,12 +222,12 @@
         </div>
         <div class="nav-btns">
           <button class="btn-secondary" onclick="wizard.prev()">Zur&uuml;ck</button>
-          <button class="btn-primary" onclick="wizard.saveAndNext('history', collectSymptoms)">Weiter</button>
+          <button class="btn-primary" onclick="wizard.saveAndNext('symptoms', collectSymptoms)">Weiter</button>
         </div>
       </div>
     </section>
 
-    <!-- Screen: Symptom Duration -->
+    <!-- Screen: Duration -->
     <section id="screen-duration" class="screen">
       <div class="card">
         <h2>Dauer der Beschwerden</h2>
@@ -354,7 +245,7 @@
         </div>
         <div class="nav-btns">
           <button class="btn-secondary" onclick="wizard.prev()">Zur&uuml;ck</button>
-          <button class="btn-primary" onclick="wizard.saveAndNext('history', collectDuration)">Weiter</button>
+          <button class="btn-primary" onclick="wizard.saveAndNext('duration', collectDuration)">Weiter</button>
         </div>
       </div>
     </section>
@@ -381,13 +272,13 @@
             <button class="chip" data-value="gicht">Gicht</button>
             <button class="chip" data-value="rheuma">Rheuma / Autoimmunerkrankung</button>
             <button class="chip" data-value="osteoporose">Osteoporose</button>
-            <button class="chip" data-value="glauskom">Glaukom / Gr&uuml;ner Star</button>
+            <button class="chip" data-value="glaukom">Glaukom / Gr&uuml;ner Star</button>
             <button class="chip" data-value="keine">Keine Vorerkrankungen</button>
           </div>
         </div>
         <div class="nav-btns">
           <button class="btn-secondary" onclick="wizard.prev()">Zur&uuml;ck</button>
-          <button class="btn-primary" onclick="wizard.saveAndNext('history', collectConditions)">Weiter</button>
+          <button class="btn-primary" onclick="wizard.saveAndNext('conditions', collectConditions)">Weiter</button>
         </div>
       </div>
     </section>
@@ -409,7 +300,7 @@
         </div>
         <div class="nav-btns">
           <button class="btn-secondary" onclick="wizard.prev()">Zur&uuml;ck</button>
-          <button class="btn-primary" onclick="wizard.saveAndNext('history', collectOperations)">Weiter</button>
+          <button class="btn-primary" onclick="wizard.saveAndNext('operations', collectOperations)">Weiter</button>
         </div>
       </div>
     </section>
@@ -519,7 +410,7 @@
       </div>
     </section>
 
-    <!-- Screen: Lifestyle 1/2 -->
+    <!-- Screen: Lifestyle 1 -->
     <section id="screen-lifestyle" class="screen">
       <div class="card">
         <h2>Lebensgewohnheiten (1/2)</h2>
@@ -548,7 +439,7 @@
       </div>
     </section>
 
-    <!-- Screen: Lifestyle 2/2 -->
+    <!-- Screen: Lifestyle 2 -->
     <section id="screen-lifestyle2" class="screen">
       <div class="card">
         <h2>Lebensgewohnheiten (2/2)</h2>
@@ -570,12 +461,12 @@
         </div>
         <div class="nav-btns">
           <button class="btn-secondary" onclick="wizard.prev()">Zur&uuml;ck</button>
-          <button class="btn-primary" onclick="wizard.saveAndNext('lifestyle', collectLifestyle2)">Weiter</button>
+          <button class="btn-primary" onclick="wizard.saveAndNext('lifestyle2', collectLifestyle2)">Weiter</button>
         </div>
       </div>
     </section>
 
-    <!-- Screen: Emergency Contact -->
+    <!-- Screen: Emergency -->
     <section id="screen-emergency" class="screen">
       <div class="card">
         <h2>Notfallkontakt (optional)</h2>
@@ -612,110 +503,16 @@
       <div class="card center">
         <div class="success-icon">&#10003;</div>
         <h2>Anamnese abgeschickt!</h2>
-        <p>Vielen Dank. Ihre Angaben wurden sicher an die Praxis &uuml;bermittelt.</p>
-        <p class="npub-hint">Ihre anonyme Praxis-ID: <code id="done-npub"></code></p>
-        <p class="help">Sie k&ouml;nnen dieses Fenster nun schlie&szlig;en. Bitte merken Sie sich Ihre ID, falls die Praxis sie erfragen sollte.</p>
-      </div>
-    </section>
-    <!-- Screen: Quick Checkin Intro -->
-    <section id="screen-quick-checkin" class="screen">
-      <div class="card">
-        <h2>Self-Checkin</h2>
-        <p class="help">Bitte bestätigen Sie Ihre Praxis-ID vor dem Einchecken.</p>
-        <div id="quick-checkin-info"></div>
-        <div class="form-group">
-          <label>Praxis</label>
-          <select id="quick-practice-select">
-            <option value="demo-practice">H&auml;us&auml;rzte im Grillepark</option>
-          </select>
-        </div>
-        <button class="btn-primary" id="btn-quick-checkin" onclick="doQuickCheckin()" style="margin-top:16px;display:none;">Einchecken</button>
-        <p style="font-size:0.8rem;color:var(--text-light);margin-top:12px;">
-          Ihre Praxis-ID bleibt anonym. Keine persönlichen Daten werden übertragen.
+        <p>Vielen Dank. Ihre Angaben wurden sicher an die Praxis übermittelt.</p>
+        <p style="font-size:0.9rem;color:var(--text-light);margin-top:8px;">
+          Patienten-ID: <strong id="done-pvs-id">—</strong>
         </p>
+        <p class="help">Sie können dieses Fenster nun schließen.</p>
       </div>
     </section>
-
-    <!-- Screen: Quick Complaints -->
-    <section id="screen-quick-complaints" class="screen">
-      <div class="card">
-        <h2>Ihre Beschwerden</h2>
-        <p class="help">Was führt Sie heute in die Praxis? Mehrfachnennungen möglich.</p>
-        <div class="form-group">
-          <div class="chip-group" id="quick-symptom-chips">
-            <button class="chip" data-value="schmerzen">Schmerzen</button>
-            <button class="chip" data-value="fieber">Fieber</button>
-            <button class="chip" data-value="husten">Husten</button>
-            <button class="chip" data-value="schnupfen">Schnupfen</button>
-            <button class="chip" data-value="bauchschmerzen">Bauchschmerzen</button>
-            <button class="chip" data-value="uebelkeit">Übelkeit / Erbrechen</button>
-            <button class="chip" data-value="durchfall">Durchfall</button>
-            <button class="chip" data-value="hautausschlag">Hautausschlag</button>
-            <button class="chip" data-value="schwindel">Schwindel</button>
-            <button class="chip" data-value="herz">Herzrasen / Brustschmerz</button>
-            <button class="chip" data-value="atmung">Atembeschwerden</button>
-            <button class="chip" data-value="schlafstoerungen">Schlafstörungen</button>
-            <button class="chip" data-value="muedigkeit">Müdigkeit</button>
-            <button class="chip" data-value="gewicht">Gewichtsveränderung</button>
-            <button class="chip" data-value="kopfschmerzen">Kopfschmerzen</button>
-            <button class="chip" data-value="keine">Keine Beschwerden (Kontrolle)</button>
-          </div>
-        </div>
-        <div class="form-group">
-          <label>Sonstige Beschwerden (Freitext)</label>
-          <textarea id="quick-freitext" rows="2" placeholder="Beschreiben Sie hier Beschwerden, die nicht in der Liste stehen..."></textarea>
-        </div>
-        <div class="nav-btns">
-          <button class="btn-secondary" onclick="wizard.prev()">Zurück</button>
-          <button class="btn-primary" onclick="wizard.saveAndNext('checkin', collectQuickComplaints)">Weiter</button>
-        </div>
-      </div>
-    </section>
-
-    <!-- Screen: Quick Appointment -->
-    <section id="screen-quick-appointment" class="screen">
-      <div class="card">
-        <h2>Termin</h2>
-        <div class="form-group">
-          <label>Haben Sie einen Termin?</label>
-          <div class="radio-group">
-            <label class="radio-card"><input type="radio" name="quick-appointment" value="ja" onchange="document.getElementById('quick-appt-time-group').style.display='block'"> Ja</label>
-            <label class="radio-card"><input type="radio" name="quick-appointment" value="nein" onchange="document.getElementById('quick-appt-time-group').style.display='none'"> Nein</label>
-          </div>
-        </div>
-        <div class="form-group" id="quick-appt-time-group" style="display:none;">
-          <label>Ungefähre Uhrzeit (optional)</label>
-          <input type="time" id="quick-appt-time">
-        </div>
-        <div class="nav-btns">
-          <button class="btn-secondary" onclick="wizard.prev()">Zurück</button>
-          <button class="btn-primary" onclick="wizard.saveAndNext('checkin', collectQuickAppointment)">Weiter</button>
-        </div>
-      </div>
-    </section>
-
-    <!-- Screen: Quick Done -->
-    <section id="screen-quick-done" class="screen">
-      <div class="card center">
-        <div class="success-icon">&#10003;</div>
-        <h2>Eincheckung erfolgreich!</h2>
-        <p>Sie sind eingecheckt. Bitte nehmen Sie im Wartezimmer Platz.</p>
-        <p class="npub-hint">Ihre Praxis-ID: <code id="quick-done-npub"></code></p>
-        <p class="help">Die Praxis wurde über Ihre Ankunft informiert.</p>
-      </div>
-    </section>
-
   </main>
 </div>
 
-<script src="/js/nostr.bundle.js"></script>
-<script src="/js/app.js?v=0.3.8"></script>
-  <script>
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js')
-        .then(reg => console.log('SW registered'))
-        .catch(err => console.log('SW failed', err));
-    }
-  </script>
+<script src="/js/app.js?v=0.4.0"></script>
 </body>
 </html>

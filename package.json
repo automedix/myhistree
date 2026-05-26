@@ -1,6 +1,6 @@
 {
   "name": "myhistoree",
-  "version": "0.1.0",
+  "version": "0.4.0",
   "description": "Online Anamnese fuer den erstmaligen Praxisbesuch",
   "scripts": {
     "dev": "cd server && tsx watch src/index.ts",
@@ -13,7 +13,6 @@
     "@fastify/static": "^7.0.4",
     "better-sqlite3": "^11.3.0",
     "fastify": "^4.28.1",
-    "nostr-tools": "^2.23.3",
     "zod": "^3.23.8"
   },
   "devDependencies": {
