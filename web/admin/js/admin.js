@@ -392,11 +392,11 @@ async function loadAuditLog() {
 }
 
 async function applyRetentionNow() {
-  if (!confirm('Loeschfristen jetzt anwenden?
+  if (!confirm(`Loeschfristen jetzt anwenden?
 
 - Abgeschlossene Anamnesen > 2 Jahre werden anonymisiert
 - Genutzte Links > 30 Tage werden geloescht
-- Abgelaufene Links > 7 Tage werden geloescht')) return;
+- Abgelaufene Links > 7 Tage werden geloescht`)) return;
   try {
     const res = await fetch(`${API}/admin/apply-retention`, { method: 'POST' });
     const data = await res.json();

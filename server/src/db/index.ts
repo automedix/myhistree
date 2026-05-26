@@ -29,7 +29,8 @@ export function initSchema() {
       postal_code TEXT,
       phone TEXT,
       email TEXT,
-      created_at TEXT DEFAULT (datetime('now'))
+      created_at TEXT DEFAULT (datetime('now')),
+      linked_at TEXT
     );
     CREATE TABLE IF NOT EXISTS patients (
       id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
@@ -38,7 +39,8 @@ export function initSchema() {
       last_name TEXT,
       date_of_birth TEXT,
       gender TEXT,
-      created_at TEXT DEFAULT (datetime('now'))
+      created_at TEXT DEFAULT (datetime('now')),
+      linked_at TEXT
     );
     CREATE TABLE IF NOT EXISTS encounters (
       id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
@@ -76,7 +78,8 @@ export function initSchema() {
       pin TEXT,
       status TEXT DEFAULT 'pending',
       expires_at TEXT,
-      created_at TEXT DEFAULT (datetime('now'))
+      created_at TEXT DEFAULT (datetime('now')),
+      linked_at TEXT
     );
     CREATE INDEX IF NOT EXISTS idx_links_token ON patient_links(token);
     CREATE INDEX IF NOT EXISTS idx_links_practice ON patient_links(practice_id);
