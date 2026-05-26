@@ -48,6 +48,12 @@ tr:hover { background:#f8fafc; }
 .spinner { width:24px; height:24px; border:3px solid var(--border); border-top-color:var(--primary); border-radius:50%; animation:spin .8s linear infinite; margin:20px auto; }
 @keyframes spin{to{transform:rotate(360deg)}}
 
+/* QR Code */
+.qr-container { text-align:center; padding:20px; }
+.qr-container canvas { border-radius:12px; box-shadow:0 4px 16px rgba(0,0,0,0.1); }
+.qr-big canvas { width:280px !important; height:280px !important; }
+.qr-actions { display:flex; justify-content:center; gap:12px; margin-top:16px; flex-wrap:wrap; }
+
 /* Modal */
 .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:200; justify-content:center; align-items:center; }
 .modal-overlay.active { display:flex; }
@@ -79,7 +85,7 @@ pre.json { background:#1e293b; color:#e2e8f0; padding:16px; border-radius:8px; o
   <header>
     <div>
       <h1>🏥 myhistoree Praxis-Admin</h1>
-      <div class="version">Dashboard v0.3.0</div>
+      <div class="version">v0.3.5</div>
     </div>
     <div id="practice-badge" style="background:rgba(255,255,255,0.15);padding:6px 14px;border-radius:8px;font-size:0.85rem;">
       Hausärzte im Grillepark
@@ -88,6 +94,7 @@ pre.json { background:#1e293b; color:#e2e8f0; padding:16px; border-radius:8px; o
 
   <div class="tabs">
     <button class="tab active" data-tab="links" onclick="switchTab('links')">📎 Einladungslinks</button>
+    <button class="tab" data-tab="checkins" onclick="switchTab('checkins')">🏥 Self-Checkin</button>
     <button class="tab" data-tab="encounters" onclick="switchTab('encounters')">📝 Anamnesen</button>
     <button class="tab" data-tab="nostr" onclick="switchTab('nostr')">⚡ NOSTR</button>
   </div>
@@ -143,6 +150,33 @@ pre.json { background:#1e293b; color:#e2e8f0; padding:16px; border-radius:8px; o
     </div>
   </div>
 
+  <!-- TAB: Self-Checkin -->
+  <div id="tab-checkins" class="tab-content">
+    <div class="card">
+      <h2>Self-Checkin QR-Code für die Praxistür</h2>
+      <p style="font-size:0.9rem;color:var(--text-light);margin-bottom:12px;">
+        Patienten scannen diesen Code und checken sich selbst ein. Kein individueller Link nötig.
+      </p>
+      <div class="qr-container qr-big" style="margin:20px 0;">
+        <div id="selfcheckin-qr"></div>
+      </div>
+      <div style="display:flex;gap:8px;justify-content:center;margin-top:12px;">
+        <button class="btn btn-primary" onclick="downloadSelfCheckinQR()">⬇️ Herunterladen</button>
+        <button class="btn btn-secondary" onclick="printQRPage(document.getElementById('selfcheckin-url').textContent)">🖨️ Drucken</button>
+      </div>
+      <div class="url-box" style="margin-top:16px;">
+        <strong>URL:</strong> <span id="selfcheckin-url"></span>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Heutige Checkins</h2>
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <button class="btn btn-sm btn-primary" onclick="loadCheckins()">🔄 Aktualisieren</button>
+      </div>
+      <div id="checkins-table-container"><div class="empty">Bitte laden</div></div>
+    </div>
+  </div>
+
   <!-- TAB: Encounters -->
   <div id="tab-encounters" class="tab-content">
     <div class="card">
@@ -175,6 +209,7 @@ pre.json { background:#1e293b; color:#e2e8f0; padding:16px; border-radius:8px; o
   </div>
 </div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <script src="/admin/js/admin.js"></script>
 </body>
 </html>

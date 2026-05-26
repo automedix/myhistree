@@ -18,7 +18,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
   // ─── PATIENT LINK SYSTEM ────────────────────────────────────────
 
   fastify.post('/link/create', async (request, reply) => {
-    const body = request.body as { practiceId: string; pvsPatientId?: string; patientDob?: string; patientEmail?: string; pin?: string; expiresHours?: number };
+    const body = request.body as { practiceId: string; pvsPatientId?: string; patientDob?: string; patientEmail?: string; pin?: string; requiresPin?: boolean; expiresHours?: number };
     const practiceId = body.practiceId || 'demo-practice';
     const expiresHours = body.expiresHours || 72;
     const token = randomUUID().replace(/-/g, '');
@@ -27,12 +27,18 @@ export default async function apiRoutes(fastify: FastifyInstance) {
     const practice = db.prepare('SELECT id FROM practices WHERE id = ?').get(practiceId) as { id: string } | undefined;
     if (!practice) { reply.code(404); return { error: 'Practice not found' }; }
 
+    // PIN-Logik: wenn requiresPin=true aber keine pin angegeben, generiere zufällige 4-stellige PIN
+    let pin = body.pin || null;
+    if (body.requiresPin && !pin) {
+      pin = Math.floor(1000 + Math.random() * 9000).toString();
+    }
+
     db.prepare(`
       INSERT INTO patient_links (id, token, practice_id, pvs_patient_id, patient_dob, patient_email, pin, status, expires_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).run(randomUUID(), token, practiceId, body.pvsPatientId || null, body.patientDob || null, body.patientEmail || null, body.pin || null, 'pending', expiresAt);
+    `).run(randomUUID(), token, practiceId, body.pvsPatientId || null, body.patientDob || null, body.patientEmail || null, pin, 'pending', expiresAt);
 
-    return { token, expiresAt, link: `/anamnese/${token}` };
+    return { token, expiresAt, link: `/anamnese/${token}`, pin };
   });
 
   fastify.get('/link/list/:practiceId', async (request) => {
@@ -266,5 +272,79 @@ export default async function apiRoutes(fastify: FastifyInstance) {
   // Praxis-Liste
   fastify.get('/practices', async () => {
     return db.prepare('SELECT id, name, location_id, fhir_endpoint FROM practices').all();
+  });
+
+  // ─── SELF CHECKIN (Public QR-Code) ──────────────────────────────
+
+  // Public checkin für bekannte Patienten (Self-Checkin an Praxistür)
+  fastify.post('/checkin/public', async (request, reply) => {
+    const body = request.body as { npub: string; practiceId: string; complaints?: string; hasAppointment?: boolean; appointmentTime?: string; freitext?: string };
+    const practiceId = body.practiceId || 'demo-practice';
+
+    if (!body.npub) { reply.code(400); return { error: 'npub required' }; }
+
+    // Patient finden oder erstellen
+    let patient = db.prepare('SELECT id FROM patients WHERE npub = ?').get(body.npub) as { id: string } | undefined;
+    let isNew = false;
+    if (!patient) {
+      const id = randomUUID();
+      db.prepare('INSERT INTO patients (id, npub) VALUES (?, ?)').run(id, body.npub);
+      patient = { id };
+      isNew = true;
+    }
+
+    const encounterId = randomUUID();
+    db.prepare('INSERT INTO encounters (id, patient_id, practice_id, status, source_link_id) VALUES (?, ?, ?, ?, ?)')
+      .run(encounterId, patient.id, practiceId, 'checked-in', 'self-checkin');
+
+    // Beschwerden speichern
+    if (body.complaints || body.freitext) {
+      db.prepare('INSERT INTO questionnaire_responses (id, encounter_id, patient_id, category, status, data) VALUES (?, ?, ?, ?, ?, ?)')
+        .run(randomUUID(), encounterId, patient.id, 'checkin', 'completed', JSON.stringify({
+          complaints: body.complaints || '',
+          hasAppointment: body.hasAppointment || false,
+          appointmentTime: body.appointmentTime || '',
+          freitext: body.freitext || '',
+          __completed: true
+        }));
+    }
+
+    return { encounterId, patientId: patient.id, isNew, practiceId, status: 'checked-in' };
+  });
+
+  // Heutige Checkins für Admin-Dashboard
+  fastify.get('/checkin/today/:practiceId', async (request) => {
+    const { practiceId } = request.params as { practiceId: string };
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayStr = today.toISOString().split('T')[0];
+    const rows = db.prepare(`
+      SELECT e.id, e.status, e.source_link_id, e.created_at, p.npub,
+        (SELECT data FROM questionnaire_responses WHERE encounter_id = e.id AND category = 'checkin' LIMIT 1) as checkin_data,
+        (SELECT data FROM questionnaire_responses WHERE encounter_id = e.id AND category = 'symptoms' LIMIT 1) as symptoms_data,
+        (SELECT pvs_patient_id FROM patient_links WHERE linked_npub = p.npub ORDER BY linked_at DESC LIMIT 1) as pvs_patient_id
+      FROM encounters e
+      JOIN patients p ON e.patient_id = p.id
+      WHERE e.practice_id = ? AND e.created_at LIKE ?
+      ORDER BY e.created_at DESC
+    `).all(practiceId, todayStr + '%');
+    return rows.map((r: any) => {
+      const checkinData = r.checkin_data ? JSON.parse(r.checkin_data) : null;
+      const symptomsData = r.symptoms_data ? JSON.parse(r.symptoms_data) : null;
+      // Merge: checkin_data hat Vorrang, symptoms_data als Fallback für Beschwerden
+      const merged = {
+        ...symptomsData,
+        ...checkinData,
+        // Wenn symptoms als String gespeichert sind (z.B. "Husten, Fieber"), nutze sie als complaints
+        complaints: checkinData?.complaints || symptomsData?.symptoms || symptomsData?.complaints || null,
+        freitext: checkinData?.freitext || symptomsData?.freitext || null,
+        hasAppointment: checkinData?.hasAppointment || symptomsData?.hasAppointment || false,
+        appointmentTime: checkinData?.appointmentTime || symptomsData?.appointmentTime || null,
+      };
+      return {
+        ...r,
+        checkin_data: merged
+      };
+    });
   });
 }

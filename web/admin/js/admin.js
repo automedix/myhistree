@@ -9,6 +9,7 @@ function switchTab(tab) {
 
   if (tab === 'links') loadLinks();
   if (tab === 'encounters') loadEncounters();
+  if (tab === 'checkins') { loadCheckins(); setTimeout(generateSelfCheckinQR, 100); }
 }
 
 // ─── Link erstellen ─────────────────────────────────────────────
@@ -18,12 +19,13 @@ async function createLink() {
   const email = document.getElementById('new-patient-email').value.trim();
   const usePin = document.getElementById('new-use-pin').checked;
   const pin = usePin ? document.getElementById('new-pin').value.trim() : undefined;
+  const requiresPin = usePin && !pin; // Wenn PIN angekreuzt aber leer → Backend generiert PIN
   const expiry = parseInt(document.getElementById('new-expiry').value);
   const btn = document.getElementById('btn-create');
 
   if (!pvsId) { alert('Bitte PVS Patienten-ID eingeben.'); return; }
   if (!dob) { alert('Bitte Geburtsdatum eingeben.'); return; }
-  if (usePin && (!pin || pin.length < 4)) { alert('Bitte eine PIN mit mindestens 4 Ziffern eingeben.'); return; }
+  if (usePin && pin && pin.length < 4) { alert('Bitte eine PIN mit mindestens 4 Ziffern eingeben.'); return; }
 
   btn.disabled = true;
   btn.textContent = 'Wird erstellt...';
@@ -32,28 +34,17 @@ async function createLink() {
     const res = await fetch(`${API}/link/create`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ practiceId: CURRENT_PRACTICE, pvsPatientId: pvsId, patientDob: dob, patientEmail: email, pin, expiresHours: expiry })
+      body: JSON.stringify({ practiceId: CURRENT_PRACTICE, pvsPatientId: pvsId, patientDob: dob, patientEmail: email, pin, requiresPin, expiresHours: expiry })
     });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || 'Fehler');
 
     const baseUrl = window.location.origin.replace('/admin', '');
     const fullUrl = `${baseUrl}/anamnese/${data.token}`;
+    // Wenn Backend eine PIN generiert hat, zeige diese an
+    const displayPin = data.pin || pin;
+    showLinkResultWithQR(pvsId, dob, usePin || !!data.pin, displayPin, data.expiresAt, fullUrl);
 
-    document.getElementById('link-result').innerHTML = `
-      <div style="background:#dcfce7;border:1px solid #22c55e;border-radius:8px;padding:16px;">
-        <div style="font-weight:600;color:#166534;margin-bottom:8px;">✅ Link erfolgreich erstellt!</div>
-        <div style="font-size:0.85rem;color:#64748b;margin-bottom:4px;">PVS Patienten-ID: ${pvsId}</div>
-        <div style="font-size:0.85rem;color:#64748b;margin-bottom:4px;">Geburtsdatum: ${new Date(dob).toLocaleDateString('de-DE')}</div>
-        ${usePin ? `<div style="font-size:0.85rem;color:#64748b;margin-bottom:4px;">🔒 PIN: ${pin}</div>` : ''}
-        <div style="font-size:0.85rem;color:#64748b;margin-bottom:8px;">Gültig bis: ${new Date(data.expiresAt).toLocaleString('de-DE')}</div>
-        <div class="url-box" id="link-url">${fullUrl}</div>
-        <div style="display:flex;gap:8px;margin-top:8px;">
-          <button class="btn btn-sm" onclick="copyLink()">📋 Kopieren</button>
-          <button class="btn btn-sm btn-success" onclick="window.open('${fullUrl}', '_blank')">🔗 Öffnen</button>
-        </div>
-      </div>
-    `;
     document.getElementById('link-result').style.display = 'block';
     document.getElementById('new-pvs-id').value = '';
     document.getElementById('new-patient-dob').value = '';
@@ -73,6 +64,143 @@ async function createLink() {
 function copyLink() {
   const url = document.getElementById('link-url').textContent;
   navigator.clipboard.writeText(url).then(() => alert('Link kopiert!'));
+}
+
+// ─── QR Code Generator ──────────────────────────────────────────
+function generateQR(containerId, url, size, options) {
+  const container = document.getElementById(containerId);
+  if (!container) return;
+  container.innerHTML = '';
+  const qrcode = new QRCode(container, {
+    text: url,
+    width: size,
+    height: size,
+    colorDark: '#1e293b',
+    colorLight: '#ffffff',
+    correctLevel: QRCode.CorrectLevel.H
+  });
+  return qrcode;
+}
+
+function showQRModal(url, title) {
+  const containerId = 'qr-modal-canvas';
+  showModal(title || 'QR-Code anzeigen', `
+    <div class="qr-container qr-big">
+      <div id="${containerId}"></div>
+      <div class="qr-actions">
+        <button class="btn btn-primary" onclick="downloadQR()">⬇️ Herunterladen</button>
+        <button class="btn btn-secondary" onclick="printQRPage('${url}')">🖨️ Drucken</button>
+      </div>
+    </div>
+  `);
+  setTimeout(() => generateQR(containerId, url, 280), 50);
+}
+
+function downloadQR() {
+  const container = document.getElementById('qr-modal-canvas');
+  if (!container) return;
+  const canvas = container.querySelector('canvas');
+  if (!canvas) return;
+  const link = document.createElement('a');
+  link.download = 'myhistoree-qr.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+}
+
+// ─── Print QR Code als eigenständige Seite ──────────────────────
+function printQRPage(url) {
+  const printWindow = window.open('', '_blank', 'width=600,height=600');
+  if (!printWindow) { alert('Bitte Popups erlauben, um den QR-Code zu drucken.'); return; }
+
+  // Generate QR code in the new window
+  printWindow.document.write(`
+    <!DOCTYPE html>
+    <html>
+    <head>
+      <meta charset="UTF-8">
+      <title>myhistoree Self-Checkin QR-Code</title>
+      <style>
+        body { margin:0; display:flex; flex-direction:column; align-items:center; justify-content:center; min-height:100vh; font-family:system-ui,-apple-system,sans-serif; }
+        .container { text-align:center; padding:40px; }
+        .logo { font-size:1.5rem; font-weight:bold; color:#2563eb; margin-bottom:8px; }
+        .subtitle { color:#64748b; margin-bottom:32px; font-size:0.95rem; }
+        .qr-container { display:inline-block; padding:20px; background:white; border-radius:16px; box-shadow:0 4px 24px rgba(0,0,0,0.1); }
+        .url { margin-top:20px; font-size:0.85rem; color:#64748b; word-break:break-all; max-width:400px; }
+        .hint { margin-top:16px; font-size:0.8rem; color:#94a3b8; }
+        @media print {
+          body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+          .no-print { display:none; }
+        }
+      </style>
+      <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    </head>
+    <body>
+      <div class="container">
+        <div class="logo">🏥 myhistoree</div>
+        <div class="subtitle">Self-Checkin QR-Code</div>
+        <div class="qr-container">
+          <div id="qr-print"></div>
+        </div>
+        <div class="url">${url}</div>
+        <div class="hint">Mit der Handy-Kamera scannen und direkt einchecken</div>
+        <div class="no-print" style="margin-top:32px;">
+          <button onclick="window.print()" style="padding:12px 24px;background:#2563eb;color:white;border:none;border-radius:8px;font-size:1rem;cursor:pointer;">🖨️ Jetzt drucken</button>
+        </div>
+      </div>
+      <script>
+        window.onload = function() {
+          new QRCode(document.getElementById('qr-print'), {
+            text: '${url}',
+            width: 280,
+            height: 280,
+            colorDark: '#1e293b',
+            colorLight: '#ffffff',
+            correctLevel: QRCode.CorrectLevel.H
+          });
+        };
+      </script>
+    </body>
+    </html>
+  `);
+  printWindow.document.close();
+}
+
+// ─── QR Code in Link-Result einfügen ────────────────────────────
+function showLinkResultWithQR(pvsId, dob, usePin, pin, expiresAt, fullUrl) {
+  const pinHtml = usePin ? `<div style="font-size:0.85rem;color:#64748b;margin-bottom:4px;">🔒 PIN: ${pin}</div>` : '';
+  const dobFormatted = new Date(dob).toLocaleDateString('de-DE');
+
+  document.getElementById('link-result').innerHTML = `
+    <div style="background:#dcfce7;border:1px solid #22c55e;border-radius:8px;padding:16px;" id="link-result-box">
+      <div style="font-weight:600;color:#166534;margin-bottom:8px;">✅ Link erfolgreich erstellt!</div>
+      <div style="font-size:0.85rem;color:#64748b;margin-bottom:4px;">PVS Patienten-ID: ${pvsId}</div>
+      <div style="font-size:0.85rem;color:#64748b;margin-bottom:4px;">Geburtsdatum: ${dobFormatted}</div>
+      ${pinHtml}
+      <div style="font-size:0.85rem;color:#64748b;margin-bottom:8px;">Gültig bis: ${new Date(expiresAt).toLocaleString('de-DE')}</div>
+      <div class="url-box" id="link-url">${fullUrl}</div>
+      <div style="display:flex;gap:8px;margin-top:8px;">
+        <button class="btn btn-sm" onclick="copyLink()">📋 Kopieren</button>
+        <button class="btn btn-sm btn-success" onclick="window.open('${fullUrl}', '_blank')">🔗 Öffnen</button>
+        <button class="btn btn-sm btn-primary" onclick="showQRModal('${fullUrl}', 'QR-Code für Patienten')">📷 QR-Code anzeigen</button>
+      </div>
+      <div style="margin-top:16px;padding-top:16px;border-top:1px solid rgba(34,197,94,0.4);display:flex;gap:20px;align-items:center;flex-wrap:wrap;justify-content:center;">
+        <div style="text-align:center;">
+          <div style="font-size:0.8rem;color:#166534;font-weight:600;margin-bottom:8px;">📷 Handy-Kamera darauf richten</div>
+          <div id="qr-inline" style="display:inline-block;"></div>
+        </div>
+        <div style="text-align:left;max-width:220px;">
+          <div style="font-size:0.85rem;color:#166534;font-weight:600;margin-bottom:4px;">So geht's:</div>
+          <ol style="font-size:0.8rem;color:#166534;margin:0;padding-left:16px;">
+            <li>QR-Code mit Handy-Kamera scannen</li>
+            <li>Link im Browser öffnen</li>
+            <li>Anamnese ausfüllen</li>
+            <li>Geburtsdatum ${dobFormatted} ${usePin ? '+ PIN bestätigen' : 'bestätigen'}</li>
+          </ol>
+        </div>
+      </div>
+    </div>
+  `;
+  setTimeout(() => generateQR('qr-inline', fullUrl, 140), 50);
 }
 
 // ─── Links laden ────────────────────────────────────────────────
@@ -108,6 +236,7 @@ async function loadLinks() {
               <td>${new Date(r.expires_at).toLocaleDateString('de-DE')}</td>
               <td>
                 <button class="btn btn-sm" onclick="showLinkDetail('${r.token}', '${linkUrl}', '${r.pvs_patient_id || ''}', '${r.linked_npub || ''}')">Detail</button>
+                <button class="btn btn-sm btn-primary" onclick="showQRModal('${linkUrl}', 'QR-Code – ${r.pvs_patient_id || 'Unbekannt'}')">📷 QR</button>
               </td>
             </tr>`;
           }).join('')}
@@ -126,8 +255,11 @@ function showLinkDetail(token, url, pvsId, linkedNpub) {
     <p><strong>Token:</strong> <code>${token}</code></p>
     <p><strong>URL:</strong></p>
     <div class="url-box">${url}</div>
-    <button class="btn btn-sm" onclick="navigator.clipboard.writeText('${url}')">📋 Kopieren</button>
-    <button class="btn btn-sm btn-success" onclick="window.open('${url}', '_blank')">🔗 Öffnen</button>
+    <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap;">
+      <button class="btn btn-sm" onclick="navigator.clipboard.writeText('${url}')">📋 Kopieren</button>
+      <button class="btn btn-sm btn-success" onclick="window.open('${url}', '_blank')">🔗 Öffnen</button>
+      <button class="btn btn-sm btn-primary" onclick="showQRModal('${url}', 'QR-Code – ${pvsId || 'Unbekannt'}')">📷 QR-Code anzeigen</button>
+    </div>
   `);
 }
 
@@ -213,9 +345,7 @@ async function viewEncounter(encounterId, pvsId) {
 
 // ─── Encounter Drucken / PDF ────────────────────────────────────
 async function printEncounter(encounterId, pvsId) {
-  // Same as view but optimized for print
   await viewEncounter(encounterId, pvsId);
-  // Auto-trigger print dialog after a short delay
   setTimeout(() => window.print(), 300);
 }
 
@@ -346,6 +476,63 @@ function showModal(title, body) {
 }
 function closeModal() {
   document.getElementById('modal').classList.remove('active');
+}
+
+// ─── Self-Checkin ───────────────────────────────────────────────
+function generateSelfCheckinQR() {
+  const baseUrl = window.location.origin.replace('/admin', '');
+  const url = `${baseUrl}/anamnese`;
+  document.getElementById('selfcheckin-url').textContent = url;
+  generateQR('selfcheckin-qr', url, 280);
+}
+
+function downloadSelfCheckinQR() {
+  const container = document.getElementById('selfcheckin-qr');
+  if (!container) return;
+  const canvas = container.querySelector('canvas');
+  if (!canvas) return;
+  const link = document.createElement('a');
+  link.download = 'myhistoree-selfcheckin-qr.png';
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+}
+
+async function loadCheckins() {
+  const container = document.getElementById('checkins-table-container');
+  container.innerHTML = '<div class="spinner"></div>';
+
+  try {
+    const res = await fetch(`${API}/checkin/today/${CURRENT_PRACTICE}`);
+    const rows = await res.json();
+
+    if (!rows.length) { container.innerHTML = '<div class="empty">Heute noch keine Checkins</div>'; return; }
+
+    container.innerHTML = `
+      <table>
+        <thead>
+          <tr><th>Zeit</th><th>PVS Patienten-ID</th><th>npub</th><th>Beschwerden</th><th>Termin</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          ${rows.map(r => {
+            const data = r.checkin_data || {};
+            const complaints = data.complaints || '—';
+            const freitext = data.freitext ? `<br><em style="font-size:0.8rem;color:var(--text-light);">${data.freitext}</em>` : '';
+            const appt = data.hasAppointment ? (data.appointmentTime ? `✅ ${data.appointmentTime}` : '✅ Ja') : '❌ Nein';
+            const pvsId = r.pvs_patient_id ? `<strong>${r.pvs_patient_id}</strong>` : '—';
+            return `<tr>
+              <td>${new Date(r.created_at).toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'})}</td>
+              <td>${pvsId}</td>
+              <td><code style="font-size:0.75rem;background:#f1f5f9;padding:2px 6px;border-radius:4px;">${r.npub.slice(0, 20)}…</code></td>
+              <td>${complaints}${freitext}</td>
+              <td>${appt}</td>
+              <td><span class="badge badge-completed">${r.status}</span></td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>`;
+  } catch(e) {
+    container.innerHTML = '<div class="empty">Fehler: ' + e.message + '</div>';
+  }
 }
 
 // ─── Init ───────────────────────────────────────────────────────

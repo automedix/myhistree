@@ -10,6 +10,12 @@
     .error-banner { background:#fee2e2;border-left:4px solid #ef4444;padding:12px 16px;border-radius:0 8px 8px 0;color:#991b1b;font-size:0.95rem;margin-bottom:16px; }
     .error-banner:empty { display:none; }
   </style>
+  <link rel="manifest" href="/manifest.json">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="myhistoree">
+  <meta name="mobile-web-app-capable" content="yes">
 </head>
 <body>
 
@@ -20,16 +26,63 @@
   </header>
 
   <main id="main">
+    <!-- Screen: QR Landing (fuer iOS In-App-Browser / Kamera-Scan) -->
+    <section id="screen-qr-landing" class="screen active">
+      <div class="hero">
+        <h1>🏥 Willkommen</h1>
+        <p class="subtitle">Hausaerzte im Grillepark</p>
+      </div>
+      <div class="card" id="qr-landing-content">
+        <div id="qr-landing-known" style="display:none;">
+          <h3>👋 Guten Tag!</h3>
+          <p>Sie sind als bestehender Patient erkannt. Praxis-ID:</p>
+          <div class="npub-box" style="margin:12px 0;"><code id="landing-npub"></code></div>
+          <button class="btn-primary" onclick="startQuickFlowFromLanding()" style="margin-top:16px;width:100%">Schnell einchecken →</button>
+        </div>
+        <div id="qr-landing-new">
+          <h3>QR-Code gescannt</h3>
+          <p>Fuer <strong>automatische Wiedererkennung</strong> beim naechsten Besuch:</p>
+          <div style="margin:16px 0;padding:16px;background:#eff6ff;border-radius:12px;border:1px solid #bfdbfe;">
+            <strong>👆 iOS / Android:</strong> Tippen Sie auf das <em>Teilen/Safari-Symbol</em> (<span>&#10548;&#65039;</span>) rechts unten in Ihrer Browser-Leiste<br><br>
+            <strong>💡 Alternative:</strong> Kopieren Sie den Link und oeffnen Sie ihn in Chrome/Safari
+          </div>
+          <div style="margin:12px 0;">
+            <code style="display:block;padding:8px;background:#f1f5f9;border-radius:6px;word-break:break-all;font-size:0.8rem;" id="browser-link">https://myhistoree.automedix.de/anamnese?source=qr</code>
+          </div>
+          <button class="btn-primary" onclick="continueInAppBrowser()" style="margin-top:16px;width:100%">Hier fortfahren (ohne Speicherung) →</button>
+          <p style="margin-top:12px;font-size:0.8rem;color:#94a3b8;text-align:center;">Ihr Browser-Speicher wird beim naechsten Scan nicht erkannt. Bitte nutzen Sie Chrome/Safari.</p>
+        </div>
+      </div>
+      <div class="card" style="margin-top:16px;">
+        <h4>🆕 Erstbesuch?</h4>
+        <p style="font-size:0.9rem;color:var(--text-light);">Fuer neue Patienten ist eine ausfuehrliche Anamnese noetig. Bitte melden Sie sich am Empfang oder nutzen Sie einen Einladungslink.</p>
+        <button class="btn-secondary" onclick="startFullFlowFromLanding()" style="margin-top:8px;width:100%">Erstbesuch-Anamnese starten</button>
+      </div>
+    </section>
+
     <!-- Screen: Welcome -->
-    <section id="screen-welcome" class="screen active">
+    <section id="screen-welcome" class="screen">
       <div class="hero">
         <h1>Willkommen bei myhistoree</h1>
-        <p class="subtitle">Ihre digitale Anamnese vor dem Praxisbesuch</p>
+        <p class="subtitle">Digitale Anamnese &amp; Self-Checkin</p>
       </div>
       <div class="card" id="welcome-info">
-        <p>Das Ausf&uuml;llen dauert nur wenige Minuten. Ihre Daten werden sicher an die Praxis &uuml;bertragen &mdash; anonymisiert per NOSTR-Schl&uuml;ssel.</p>
-        <p style="margin-top:12px;font-size:0.9rem;color:var(--text-light);">Es werden <strong>keine</strong> pers&ouml;nlichen Daten (Name, Adresse, Geburtsdatum) auf unseren Servern gespeichert. Ihre Praxis verkn&uuml;pft Ihre anonyme ID erst bei Ihrem Besuch mit Ihrer Akte.</p>
-        <button class="btn-primary" onclick="wizard.next()" style="margin-top:20px">Jetzt starten</button>
+        <p>Sind Sie bereits Patient bei uns?</p>
+        <div class="radio-group" style="margin-top:16px;">
+          <label class="radio-card" onclick="selectMode('quick')" style="cursor:pointer;">
+            <input type="radio" name="mode" value="quick" style="display:none;">
+            <strong>✅ Ja, ich bin bereits Patient</strong><br>
+            <span style="font-size:0.85rem;color:var(--text-light);">Schneller Self-Checkin – nur 2 Minuten</span>
+          </label>
+          <label class="radio-card" onclick="selectMode('full')" style="cursor:pointer;">
+            <input type="radio" name="mode" value="full" style="display:none;">
+            <strong>🆕 Nein, Erstbesuch</strong><br>
+            <span style="font-size:0.85rem;color:var(--text-light);">Ausführliche Anamnese für neue Patienten</span>
+          </label>
+        </div>
+        <div style="margin-top:16px;padding:12px;background:#fef3c7;border-radius:8px;font-size:0.85rem;color:#92400e;">
+          <strong>Hinweis:</strong> Falls Sie keinen Einladungslink haben, melden Sie sich bitte am Empfang.
+        </div>
       </div>
     </section>
 
@@ -563,10 +616,105 @@
         <p class="help">Sie k&ouml;nnen dieses Fenster nun schlie&szlig;en. Bitte merken Sie sich Ihre ID, falls die Praxis sie erfragen sollte.</p>
       </div>
     </section>
+    <!-- Screen: Quick Checkin Intro -->
+    <section id="screen-quick-checkin" class="screen">
+      <div class="card">
+        <h2>Self-Checkin</h2>
+        <p class="help">Bitte bestätigen Sie Ihre Praxis-ID vor dem Einchecken.</p>
+        <div id="quick-checkin-info"></div>
+        <div class="form-group">
+          <label>Praxis</label>
+          <select id="quick-practice-select">
+            <option value="demo-practice">H&auml;us&auml;rzte im Grillepark</option>
+          </select>
+        </div>
+        <button class="btn-primary" id="btn-quick-checkin" onclick="doQuickCheckin()" style="margin-top:16px;display:none;">Einchecken</button>
+        <p style="font-size:0.8rem;color:var(--text-light);margin-top:12px;">
+          Ihre Praxis-ID bleibt anonym. Keine persönlichen Daten werden übertragen.
+        </p>
+      </div>
+    </section>
+
+    <!-- Screen: Quick Complaints -->
+    <section id="screen-quick-complaints" class="screen">
+      <div class="card">
+        <h2>Ihre Beschwerden</h2>
+        <p class="help">Was führt Sie heute in die Praxis? Mehrfachnennungen möglich.</p>
+        <div class="form-group">
+          <div class="chip-group" id="quick-symptom-chips">
+            <button class="chip" data-value="schmerzen">Schmerzen</button>
+            <button class="chip" data-value="fieber">Fieber</button>
+            <button class="chip" data-value="husten">Husten</button>
+            <button class="chip" data-value="schnupfen">Schnupfen</button>
+            <button class="chip" data-value="bauchschmerzen">Bauchschmerzen</button>
+            <button class="chip" data-value="uebelkeit">Übelkeit / Erbrechen</button>
+            <button class="chip" data-value="durchfall">Durchfall</button>
+            <button class="chip" data-value="hautausschlag">Hautausschlag</button>
+            <button class="chip" data-value="schwindel">Schwindel</button>
+            <button class="chip" data-value="herz">Herzrasen / Brustschmerz</button>
+            <button class="chip" data-value="atmung">Atembeschwerden</button>
+            <button class="chip" data-value="schlafstoerungen">Schlafstörungen</button>
+            <button class="chip" data-value="muedigkeit">Müdigkeit</button>
+            <button class="chip" data-value="gewicht">Gewichtsveränderung</button>
+            <button class="chip" data-value="kopfschmerzen">Kopfschmerzen</button>
+            <button class="chip" data-value="keine">Keine Beschwerden (Kontrolle)</button>
+          </div>
+        </div>
+        <div class="form-group">
+          <label>Sonstige Beschwerden (Freitext)</label>
+          <textarea id="quick-freitext" rows="2" placeholder="Beschreiben Sie hier Beschwerden, die nicht in der Liste stehen..."></textarea>
+        </div>
+        <div class="nav-btns">
+          <button class="btn-secondary" onclick="wizard.prev()">Zurück</button>
+          <button class="btn-primary" onclick="wizard.saveAndNext('checkin', collectQuickComplaints)">Weiter</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Screen: Quick Appointment -->
+    <section id="screen-quick-appointment" class="screen">
+      <div class="card">
+        <h2>Termin</h2>
+        <div class="form-group">
+          <label>Haben Sie einen Termin?</label>
+          <div class="radio-group">
+            <label class="radio-card"><input type="radio" name="quick-appointment" value="ja" onchange="document.getElementById('quick-appt-time-group').style.display='block'"> Ja</label>
+            <label class="radio-card"><input type="radio" name="quick-appointment" value="nein" onchange="document.getElementById('quick-appt-time-group').style.display='none'"> Nein</label>
+          </div>
+        </div>
+        <div class="form-group" id="quick-appt-time-group" style="display:none;">
+          <label>Ungefähre Uhrzeit (optional)</label>
+          <input type="time" id="quick-appt-time">
+        </div>
+        <div class="nav-btns">
+          <button class="btn-secondary" onclick="wizard.prev()">Zurück</button>
+          <button class="btn-primary" onclick="wizard.saveAndNext('checkin', collectQuickAppointment)">Weiter</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Screen: Quick Done -->
+    <section id="screen-quick-done" class="screen">
+      <div class="card center">
+        <div class="success-icon">&#10003;</div>
+        <h2>Eincheckung erfolgreich!</h2>
+        <p>Sie sind eingecheckt. Bitte nehmen Sie im Wartezimmer Platz.</p>
+        <p class="npub-hint">Ihre Praxis-ID: <code id="quick-done-npub"></code></p>
+        <p class="help">Die Praxis wurde über Ihre Ankunft informiert.</p>
+      </div>
+    </section>
+
   </main>
 </div>
 
 <script src="/js/nostr.bundle.js"></script>
 <script src="/js/app.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/sw.js')
+        .then(reg => console.log('SW registered'))
+        .catch(err => console.log('SW failed', err));
+    }
+  </script>
 </body>
 </html>

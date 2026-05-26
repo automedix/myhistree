@@ -30,6 +30,11 @@ app.get('/anamnese/:token', async (request, reply) => {
   return reply.sendFile('index.html');
 });
 
+// Self-Checkin ohne Token (QR-Code an Praxistür)
+app.get('/anamnese', async (request, reply) => {
+  return reply.sendFile('index.html');
+});
+
 // Admin Dashboard
 app.get('/admin', async (request, reply) => {
   return reply.sendFile('admin/index.html');
