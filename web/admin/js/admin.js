@@ -1,5 +1,6 @@
 // myhistoree Admin Dashboard JS v0.4.0
 const API = '/api';
+let encounterFilter = 'all'; // 'all' | 'completed' | 'in-progress'
 const CURRENT_PRACTICE = 'demo-practice';
 
 // ─── Tab Switching ──────────────────────────────────────────────
@@ -195,11 +196,25 @@ async function loadEncounters() {
 
   try {
     const res = await fetch(`${API}/admin/encounters/list/${CURRENT_PRACTICE}`);
-    const rows = await res.json();
+    const allRows = await res.json();
 
-    if (!rows.length) { container.innerHTML = '<div class="empty">Noch keine Anamnesen ausgefuellt</div>'; return; }
+    const rows = encounterFilter === 'all' ? allRows : allRows.filter(r => r.status === encounterFilter);
 
-    container.innerHTML = `
+    const filterButtons = `
+      <div style="display:flex;gap:8px;margin-bottom:16px;">
+        <button class="btn btn-sm ${encounterFilter === 'all' ? 'btn-primary' : ''}" onclick="setEncounterFilter('all')" style="${encounterFilter === 'all' ? 'background:var(--color-primary);color:#fff;' : 'background:#f1f5f9;color:#475569;'}">Alle</button>
+        <button class="btn btn-sm ${encounterFilter === 'completed' ? 'btn-primary' : ''}" onclick="setEncounterFilter('completed')" style="${encounterFilter === 'completed' ? 'background:var(--color-primary);color:#fff;' : 'background:#f1f5f9;color:#475569;'}">Abgeschlossen</button>
+        <button class="btn btn-sm ${encounterFilter === 'in-progress' ? 'btn-primary' : ''}" onclick="setEncounterFilter('in-progress')" style="${encounterFilter === 'in-progress' ? 'background:var(--color-primary);color:#fff;' : 'background:#f1f5f9;color:#475569;'}">In Bearbeitung</button>
+      </div>
+      <div style="font-size:0.85rem;color:#64748b;margin-bottom:12px;">${rows.length} von ${allRows.length} Anamnesen</div>
+    `;
+
+    if (!rows.length) {
+      container.innerHTML = filterButtons + '<div class="empty">Keine Anamnesen fuer diesen Filter</div>';
+      return;
+    }
+
+    container.innerHTML = filterButtons + `
       <table>
         <thead>
           <tr><th>PVS Patienten-ID</th><th>Status</th><th>Erstellt</th><th>Aktion</th></tr>
@@ -222,6 +237,11 @@ async function loadEncounters() {
   } catch(e) {
     container.innerHTML = '<div class="empty">Fehler: ' + e.message + '</div>';
   }
+}
+
+function setEncounterFilter(filter) {
+  encounterFilter = filter;
+  loadEncounters();
 }
 
 async function viewEncounter(encounterId, pvsId) {
