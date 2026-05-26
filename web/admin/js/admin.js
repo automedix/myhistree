@@ -1,4 +1,4 @@
-// myhistoree Admin Dashboard JS v0.3
+// myhistoree Admin Dashboard JS v0.3.8
 const API = '/api';
 const CURRENT_PRACTICE = 'demo-practice';
 

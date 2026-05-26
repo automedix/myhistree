@@ -1,11 +1,11 @@
 // myhistoree Service Worker v1.0
-const CACHE_NAME = 'myhistoree-v1';
+const CACHE_NAME = 'myhistoree-v0.3.8';
 const STATIC_ASSETS = [
   '/',
   '/anamnese',
-  '/index.html',
+  '/index.html?v=0.3.8',
   '/css/app.css',
-  '/js/app.js',
+  '/js/app.js?v=0.3.8',
   '/js/nostr-tools.js',
   '/icons/icon-192.png',
   '/icons/icon-512.png'

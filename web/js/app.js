@@ -167,6 +167,23 @@ const wizard = {
   async saveAndNext(category, collectorFn) {
     const data = collectorFn();
     if (!data) return;
+    // Auto-create encounter if none exists (e.g. lost session)
+    if (!encounterId && keys) {
+      try {
+        const practiceId = document.getElementById('quick-practice-select')?.value || 'demo-practice';
+        const res = await fetch(`${API}/api/checkin/public`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ npub: keys.npub, practiceId })
+        });
+        const json = await res.json();
+        if (res.ok) {
+          encounterId = json.encounterId;
+          patientId = json.patientId;
+          sessionStorage.setItem('myhistoree_encounter', encounterId);
+        }
+      } catch(e) { console.error('Auto-checkin failed', e); }
+    }
     if (encounterId) {
       try {
         await fetch(`${API}/api/anamnese/${encounterId}/${category}`, {
@@ -374,16 +391,16 @@ async function initPage() {
   wizard.next = function() { origNext(); if (screens[currentStep] === 'review') buildReview(); };
 
   // Determine starting screen
-  if (isQrScan && !linkToken) {
-    // QR code scan without token - show landing page
-    showLandingPage();
-  } else if (isPwaStart) {
-    // PWA launched from home screen - go directly to checkin
+  // PWA (home screen) always goes directly to checkin, even if URL still has ?source=qr
+  if (isPwaStart) {
     if (keys) {
       startQuickFlow();
     } else {
       wizard.render();
     }
+  } else if (isQrScan && !linkToken) {
+    // QR code scan without token - show landing page
+    showLandingPage();
   } else {
     wizard.render();
   }
@@ -440,7 +457,8 @@ function selectMode(mode) {
 }
 
 function startQuickFlow() {
-  // Double-check: keys könnten zwischenzeitlich (z.B. bei iOS In-App-Browser Preview) verloren gegangen sein
+  // WICHTIG: Immer quickScreens verwenden fuer Self-Checkin
+  screens = quickScreens;
   if (!keys) { loadKeys(); }
 
   if (keys) {
@@ -455,6 +473,7 @@ function startQuickFlow() {
 }
 
 function startFullFlow() {
+  screens = fullScreens;
   if (keys) {
     currentStep = screens.indexOf('checkin');
   } else {
