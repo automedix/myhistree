@@ -1,4 +1,4 @@
-// myhistoree v0.4.0 – Vereinfachte Anamnese (Session-basiert, kein NOSTR)
+// myhistoree v0.4.10 – Vereinfachte Anamnese (Session-basiert, kein NOSTR)
 const API = "";
 
 let encounterId = null;
