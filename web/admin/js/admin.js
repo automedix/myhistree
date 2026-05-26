@@ -270,7 +270,7 @@ async function viewEncounter(encounterId, pvsId) {
     html += `<div style="text-align:center;margin-bottom:20px;"><h2 style="color:var(--primary);margin:0;">myhistoree Anamnese</h2><div style="color:var(--text-light);font-size:0.9rem;">PVS Patienten-ID: <strong>${pvsId || '-'}</strong> | Datum: ${new Date(data.created_at).toLocaleString('de-DE', { timeZone: 'Europe/Berlin' })}</div></div>`;
 
     for (const r of data.responses || []) {
-      const obj = JSON.parse(r.data);
+      const obj = typeof r.data === "string" ? JSON.parse(r.data) : r.data;
       delete obj.__completed;
       const rows = Object.entries(obj).map(([k, v]) => {
         const label = fieldLabels[k] || k;
@@ -310,7 +310,7 @@ async function copyEncounterText(encounterId) {
 
     for (const r of data.responses || []) {
       text += `${r.category}:\n`;
-      const obj = JSON.parse(r.data);
+      const obj = typeof r.data === "string" ? JSON.parse(r.data) : r.data;
       delete obj.__completed;
       for (const [k, v] of Object.entries(obj)) {
         text += `  ${fieldLabels[k] || k}: ${v}\n`;
