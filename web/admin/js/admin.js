@@ -8,6 +8,7 @@ function switchTab(tab) {
   document.querySelectorAll('.tab-content').forEach(t => t.classList.toggle('active', t.id === 'tab-' + tab));
   if (tab === 'links') loadLinks();
   if (tab === 'encounters') loadEncounters();
+  if (tab === 'audit') loadAuditLog();
 }
 
 // ─── Link erstellen ─────────────────────────────────────────────
@@ -352,3 +353,60 @@ function closeModal() {
 
 // ─── Init ───────────────────────────────────────────────────────
 switchTab('links');
+
+// ─── Audit Log ──────────────────────────────────────────────────
+async function loadAuditLog() {
+  const container = document.getElementById('audit-table-container');
+  if (!container) return;
+  container.innerHTML = '<div class="spinner"></div>';
+
+  try {
+    const res = await fetch(`${API}/audit/log?limit=200`);
+    const rows = await res.json();
+
+    if (!rows.length) { container.innerHTML = '<div class="empty">Noch keine Eintraege</div>'; return; }
+
+    container.innerHTML = `
+      <table>
+        <thead>
+          <tr><th>Zeit</th><th>Aktion</th><th>Target</th><th>Details</th><th>IP</th></tr>
+        </thead>
+        <tbody>
+          ${rows.map(r => `
+            <tr>
+              <td>${new Date(r.created_at).toLocaleString('de-DE', { timeZone: 'Europe/Berlin' })}</td>
+              <td><span class="badge" style="background:#dbeafe;color:#1d4ed8;">${r.action}</span></td>
+              <td>${r.target || '-'}</td>
+              <td style="font-size:0.8rem;max-width:300px;overflow:hidden;text-overflow:ellipsis;">${r.details || '-'}</td>
+              <td style="font-size:0.75rem;color:var(--text-light);">${r.ip || '-'}</td>
+            </tr>
+          `).join('')}
+        </tbody>
+      </table>
+      <div style="margin-top:12px;text-align:center;">
+        <button class="btn btn-sm btn-primary" onclick="applyRetentionNow()">🧹 Loeschfristen jetzt anwenden</button>
+      </div>`;
+  } catch(e) {
+    container.innerHTML = '<div class="empty">Fehler: ' + e.message + '</div>';
+  }
+}
+
+async function applyRetentionNow() {
+  if (!confirm('Loeschfristen jetzt anwenden?
+
+- Abgeschlossene Anamnesen > 2 Jahre werden anonymisiert
+- Genutzte Links > 30 Tage werden geloescht
+- Abgelaufene Links > 7 Tage werden geloescht')) return;
+  try {
+    const res = await fetch(`${API}/admin/apply-retention`, { method: 'POST' });
+    const data = await res.json();
+    alert(`Erledigt:
+- Anonymisiert: ${data.anonymized}
+- Links abgelaufen: ${data.expired}
+- Links geloescht (genutzt): ${data.deletedUsed}
+- Links geloescht (abgelaufen): ${data.deletedExpired}`);
+    loadAuditLog();
+  } catch(e) {
+    alert('Fehler: ' + e.message);
+  }
+}

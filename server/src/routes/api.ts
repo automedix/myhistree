@@ -1,9 +1,10 @@
 import { FastifyInstance } from "fastify";
-import { db } from "../db/index";
+import { db, logAudit, getAuditLog, applyRetention } from "../db/index";
 import { randomUUID } from "crypto";
 import { z } from "zod";
 
 const anamneseBody = z.record(z.any());
+const auditQuery = z.object({ limit: z.string().optional(), offset: z.string().optional() });
 
 export default async function apiRoutes(fastify: FastifyInstance) {
   fastify.get("/health", async () => ({ status: "ok", version: "0.4.0" }));
@@ -37,7 +38,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
     const { practiceId } = request.params as { practiceId: string };
     const rows = db.prepare(`
       SELECT token, pvs_patient_id, patient_dob, status, created_at, expires_at,
-             CASE WHEN pin IS NOT NULL AND pin != "" THEN 1 ELSE 0 END as has_pin
+             CASE WHEN pin IS NOT NULL AND pin != '' THEN 1 ELSE 0 END as has_pin
       FROM patient_links WHERE practice_id = ? ORDER BY created_at DESC
     `).all(practiceId);
     return rows;
@@ -111,6 +112,8 @@ export default async function apiRoutes(fastify: FastifyInstance) {
   // ─── ENCOUNTERS ─────────────────────────────────────────────────
 
   fastify.get("/encounter/:encounterId", async (request) => {
+    logAudit("VIEW_ENCOUNTER", (request.params as any).encounterId, undefined, undefined, request.ip);
+
     const { encounterId } = request.params as { encounterId: string };
     const encounter = db.prepare("SELECT * FROM encounters WHERE id = ?").get(encounterId);
     if (!encounter) throw new Error("Encounter not found");
@@ -200,6 +203,21 @@ export default async function apiRoutes(fastify: FastifyInstance) {
 
   fastify.get("/practices", async () => {
     return db.prepare("SELECT id, name, location_id, fhir_endpoint FROM practices").all();
+  });
+
+
+  // ─── Audit & Retention ──────────────────────────────────────────
+  fastify.get("/audit/log", async (request) => {
+    const q = auditQuery.parse(request.query);
+    const limit = parseInt(q.limit || "100");
+    const offset = parseInt(q.offset || "0");
+    return getAuditLog(limit, offset);
+  });
+
+  fastify.post("/admin/apply-retention", async (request) => {
+    const result = applyRetention();
+    logAudit("APPLY_RETENTION", undefined, JSON.stringify(result), undefined, request.ip);
+    return { success: true, ...result };
   });
 
   fastify.get("/checkin/today/:practiceId", async (request) => {

@@ -85,6 +85,7 @@ pre.json { background:#1e293b; color:#e2e8f0; padding:16px; border-radius:8px; o
   <div class="tabs">
     <button class="tab active" data-tab="links" onclick="switchTab('links')">📎 Einladungslinks</button>
     <button class="tab" data-tab="encounters" onclick="switchTab('encounters')">📝 Anamnesen</button>
+    <button class="tab" data-tab="audit" onclick="switchTab('audit')">📋 Audit-Log</button>
   </div>
 
   <!-- TAB: Links -->
@@ -133,6 +134,20 @@ pre.json { background:#1e293b; color:#e2e8f0; padding:16px; border-radius:8px; o
 
   <!-- TAB: Encounters -->
   <div id="tab-encounters" class="tab-content">
+    <div class="card">
+      <h2>Ausgefuellte Anamnesen</h2>
+      <div id="encounters-table-container"><div class="empty">Bitte Tab wechseln zum Laden</div></div>
+    </div>
+  </div>
+
+  <!-- TAB: Audit -->
+  <div id="tab-audit" class="tab-content">
+    <div class="card">
+      <h2>Audit-Log</h2>
+      <p style="font-size:0.85rem;color:var(--text-light);margin-bottom:12px;">Protokoll aller administrativen Aktionen.</p>
+      <div id="audit-table-container"><div class="empty">Bitte Tab wechseln zum Laden</div></div>
+    </div>
+  </div>
     <div class="card">
       <h2>Ausgefüllte Anamnesen</h2>
       <div id="encounters-table-container"><div class="empty">Bitte Tab wechseln zum Laden</div></div>
