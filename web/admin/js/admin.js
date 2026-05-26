@@ -168,7 +168,7 @@ function printQRPage(url) {
 // ─── QR Code in Link-Result einfügen ────────────────────────────
 function showLinkResultWithQR(pvsId, dob, usePin, pin, expiresAt, fullUrl) {
   const pinHtml = usePin ? `<div style="font-size:0.85rem;color:#64748b;margin-bottom:4px;">🔒 PIN: ${pin}</div>` : '';
-  const dobFormatted = new Date(dob).toLocaleDateString('de-DE');
+  const dobFormatted = new Date(dob).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin' });
 
   document.getElementById('link-result').innerHTML = `
     <div style="background:#dcfce7;border:1px solid #22c55e;border-radius:8px;padding:16px;" id="link-result-box">
@@ -176,7 +176,7 @@ function showLinkResultWithQR(pvsId, dob, usePin, pin, expiresAt, fullUrl) {
       <div style="font-size:0.85rem;color:#64748b;margin-bottom:4px;">PVS Patienten-ID: ${pvsId}</div>
       <div style="font-size:0.85rem;color:#64748b;margin-bottom:4px;">Geburtsdatum: ${dobFormatted}</div>
       ${pinHtml}
-      <div style="font-size:0.85rem;color:#64748b;margin-bottom:8px;">Gültig bis: ${new Date(expiresAt).toLocaleString('de-DE')}</div>
+      <div style="font-size:0.85rem;color:#64748b;margin-bottom:8px;">Gültig bis: ${new Date(expiresAt).toLocaleString('de-DE', { timeZone: 'Europe/Berlin' })}</div>
       <div class="url-box" id="link-url">${fullUrl}</div>
       <div style="display:flex;gap:8px;margin-top:8px;">
         <button class="btn btn-sm" onclick="copyLink()">📋 Kopieren</button>
@@ -232,8 +232,8 @@ async function loadLinks() {
               <td>${verifyIcon}</td>
               <td>${linkedNpub}</td>
               <td><span class="badge ${statusClass}">${r.status}</span></td>
-              <td>${new Date(r.created_at).toLocaleDateString('de-DE')}</td>
-              <td>${new Date(r.expires_at).toLocaleDateString('de-DE')}</td>
+              <td>${new Date(r.created_at).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin' })}</td>
+              <td>${new Date(r.expires_at).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin' })}</td>
               <td>
                 <button class="btn btn-sm" onclick="showLinkDetail('${r.token}', '${linkUrl}', '${r.pvs_patient_id || ''}', '${r.linked_npub || ''}')">Detail</button>
                 <button class="btn btn-sm btn-primary" onclick="showQRModal('${linkUrl}', 'QR-Code – ${r.pvs_patient_id || 'Unbekannt'}')">📷 QR</button>
@@ -285,7 +285,7 @@ async function loadEncounters() {
             return `<tr>
               <td><strong>${r.pvs_patient_id || '—'}</strong></td>
               <td><span class="badge ${statusClass}">${r.status}</span></td>
-              <td>${new Date(r.created_at).toLocaleDateString('de-DE')} ${new Date(r.created_at).toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'})}</td>
+              <td>${new Date(r.created_at).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin' })} ${new Date(r.created_at).toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit', timeZone: 'Europe/Berlin'})}</td>
               <td>
                 <button class="btn btn-sm" onclick="viewEncounter('${r.id}', '${r.pvs_patient_id || ''}')">Ansehen</button>
                 <button class="btn btn-sm btn-success" onclick="printEncounter('${r.id}', '${r.pvs_patient_id || ''}')">Drucken / PDF</button>
@@ -318,7 +318,7 @@ async function viewEncounter(encounterId, pvsId) {
     };
 
     let html = `<div class="print-view">`;
-    html += `<div style="text-align:center;margin-bottom:20px;"><h2 style="color:var(--primary);margin:0;">myhistoree Anamnese</h2><div style="color:var(--text-light);font-size:0.9rem;">PVS Patienten-ID: <strong>${pvsId || '—'}</strong> | Datum: ${new Date(data.created_at).toLocaleString('de-DE')}</div></div>`;
+    html += `<div style="text-align:center;margin-bottom:20px;"><h2 style="color:var(--primary);margin:0;">myhistoree Anamnese</h2><div style="color:var(--text-light);font-size:0.9rem;">PVS Patienten-ID: <strong>${pvsId || '—'}</strong> | Datum: ${new Date(data.created_at).toLocaleString('de-DE', { timeZone: 'Europe/Berlin' })}</div></div>`;
 
     for (const r of data.responses || []) {
       const obj = JSON.parse(r.data);
@@ -369,7 +369,7 @@ async function copyEncounterText(encounterId) {
 
     let text = `myhistoree Anamnese\n`;
     text += `PVS Patienten-ID: ${data.pvs_patient_id || '—'}\n`;
-    text += `Datum: ${new Date(data.created_at).toLocaleString('de-DE')}\n`;
+    text += `Datum: ${new Date(data.created_at).toLocaleString('de-DE', { timeZone: 'Europe/Berlin' })}\n`;
     text += `Status: ${data.status}\n`;
     text += `────────────────────────\n\n`;
 
@@ -452,7 +452,7 @@ async function loadNostrEvents() {
             const contentShort = content.length > 80 ? content.slice(0, 80) + '…' : content;
             return `<tr>
               <td>${r.kind}</td>
-              <td>${new Date(r.created_at * 1000).toLocaleString('de-DE')}</td>
+              <td>${new Date(r.created_at * 1000).toLocaleString('de-DE', { timeZone: 'Europe/Berlin' })}</td>
               <td style="font-size:0.8rem;max-width:300px;overflow:hidden;text-overflow:ellipsis;">${contentShort}</td>
               <td><button class="btn btn-sm" onclick='showJson(${JSON.stringify(r)})'>JSON</button></td>
             </tr>`;
@@ -520,7 +520,7 @@ async function loadCheckins() {
             const appt = data.hasAppointment ? (data.appointmentTime ? `✅ ${data.appointmentTime}` : '✅ Ja') : '❌ Nein';
             const pvsId = r.pvs_patient_id ? `<strong>${r.pvs_patient_id}</strong>` : '—';
             return `<tr>
-              <td>${new Date(r.created_at).toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'})}</td>
+              <td>${new Date(r.created_at).toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit', timeZone: 'Europe/Berlin'})}</td>
               <td>${pvsId}</td>
               <td><code style="font-size:0.75rem;background:#f1f5f9;padding:2px 6px;border-radius:4px;">${r.npub.slice(0, 20)}…</code></td>
               <td>${complaints}${freitext}</td>

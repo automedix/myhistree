@@ -342,7 +342,8 @@ function continueInAppBrowser() {
 async function initPage() {
   const params = getUrlParams();
   linkToken = params.token;
-  isQrScan = params.source === 'qr' || window.location.pathname === '/anamnese';
+  isQrScan = params.source === 'qr';
+  const isPwaStart = params.source === 'pwa' || window.navigator.standalone === true;
 
   loadKeys();
 
@@ -376,6 +377,13 @@ async function initPage() {
   if (isQrScan && !linkToken) {
     // QR code scan without token - show landing page
     showLandingPage();
+  } else if (isPwaStart) {
+    // PWA launched from home screen - go directly to checkin
+    if (keys) {
+      startQuickFlow();
+    } else {
+      wizard.render();
+    }
   } else {
     wizard.render();
   }
