@@ -194,7 +194,7 @@ async function loadEncounters() {
   container.innerHTML = '<div class="spinner"></div>';
 
   try {
-    const res = await fetch(`${API}/encounters/list/${CURRENT_PRACTICE}`);
+    const res = await fetch(`${API}/admin/encounters/list/${CURRENT_PRACTICE}`);
     const rows = await res.json();
 
     if (!rows.length) { container.innerHTML = '<div class="empty">Noch keine Anamnesen ausgefuellt</div>'; return; }
