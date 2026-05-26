@@ -1,0 +1,21 @@
+# Dependencies
+node_modules/
+
+# Datenbank & Logs
+data/
+*.log
+
+# Build artifacts
+dist/
+build/
+
+# Umgebung
+.env
+.env.local
+
+# Docker volumes
+strfry/data/
+
+# OS
+.DS_Store
+Thumbs.db

@@ -1,0 +1,35 @@
+services:
+  myhistoree:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: myhistoree-myhistoree:latest
+    container_name: myhistoree
+    restart: unless-stopped
+    ports:
+      - "3456:3456"
+    volumes:
+      - /opt/myhistoree/data:/app/data
+    environment:
+      - NODE_ENV=production
+      - PORT=3456
+      - DB_PATH=/app/data/myhistoree.db
+    networks:
+      - myhistoree
+
+  strfry:
+    image: ghcr.io/hoytech/strfry:latest
+    container_name: strfry-relay
+    restart: unless-stopped
+    ports:
+      - "7777:7777"
+    volumes:
+      - /opt/myhistoree/strfry/data:/app/strfry-db
+      - /opt/myhistoree/strfry/strfry.conf:/etc/strfry.conf:ro
+    networks:
+      - myhistoree
+    command: ["relay"]
+
+networks:
+  myhistoree:
+    driver: bridge
