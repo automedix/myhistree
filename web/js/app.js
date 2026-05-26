@@ -69,7 +69,7 @@ const wizard = {
     if (encounterId) {
       try {
         await fetch(`${API}/api/anamnese/${encounterId}/${category}`, {
-          method: "POST",
+          method: "PUT",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(data)
         });
@@ -318,7 +318,7 @@ async function submitFinal() {
 
   try {
     // Mark encounter as completed
-    await fetch(`${API}/api/encounter/${encounterId}/complete`, { method: "POST" });
+    await fetch(`${API}/api/anamnese/${encounterId}/complete`, { method: "POST" });
     document.getElementById("done-pvs-id").textContent = linkData?.pvsPatientId || "—";
     wizard.goTo("done");
   } catch(e) {
