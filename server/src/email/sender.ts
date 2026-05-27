@@ -6,10 +6,10 @@ const resolveMx = promisify(dns.resolveMx);
 
 const SMTP_HOST = process.env.SMTP_HOST || "smtp.ionos.de";
 const SMTP_PORT = parseInt(process.env.SMTP_PORT || "587");
-const SMTP_USER = process.env.SMTP_USER || "ivo.schmid.ai@superpeople.me";
-const SMTP_PASS = process.env.SMTP_PASS || "26s0CvZfe#2Ppzqn";
+const SMTP_USER = process.env.SMTP_USER || "verify@automedix.de";
+const SMTP_PASS = process.env.SMTP_PASS || "euWUdhsNY!H#1GBvVekS";
 const FROM_NAME = process.env.EMAIL_FROM_NAME || "Praxis Hausärzte im Grillepark";
-const REPLY_TO = process.env.EMAIL_REPLY_TO || "ivo.schmid@pm.me";
+const REPLY_TO = process.env.EMAIL_REPLY_TO || "verify@automedix.de";
 
 const transporter = nodemailer.createTransport({
   host: SMTP_HOST,
@@ -71,69 +71,28 @@ export async function sendAnamneseLink(
     ? `\n🔐 Sicherheit: Bitte geben Sie zusätzlich die folgende PIN ein: ${pin}\n`
     : "";
 
-  const textBody = `Guten Tag,
+  const textBody = `Guten Tag,\n\nSie haben bei uns einen Termin vereinbart. Um Ihren Arztbesuch effizienter zu gestalten, bitten wir Sie, vorab unsere digitale Anamnese auszufüllen.\n\nIhre Praxis-Patienten-ID: ${pvsPatientId}\nGeburtsdatum: ${dobFormatted}\n\n🔗 Link zur digitalen Anamnese:\n${linkUrl}\n${pinBlock}\nDer Link ist für Sie persönlich bestimmt und kann nur mit Ihrem Geburtsdatum${pin ? " und der PIN" : ""} geöffnet werden.\n\nDie Anamnese können Sie bequem auf Ihrem Smartphone, Tablet oder Computer ausfüllen. Ihre Daten werden verschlüsselt übertragen und ausschließlich für Ihre Behandlung verwendet.\n\nBei Fragen erreichen Sie uns telefonisch oder per E-Mail.\n\nMit freundlichen Grüßen\nIhr Praxis-Team\nHausärzte im Grillepark\n\n--\nDiese Nachricht wurde automatisch erstellt.\nAntworten bitte an: ${REPLY_TO}`;
 
-Sie haben bei uns einen Termin vereinbart. Um Ihren Arztbesuch effizienter zu gestalten, bitten wir Sie, vorab unsere digitale Anamnese auszufüllen.
-
-Ihre Praxis-Patienten-ID: ${pvsPatientId}
-Geburtsdatum: ${dobFormatted}
-
-🔗 Link zur digitalen Anamnese:
-${linkUrl}
-${pinBlock}
-Der Link ist für Sie persönlich bestimmt und kann nur mit Ihrem Geburtsdatum${pin ? " und der PIN" : ""} geöffnet werden.
-
-Die Anamnese können Sie bequem auf Ihrem Smartphone, Tablet oder Computer ausfüllen. Ihre Daten werden verschlüsselt übertragen und ausschließlich für Ihre Behandlung verwendet.
-
-Bei Fragen erreichen Sie uns telefonisch oder per E-Mail.
-
-Mit freundlichen Grüßen
-Ihr Praxis-Team
-Hausärzte im Grillepark
-
---
-Diese Nachricht wurde automatisch erstellt.
-Antworten bitte an: ${REPLY_TO}`;
-
-  const htmlBody = `<!DOCTYPE html>
-<html lang="de">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<style>
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; background: #f8fafc; margin: 0; padding: 20px; color: #1e293b; }
-.container { max-width: 480px; margin: 0 auto; background: #fff; border-radius: 16px; padding: 32px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
-.logo { font-size: 1.3rem; font-weight: 700; color: #2563eb; margin-bottom: 24px; }
-h1 { font-size: 1.1rem; color: #1e293b; margin-bottom: 12px; }
-p { font-size: 0.95rem; line-height: 1.6; color: #475569; margin: 8px 0; }
-.link-box { background: #eff6ff; border-left: 4px solid #2563eb; padding: 16px; border-radius: 0 8px 8px 0; margin: 16px 0; word-break: break-all; }
-.link-box a { color: #2563eb; font-weight: 600; text-decoration: none; }
-.meta { background: #f1f5f9; padding: 12px 16px; border-radius: 8px; margin: 12px 0; font-size: 0.9rem; }
-.meta strong { color: #1e293b; }
-.footer { margin-top: 24px; padding-top: 16px; border-top: 1px solid #e2e8f0; font-size: 0.8rem; color: #94a3b8; }
-</style>
-</head>
-<body>
-<div class="container">
-  <div class="logo">🏥 Hausärzte im Grillepark</div>
-  <h1>Digitale Anamnese – Vor Ihrem Termin</h1>
-  <p>Guten Tag,</p>
-  <p>Sie haben bei uns einen Termin vereinbart. Um Ihren Arztbesuch effizienter zu gestalten, bitten wir Sie, vorab unsere digitale Anamnese auszufüllen.</p>
-  <div class="meta">
-    <div><strong>Praxis-Patienten-ID:</strong> ${pvsPatientId}</div>
-    <div><strong>Geburtsdatum:</strong> ${dobFormatted}</div>
-  </div>
-  <div class="link-box">
-    <a href="${linkUrl}">${linkUrl}</a>
-  </div>
-  ${pin ? `<p>🔐 Bitte geben Sie zusätzlich folgende PIN ein: <strong>${pin}</strong></p>` : ""}
-  <p>Der Link ist für Sie persönlich bestimmt und kann nur mit Ihrem Geburtsdatum${pin ? " und der PIN" : ""} geöffnet werden.</p>
-  <p>Die Anamnese können Sie bequem auf Ihrem Smartphone, Tablet oder Computer ausfüllen. Ihre Daten werden verschlüsselt übertragen und ausschließlich für Ihre Behandlung verwendet.</p>
-  <div class="footer">
-    <p>Mit freundlichen Grüßen<br>Ihr Praxis-Team<br><strong>Hausärzte im Grillepark</strong></p>
-    <p style="font-size:0.75rem;color:#94a3b8;">Diese Nachricht wurde automatisch erstellt.<br>Antworten bitte an: ${REPLY_TO}</p>
-  </div>
-</div>
-</body>
-</html>`;
+  const htmlBody = `<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;background:#f8fafc;margin:0;padding:20px;color:#1e293b}
+.container{max-width:480px;margin:0 auto;background:#fff;border-radius:16px;padding:32px;box-shadow:0 4px 20px rgba(0,0,0,0.08)}
+.logo{font-size:1.3rem;font-weight:700;color:#2563eb;margin-bottom:24px}
+h1{font-size:1.1rem;color:#1e293b;margin-bottom:12px}
+p{font-size:.95rem;line-height:1.6;color:#475569;margin:8px 0}
+.link-box{background:#eff6ff;border-left:4px solid #2563eb;padding:16px;border-radius:0 8px 8px 0;margin:16px 0;word-break:break-all}
+.link-box a{color:#2563eb;font-weight:600;text-decoration:none}
+.meta{background:#f1f5f9;padding:12px 16px;border-radius:8px;margin:12px 0;font-size:.9rem}
+.meta strong{color:#1e293b}
+.footer{margin-top:24px;padding-top:16px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#94a3b8}</style></head>
+<body><div class="container"><div class="logo">🏥 Hausärzte im Grillepark</div><h1>Digitale Anamnese – Vor Ihrem Termin</h1>
+<p>Guten Tag,</p><p>Sie haben bei uns einen Termin vereinbart. Um Ihren Arztbesuch effizienter zu gestalten, bitten wir Sie, vorab unsere digitale Anamnese auszufüllen.</p>
+<div class="meta"><div><strong>Praxis-Patienten-ID:</strong> ${pvsPatientId}</div><div><strong>Geburtsdatum:</strong> ${dobFormatted}</div></div>
+<div class="link-box"><a href="${linkUrl}">${linkUrl}</a></div>
+${pin ? `<p>🔐 Bitte geben Sie zusätzlich folgende PIN ein: <strong>${pin}</strong></p>` : ""}
+<p>Der Link ist für Sie persönlich bestimmt und kann nur mit Ihrem Geburtsdatum${pin ? " und der PIN" : ""} geöffnet werden.</p>
+<p>Die Anamnese können Sie bequem auf Ihrem Smartphone, Tablet oder Computer ausfüllen. Ihre Daten werden verschlüsselt übertragen und ausschließlich für Ihre Behandlung verwendet.</p>
+<div class="footer"><p>Mit freundlichen Grüßen<br>Ihr Praxis-Team<br><strong>Hausärzte im Grillepark</strong></p>
+<p style="font-size:.75rem;color:#94a3b8">Diese Nachricht wurde automatisch erstellt.<br>Antworten bitte an: ${REPLY_TO}</p></div></div></body></html>`;
 
   try {
     const info = await transporter.sendMail({
@@ -150,71 +109,40 @@ p { font-size: 0.95rem; line-height: 1.6; color: #475569; margin: 8px 0; }
   }
 }
 
-// ─── Send Verification Email ────────────────────────────────────
-export async function sendVerificationEmail(
+// ─── Send Verification Code Email ───────────────────────────────
+export async function sendVerificationCodeEmail(
   to: string,
-  verificationUrl: string
+  code: string
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
   const validate = await validateEmail(to);
   if (!validate.valid) {
     return { success: false, error: validate.error };
   }
 
-  const textBody = `Guten Tag,
+  const textBody = `Guten Tag,\n\nvielen Dank für die Angabe Ihrer E-Mail-Adresse im Rahmen Ihrer digitalen Anamnese.\n\nUm sicherzustellen, dass wir Sie korrekt erreichen können, bitten wir Sie, den folgenden Code einzugeben:\n\n🔢 Verifizierungscode: ${code}\n\nDieser Code ist 30 Minuten gültig.\n\nFalls Sie diese Anfrage nicht gestellt haben, können Sie diese E-Mail ignorieren.\n\nMit freundlichen Grüßen\nIhr Praxis-Team\nHausärzte im Grillepark\n\n--\nAntworten bitte an: ${REPLY_TO}`;
 
-vielen Dank für die Angabe Ihrer E-Mail-Adresse im Rahmen Ihrer digitalen Anamnese.
-
-Um sicherzustellen, dass wir Sie korrekt erreichen können, bitten wir Sie, Ihre E-Mail-Adresse zu bestätigen:
-
-🔗 Bestätigungslink:
-${verificationUrl}
-
-Dieser Link ist 24 Stunden gültig.
-
-Falls Sie diese Anfrage nicht gestellt haben, können Sie diese E-Mail ignorieren.
-
-Mit freundlichen Grüßen
-Ihr Praxis-Team
-Hausärzte im Grillepark
-
---
-Antworten bitte an: ${REPLY_TO}`;
-
-  const htmlBody = `<!DOCTYPE html>
-<html lang="de">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
-<style>
-body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; background: #f8fafc; margin: 0; padding: 20px; color: #1e293b; }
-.container { max-width: 480px; margin: 0 auto; background: #fff; border-radius: 16px; padding: 32px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); }
-.logo { font-size: 1.3rem; font-weight: 700; color: #2563eb; margin-bottom: 24px; }
-h1 { font-size: 1.1rem; color: #1e293b; margin-bottom: 12px; }
-p { font-size: 0.95rem; line-height: 1.6; color: #475569; margin: 8px 0; }
-.btn { display: inline-block; background: #2563eb; color: #fff; padding: 12px 24px; border-radius: 8px; text-decoration: none; font-weight: 600; margin: 16px 0; }
-.footer { margin-top: 24px; padding-top: 16px; border-top: 1px solid #e2e8f0; font-size: 0.8rem; color: #94a3b8; }
-</style>
-</head>
-<body>
-<div class="container">
-  <div class="logo">🏥 Hausärzte im Grillepark</div>
-  <h1>E-Mail-Adresse bestätigen</h1>
-  <p>Guten Tag,</p>
-  <p>vielen Dank für die Angabe Ihrer E-Mail-Adresse im Rahmen Ihrer digitalen Anamnese.</p>
-  <p>Um sicherzustellen, dass wir Sie korrekt erreichen können, bitten wir Sie, Ihre E-Mail-Adresse zu bestätigen:</p>
-  <a class="btn" href="${verificationUrl}">E-Mail-Adresse bestätigen</a>
-  <p style="font-size:0.85rem;color:#94a3b8;">Dieser Link ist 24 Stunden gültig. Falls Sie diese Anfrage nicht gestellt haben, können Sie diese E-Mail ignorieren.</p>
-  <div class="footer">
-    <p>Mit freundlichen Grüßen<br>Ihr Praxis-Team<br><strong>Hausärzte im Grillepark</strong></p>
-  </div>
-</div>
-</body>
-</html>`;
+  const htmlBody = `<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;background:#f8fafc;margin:0;padding:20px;color:#1e293b}
+.container{max-width:480px;margin:0 auto;background:#fff;border-radius:16px;padding:32px;box-shadow:0 4px 20px rgba(0,0,0,0.08)}
+.logo{font-size:1.3rem;font-weight:700;color:#2563eb;margin-bottom:24px}
+h1{font-size:1.1rem;color:#1e293b;margin-bottom:12px}
+p{font-size:.95rem;line-height:1.6;color:#475569;margin:8px 0}
+.code-box{background:#eff6ff;border:2px dashed #2563eb;padding:20px;border-radius:12px;margin:20px 0;text-align:center}
+.code-box .code{font-size:2rem;font-weight:700;color:#2563eb;letter-spacing:8px;font-family:monospace}
+.footer{margin-top:24px;padding-top:16px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#94a3b8}</style></head>
+<body><div class="container"><div class="logo">🏥 Hausärzte im Grillepark</div><h1>E-Mail-Adresse bestätigen</h1>
+<p>Guten Tag,</p><p>vielen Dank für die Angabe Ihrer E-Mail-Adresse im Rahmen Ihrer digitalen Anamnese.</p>
+<p>Um sicherzustellen, dass wir Sie korrekt erreichen können, bitten wir Sie, den folgenden Code einzugeben:</p>
+<div class="code-box"><div class="code">${code}</div></div>
+<p style="font-size:.85rem;color:#94a3b8">Dieser Code ist 30 Minuten gültig. Falls Sie diese Anfrage nicht gestellt haben, können Sie diese E-Mail ignorieren.</p>
+<div class="footer"><p>Mit freundlichen Grüßen<br>Ihr Praxis-Team<br><strong>Hausärzte im Grillepark</strong></p></div></div></body></html>`;
 
   try {
     const info = await transporter.sendMail({
       from: `${FROM_NAME} <${SMTP_USER}>`,
       to,
       replyTo: REPLY_TO,
-      subject: "Bitte bestätigen Sie Ihre E-Mail-Adresse",
+      subject: "Ihr Verifizierungscode – Hausärzte im Grillepark",
       text: textBody,
       html: htmlBody,
     });

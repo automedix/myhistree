@@ -121,7 +121,7 @@ function showLinkResult(pvsId, dob, usePin, pin, expiresAt, fullUrl) {
       <div style="font-size:0.85rem;color:#64748b;margin-bottom:4px;">PVS Patienten-ID: ${pvsId}</div>
       <div style="font-size:0.85rem;color:#64748b;margin-bottom:4px;">Geburtsdatum: ${dobFormatted}</div>
       ${pinHtml}
-      <div style="font-size:0.85rem;color:#64748b;margin-bottom:8px;">Gueltig bis: ${new Date(expiresAt).toLocaleString('de-DE', { timeZone: 'Europe/Berlin' })}</div>
+      <div style="font-size:0.85rem;color:#64748b;margin-bottom:8px;">Gueltig bis: ${formatDate(expiresAt)}</div>
       <div class="url-box" id="link-url">${fullUrl}</div>
       <div style="display:flex;gap:8px;margin-top:8px;">
         <button class="btn btn-sm" onclick="copyLink()">Kopieren</button>
@@ -159,8 +159,8 @@ async function loadLinks() {
               <td><strong>${r.pvs_patient_id || '-'}</strong></td>
               <td>${verifyIcon}</td>
               <td><span class="badge ${statusClass}">${r.status}</span></td>
-              <td>${new Date(r.created_at).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin' })}</td>
-              <td>${new Date(r.expires_at).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin' })}</td>
+              <td>${formatDate(r.created_at, 'date')}</td>
+              <td>${formatDate(r.expires_at, 'date')}</td>
               <td>
                 <button class="btn btn-sm" onclick="showLinkDetail('${r.token}', '${linkUrl}', '${r.pvs_patient_id || ''}')">Detail</button>
                 <button class="btn btn-sm btn-primary" onclick="showQRFullscreen('${linkUrl}')">QR</button>
@@ -225,7 +225,7 @@ async function loadEncounters() {
             return `<tr>
               <td><strong>${r.pvs_patient_id || '-'}</strong></td>
               <td><span class="badge ${statusClass}">${r.status}</span></td>
-              <td>${new Date(r.created_at).toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin' })} ${new Date(r.created_at).toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit', timeZone: 'Europe/Berlin'})}</td>
+              <td>${formatDate(r.created_at, 'date')} ${new Date(r.created_at).toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit', timeZone: 'Europe/Berlin'})}</td>
               <td>
                 <button class="btn btn-sm" onclick="viewEncounter('${r.id}', '${r.pvs_patient_id || ''}')">Ansehen</button>
                 <button class="btn btn-sm btn-success" onclick="printEncounter('${r.id}', '${r.pvs_patient_id || ''}')">Drucken</button>
@@ -258,7 +258,15 @@ async function viewEncounter(encounterId, pvsId) {
       duration: 'Dauer',
       conditions: 'Vorerkrankungen',
       operations: 'Operationen',
-      medications: 'Medikamente',
+      meds_bloodthin: 'Blutverdünnung',
+      meds_bp: 'Blutdrucksenker',
+      meds_asthma: 'Asthma/COPD',
+      meds_diabetes: 'Diabetes',
+      meds_neuro: 'Neurologisch',
+      meds_pain: 'Schmerzmittel',
+      meds_gynuro: 'Gyn/Uro',
+      meds_chol: 'Cholesterinsenker',
+      meds_other: 'Sonstige Medikamente',
       allergies: 'Allergien',
       family: 'Familienanamnese',
       lifestyle: 'Lebensgewohnheiten',
@@ -267,7 +275,7 @@ async function viewEncounter(encounterId, pvsId) {
     };
 
     let html = '<div class="print-view">';
-    html += `<div style="text-align:center;margin-bottom:20px;"><h2 style="color:var(--primary);margin:0;">myhistoree Anamnese</h2><div style="color:var(--text-light);font-size:0.9rem;">PVS Patienten-ID: <strong>${pvsId || '-'}</strong> | Datum: ${new Date(data.created_at).toLocaleString('de-DE', { timeZone: 'Europe/Berlin' })}</div></div>`;
+    html += `<div style="text-align:center;margin-bottom:20px;"><h2 style="color:var(--primary);margin:0;">myhistoree Anamnese</h2><div style="color:var(--text-light);font-size:0.9rem;">PVS Patienten-ID: <strong>${pvsId || '-'}</strong> | Datum: ${formatDate(data.encounter.created_at)}</div></div>`;
 
     for (const r of data.responses || []) {
       const obj = typeof r.data === "string" ? JSON.parse(r.data) : r.data;
@@ -303,9 +311,9 @@ async function copyEncounterText(encounterId) {
     const data = await res.json();
 
     let text = `myhistoree Anamnese\n`;
-    text += `PVS Patienten-ID: ${data.pvs_patient_id || '-'}\n`;
-    text += `Datum: ${new Date(data.created_at).toLocaleString('de-DE', { timeZone: 'Europe/Berlin' })}\n`;
-    text += `Status: ${data.status}\n`;
+    text += `PVS Patienten-ID: ${data.encounter.pvs_patient_id || '-'}\n`;
+    text += `Datum: ${formatDate(data.encounter.created_at)}\n`;
+    text += `Status: ${data.encounter.status}\n`;
     text += `--------------------------\n\n`;
 
     for (const r of data.responses || []) {
@@ -324,6 +332,18 @@ async function copyEncounterText(encounterId) {
   }
 }
 
+function formatDate(raw, mode) {
+  if (!raw) return '-';
+  const d = new Date(raw);
+  if (isNaN(d.getTime())) return '-';
+  if (mode === 'date') return d.toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin' });
+  if (mode === 'datetime') {
+    return d.toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin' }) + ' ' +
+           d.toLocaleTimeString('de-DE', { hour:'2-digit', minute:'2-digit', timeZone: 'Europe/Berlin' });
+  }
+  return d.toLocaleString('de-DE', { timeZone: 'Europe/Berlin' });
+}
+
 const fieldLabels = {
   languages: 'Sprachen',
   interpreter: 'Dolmetscher benoetigt',
@@ -338,6 +358,16 @@ const fieldLabels = {
   duration: 'Seit wann',
   conditions: 'Bekannte Erkrankungen',
   operations: 'Operationen',
+  meds_bloodthin: 'Blutverdünnung',
+  meds_bp: 'Blutdrucksenker',
+  meds_asthma: 'Asthma/COPD',
+  meds_diabetes: 'Diabetes',
+  meds_neuro: 'Neurologische Medikamente',
+  meds_pain: 'Schmerzmittel',
+  meds_gynuro: 'Gyn/Uro',
+  meds_chol: 'Cholesterinsenker',
+  meds_other: 'Sonstige Medikamente',
+  // old
   medications: 'Aktuelle Medikamente',
   allergy_medication: 'Medikamentenallergien',
   allergy_food: 'Nahrungsmittelallergien',
@@ -351,13 +381,35 @@ const fieldLabels = {
   drogen: 'Drogenkonsum',
   schwanger: 'Schwangerschaft/Stillzeit',
   emergency_name: 'Notfallkontakt Name',
-  emergency_phone: 'Notfallkontakt Telefon'
+  emergency_phone: 'Notfallkontakt Telefon',
+  heimatland: 'Heimatland',
+  staatsangehoerigkeit: 'Staatsangehörigkeit',
+  children: 'Kinder (Geburtsjahre)',
+  taetigkeit: 'Derzeit tätig als',
+  berufsausbildung: 'Berufsausbildung',
+  situation: 'Aktuelle beruf. Situation',
+  height_cm: 'Körpergröße (cm)',
+  weight_kg: 'Körpergewicht (kg)',
+  mobile: 'Mobilfunknummer',
+  email: 'E-Mail',
+  email_verified: 'E-Mail verifiziert'
 };
 
 function formatValue(v) {
   if (v === true) return 'Ja';
   if (v === false) return 'Nein';
-  if (Array.isArray(v)) return v.join(', ');
+  if (v === null || v === undefined) return '-';
+  if (Array.isArray(v)) {
+    return v.map(item => {
+      if (item && typeof item === 'object') {
+        return Object.entries(item).map(([ik, iv]) => ik + ': ' + iv).join(', ');
+      }
+      return String(item);
+    }).join('; ');
+  }
+  if (typeof v === 'object') {
+    return Object.entries(v).map(([ik, iv]) => ik + ': ' + formatValue(iv)).join(', ');
+  }
   return v || '-';
 }
 

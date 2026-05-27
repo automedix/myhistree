@@ -14,6 +14,12 @@ services:
       - NODE_ENV=production
       - PORT=3456
       - DB_PATH=/app/data/myhistoree.db
+      - SMTP_HOST=smtp.ionos.de
+      - SMTP_PORT=465
+      - SMTP_USER=verify@automedix.de
+      - SMTP_PASS=euWUdhsNY!H#1GBvVekS
+      - EMAIL_FROM_NAME=Praxis Hausärzte im Grillepark
+      - EMAIL_REPLY_TO=verify@automedix.de
     networks:
       - myhistoree
 

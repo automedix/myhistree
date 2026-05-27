@@ -2,7 +2,7 @@ import { FastifyInstance } from "fastify";
 import { db, logAudit, getAuditLog, applyRetention } from "../db/index";
 import { randomUUID } from "crypto";
 import { z } from "zod";
-import { sendAnamneseLink, sendVerificationEmail, validateEmail } from "../email/sender";
+import { sendAnamneseLink, sendVerificationCodeEmail, validateEmail } from "../email/sender";
 
 const anamneseBody = z.record(z.any());
 const auditQuery = z.object({ limit: z.string().optional(), offset: z.string().optional() });
@@ -10,7 +10,7 @@ const auditQuery = z.object({ limit: z.string().optional(), offset: z.string().o
 export default async function apiRoutes(fastify: FastifyInstance) {
   // ────────────────────────────────────────────────────────────────
   // Health
-  fastify.get("/health", async () => ({ status: "ok", version: "0.4.2" }));
+  fastify.get("/health", async () => ({ status: "ok", version: "0.5.0" }));
 
   // ─── Links ──────────────────────────────────────────────────────
   fastify.post("/link/create", async (request, reply) => {
@@ -92,13 +92,54 @@ export default async function apiRoutes(fastify: FastifyInstance) {
     return result;
   });
 
-  fastify.post("/email/send-verification", async (request) => {
-    const { to, verificationUrl } = request.body as any;
-    const result = await sendVerificationEmail(to, verificationUrl);
-    if (result.success) {
-      logAudit("SEND_VERIFICATION", to, undefined, undefined, request.ip);
+  fastify.post("/email/send-code", async (request, reply) => {
+    const body = request.body as any;
+    const { encounterId, email } = body;
+    if (!encounterId || !email) return reply.status(400).send({ error: "encounterId and email required" });
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return reply.status(400).send({ error: "Invalid email format" });
+
+    const encounter = db.prepare("SELECT id FROM encounters WHERE id = ?").get(encounterId);
+    if (!encounter) return reply.status(404).send({ error: "Encounter not found" });
+
+    // Delete old unverified codes for this encounter+email
+    db.prepare("DELETE FROM email_verifications WHERE encounter_id = ? AND email = ? AND verified = 0").run(encounterId, email);
+
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const expiresAt = new Date();
+    expiresAt.setMinutes(expiresAt.getMinutes() + 30);
+
+    db.prepare(`INSERT INTO email_verifications (id, encounter_id, email, code, verified, attempts, expires_at)
+                VALUES (?, ?, ?, ?, 0, 0, ?)`)
+      .run(randomUUID(), encounterId, email, code, expiresAt.toISOString());
+
+    const result = await sendVerificationCodeEmail(email, code);
+    if (!result.success) {
+      return reply.status(500).send({ error: result.error || "Failed to send email" });
     }
-    return result;
+
+    logAudit("SEND_CODE", encounterId, `to: ${email}`, undefined, request.ip);
+    return { success: true, message: "Code sent" };
+  });
+
+  fastify.post("/email/verify-code", async (request, reply) => {
+    const body = request.body as any;
+    const { encounterId, email, code } = body;
+    if (!encounterId || !email || !code) return reply.status(400).send({ error: "encounterId, email and code required" });
+
+    const row = db.prepare("SELECT * FROM email_verifications WHERE encounter_id = ? AND email = ? ORDER BY created_at DESC LIMIT 1").get(encounterId, email) as any;
+    if (!row) return reply.status(404).send({ error: "No verification found" });
+    if (row.verified) return reply.status(400).send({ error: "Already verified" });
+    if (new Date(row.expires_at) < new Date()) return reply.status(410).send({ error: "Code expired" });
+
+    const attempts = (row.attempts || 0) + 1;
+    db.prepare("UPDATE email_verifications SET attempts = ? WHERE id = ?").run(attempts, row.id);
+
+    if (attempts > 5) return reply.status(403).send({ error: "Too many attempts" });
+    if (row.code !== code) return reply.status(400).send({ error: "Invalid code" });
+
+    db.prepare("UPDATE email_verifications SET verified = 1 WHERE id = ?").run(row.id);
+    logAudit("VERIFY_EMAIL", encounterId, email, undefined, request.ip);
+    return { success: true, message: "Email verified" };
   });
 
   fastify.post("/email/validate", async (request) => {
@@ -198,6 +239,6 @@ export default async function apiRoutes(fastify: FastifyInstance) {
   fastify.post("/admin/apply-retention", async (request) => {
     const result = applyRetention();
     logAudit("APPLY_RETENTION", undefined, JSON.stringify(result), undefined, request.ip);
-    return { success: true, ...result };
+    return result;
   });
 }

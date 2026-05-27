@@ -81,11 +81,22 @@ export function initSchema() {
       created_at TEXT DEFAULT (datetime('now')),
       linked_at TEXT
     );
+    CREATE TABLE IF NOT EXISTS email_verifications (
+      id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+      encounter_id TEXT REFERENCES encounters(id),
+      email TEXT NOT NULL,
+      code TEXT NOT NULL,
+      verified INTEGER DEFAULT 0,
+      attempts INTEGER DEFAULT 0,
+      expires_at TEXT NOT NULL,
+      created_at TEXT DEFAULT (datetime('now'))
+    );
     CREATE INDEX IF NOT EXISTS idx_links_token ON patient_links(token);
     CREATE INDEX IF NOT EXISTS idx_links_practice ON patient_links(practice_id);
     CREATE INDEX IF NOT EXISTS idx_encounters_practice ON encounters(practice_id);
     CREATE INDEX IF NOT EXISTS idx_responses_encounter ON questionnaire_responses(encounter_id);
     CREATE INDEX IF NOT EXISTS idx_patients_pvs ON patients(pvs_patient_id);
+    CREATE INDEX IF NOT EXISTS idx_email_verif_encounter ON email_verifications(encounter_id);
   `);
 
   for (const migration of MIGRATIONS) {
@@ -103,7 +114,7 @@ export function ensurePracticeDefaults() {
   const stmt = db.prepare("SELECT id FROM practices WHERE id = 'demo-practice'");
   if (!stmt.get()) {
     db.prepare(`INSERT INTO practices (id, name, address, city, postal_code, phone, email)
-                VALUES ('demo-practice', 'Hausärzte im Grillepark',
+                VALUES ('demo-practice', 'Haus\u00e4rzte im Grillepark',
                         'Musterstraße 1', 'Musterstadt', '12345',
                         '01234 567890', 'praxis@example.com')`).run();
   }

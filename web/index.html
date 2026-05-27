@@ -7,7 +7,42 @@
   <title>myhistoree – Online Anamnese</title>
   <link rel="stylesheet" href="/css/app.css">
   <style>
-    .error-banner { background:#fee2e2;border-left:4px solid #ef4444;padding:12px 16px;border-radius:0 8px 8px 0;color:#991b1b;font-size:0.95rem;margin-bottom:16px;display:none; }
+    .error-banner{background:#fee2e2;border-left:4px solid #ef4444;padding:12px 16px;border-radius:0 8px 8px 0;color:#991b1b;font-size:0.95rem;margin-bottom:16px;display:none}
+    .chip-group { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; }
+    .chip { padding: 8px 16px; border: 2px solid #e5e7eb; border-radius: 20px; background: #fff; cursor: pointer; font-size: 0.9rem; transition: all 0.2s; }
+    .chip:hover { border-color: #2563eb; }
+    .chip.selected { background: #eff6ff; border-color: #2563eb; color: #1e40af; }
+    .radio-group { display: grid; gap: 10px; }
+    .radio-card { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 10px; cursor: pointer; transition: all 0.2s; font-size: 1rem; }
+    .radio-card:hover { border-color: #2563eb; background: #f8fafc; }
+    .radio-card input[type=radio] { width: 20px; height: 20px; accent-color: #2563eb; flex-shrink: 0; margin: 0; }
+    .nav-btns { display: flex; gap: 12px; justify-content: space-between; margin-top: 24px; flex-wrap: wrap; }
+    .btn-primary { background: #2563eb; color: #fff; border: none; padding: 14px 24px; border-radius: 10px; font-size: 1rem; font-weight: 600; cursor: pointer; flex: 1; }
+    .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-secondary { background: #f1f5f9; color: #334155; border: none; padding: 14px 24px; border-radius: 10px; font-size: 1rem; cursor: pointer; }
+    .btn-ghost { background: #fff; color: #94a3b8; border: 2px solid #e2e8f0; padding: 14px 24px; border-radius: 10px; font-size: 0.9rem; cursor: pointer; margin-top: 12px; width: 100%; }
+    .form-group { margin-bottom: 20px; }
+    .form-group label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 0.95rem; }
+    .form-group input:not([type=radio]):not([type=checkbox]), .form-group select, .form-group textarea { width: 100%; padding: 12px 14px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 1rem; font-family: inherit; background: #fff; -webkit-appearance: none; }
+    .form-group input:not([type=radio]):not([type=checkbox]):focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: #2563eb; }
+    .card { background: #fff; border-radius: 16px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 16px; }
+    .card h2 { font-size: 1.35rem; margin: 0 0 16px 0; }
+    .help { color: #64748b; font-size: 0.9rem; margin-bottom: 16px; }
+    .hidden { display: none !important; }
+    .screen { display: none; }
+    .screen.active { display: block; }
+    .app-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; background: #fff; border-bottom: 1px solid #f1f5f9; position: sticky; top: 0; z-index: 10; }
+    .logo { font-weight: 800; font-size: 1.3rem; color: #2563eb; }
+    .progress-bar { width: 100%; height: 4px; background: #e2e8f0; position: fixed; top: 0; left: 0; z-index: 20; }
+    .progress-bar > div { height: 100%; background: #2563eb; width: 0%; transition: width 0.3s; }
+    .hero { text-align: center; padding: 20px 0; }
+    .hero h1 { font-size: 1.5rem; margin-bottom: 6px; }
+    .hero .subtitle { color: #64748b; font-size: 1rem; }
+    .review-item { padding: 10px 0; border-bottom: 1px solid #f1f5f9; font-size: 0.95rem; }
+    .success-icon { width: 60px; height: 60px; background: #22c55e; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2rem; margin: 0 auto 20px; }
+    .center { text-align: center; }
+    body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; margin: 0; background: #f8fafc; color: #1e293b; line-height: 1.5; }
+    #app { max-width: 720px; margin: 0 auto; padding: 0 16px; }
   </style>
 </head>
 <body>
@@ -19,500 +54,909 @@
   </header>
 
   <main id="main">
-    <!-- Screen: Verify Link -->
-    <section id="screen-verify" class="screen active">
-      <div class="hero">
-        <h1>🏥 Digitale Anamnese</h1>
-        <p class="subtitle">Willkommen zur Online-Anamnese</p>
-      </div>
-      <div class="card">
-        <div id="verify-info"></div>
-        <div id="verify-error" class="error-banner"></div>
-        <div class="form-group" id="verify-dob-group">
-          <label>Ihr Geburtsdatum <span style="color:var(--error);">*</span></label>
-          <input type="date" id="verify-dob" required style="font-size:1rem;">
-        </div>
-        <div class="form-group" id="verify-pin-group" style="display:none;">
-          <label>PIN <span style="color:var(--error);">*</span></label>
-          <input type="text" id="verify-pin" placeholder="Von der Praxis mitgeteilt" inputmode="numeric" pattern="[0-9]*" maxlength="6" style="font-size:1rem;">
-        </div>
-        <p style="font-size:0.85rem;color:var(--text-light);margin-top:8px;">
-          Ihre Angaben werden verschlüsselt übertragen und nur für Ihre Behandlung gespeichert.
-        </p>
-        <button class="btn-primary" id="btn-verify" onclick="verifyAndStart()" style="margin-top:16px;width:100%">Anamnese starten</button>
-      </div>
-    </section>
 
-    <!-- Screen: Language -->
-    <section id="screen-language" class="screen">
-      <div class="card">
-        <h2>Sprache &amp; Kommunikation</h2>
-        <div class="form-group">
-          <label>Welche Sprachen sprechen Sie?</label>
-          <div class="chip-group" id="lang-chips">
-            <button class="chip" data-value="deutsch">Deutsch</button>
-            <button class="chip" data-value="englisch">Englisch</button>
-            <button class="chip" data-value="t&uuml;rkisch">T&uuml;rkisch</button>
-            <button class="chip" data-value="arabisch">Arabisch</button>
-            <button class="chip" data-value="russisch">Russisch</button>
-            <button class="chip" data-value="polnisch">Polnisch</button>
-            <button class="chip" data-value="spanisch">Spanisch</button>
-            <button class="chip" data-value="franz&ouml;sisch">Franz&ouml;sisch</button>
-            <button class="chip" data-value="bosnisch">Bosnisch / Kroatisch / Serbisch</button>
-            <button class="chip" data-value="rum&auml;nisch">Rum&auml;nisch</button>
-            <button class="chip" data-value="ukrainisch">Ukrainisch</button>
-            <button class="chip" data-value="persisch">Persisch (Farsi)</button>
-            <button class="chip" data-value="kurdisch">Kurdisch</button>
-            <button class="chip" data-value="albanisch">Albanisch</button>
-            <button class="chip" data-value="andere">Andere</button>
-          </div>
-        </div>
-        <div class="form-group">
-          <label>Brauchen Sie einen Dolmetscher?</label>
-          <div class="radio-group">
-            <label class="radio-card"><input type="radio" name="interpreter" value="nein" checked> Nein</label>
-            <label class="radio-card"><input type="radio" name="interpreter" value="ja"> Ja</label>
-          </div>
-        </div>
-        <div class="nav-btns">
-          <button class="btn-secondary" onclick="wizard.prev()">Zur&uuml;ck</button>
-          <button class="btn-primary" onclick="wizard.saveAndNext('language', collectLanguage)">Weiter</button>
-        </div>
-      </div>
-    </section>
+<!-- ===== Screen: Verify ============================== -->
+<section id="screen-verify" class="screen active">
+  <div class="hero">
+    <h1>🏥 Digitale Anamnese</h1>
+    <p class="subtitle">Willkommen zur Online-Anamnese</p>
+  </div>
+  <div class="card">
+    <div id="verify-info"></div>
+    <div id="verify-error" class="error-banner"></div>
+    <div class="form-group" id="verify-dob-group">
+      <label>Ihr Geburtsdatum <span style="color:#ef4444">*</span></label>
+      <input type="date" id="verify-dob" required style="font-size:1rem">
+    </div>
+    <div class="form-group" id="verify-pin-group" style="display:none">
+      <label>PIN <span style="color:#ef4444">*</span></label>
+      <input type="text" id="verify-pin" placeholder="Von der Praxis mitgeteilt" inputmode="numeric" pattern="[0-9]*" maxlength="6" style="font-size:1rem">
+    </div>
+    <p style="font-size:0.85rem;color:#64748b;margin-top:8px">Ihre Angaben werden verschlüsselt übertragen und nur für Ihre Behandlung gespeichert.</p>
+    <button class="btn-primary" id="btn-verify" onclick="verifyAndStart()" style="margin-top:16px;width:100%">Anamnese starten</button>
+  </div>
+</section>
 
-    <!-- Screen: Origin & Family -->
-    <section id="screen-origin" class="screen">
-      <div class="card">
-        <h2>Herkunft &amp; Familienstand</h2>
-        <div class="form-group">
-          <label>Ihre Herkunft / Staatsangeh&ouml;rigkeit</label>
-          <div class="radio-group grid-2">
-            <label class="radio-card"><input type="radio" name="origin" value="deutschland"> Deutschland</label>
-            <label class="radio-card"><input type="radio" name="origin" value="eu"> EU-Staat</label>
-            <label class="radio-card"><input type="radio" name="origin" value="europa"> Europa (nicht EU)</label>
-            <label class="radio-card"><input type="radio" name="origin" value="naher-osten"> Naher / Mittlerer Osten</label>
-            <label class="radio-card"><input type="radio" name="origin" value="afrika"> Afrika</label>
-            <label class="radio-card"><input type="radio" name="origin" value="asien"> Asien</label>
-            <label class="radio-card"><input type="radio" name="origin" value="amerika"> Amerika</label>
-            <label class="radio-card"><input type="radio" name="origin" value="andere"> Andere</label>
-          </div>
-        </div>
-        <div class="form-group">
-          <label>Familienstand</label>
-          <select id="familienstand">
-            <option value="">-- Bitte w&auml;hlen --</option>
-            <option value="ledig">Ledig</option>
-            <option value="verheiratet">Verheiratet</option>
-            <option value="eingetragene-partnerschaft">Eingetragene Lebenspartnerschaft</option>
-            <option value="geschieden">Geschieden</option>
-            <option value="verwitwet">Verwitwet</option>
-            <option value="getrennt">Getrennt lebend</option>
-            <option value="keine-angabe">Keine Angabe</option>
-          </select>
-        </div>
-        <div class="nav-btns">
-          <button class="btn-secondary" onclick="wizard.prev()">Zur&uuml;ck</button>
-          <button class="btn-primary" onclick="wizard.saveAndNext('origin', collectDemographics2)">Weiter</button>
-        </div>
+<!-- ===== Screen: Language ============================ -->
+<section id="screen-language" class="screen">
+  <div class="card">
+    <h2>Sprache & Kommunikation</h2>
+    <p class="help">Welche Sprache sprechen Sie? Mehrfachnennungen möglich.</p>
+    <div class="form-group">
+      <div class="chip-group" id="lang-chips">
+        <button class="chip" data-value="deutsch">Deutsch</button>
+        <button class="chip" data-value="englisch">Englisch</button>
+        <button class="chip" data-value="tuerkisch">Türkisch</button>
+        <button class="chip" data-value="polnisch">Polnisch</button>
+        <button class="chip" data-value="russisch">Russisch</button>
+        <button class="chip" data-value="arabisch">Arabisch</button>
+        <button class="chip" data-value="kurdisch">Kurdisch</button>
+        <button class="chip" data-value="spanisch">Spanisch</button>
+        <button class="chip" data-value="italienisch">Italienisch</button>
+        <button class="chip" data-value="rumaenisch">Rumänisch</button>
+        <button class="chip" data-value="griechisch">Griechisch</button>
+        <button class="chip" data-value="bullgarien">Bulgarisch</button>
+        <button class="chip" data-value="portugiesisch">Portugiesisch</button>
+        <button class="chip" data-value="franzoesisch">Französisch</button>
       </div>
-    </section>
+    </div>
+    <div class="form-group">
+      <label>Benötigen Sie einen Dolmetscher?</label>
+      <div class="radio-group">
+        <label class="radio-card"><input type="radio" name="interpreter" value="nein"> Nein</label>
+        <label class="radio-card"><input type="radio" name="interpreter" value="ja"> Ja</label>
+      </div>
+    </div>
+    <div class="nav-btns">
+      <button class="btn-secondary" onclick="wizard.prev()">Zurück</button>
+      <button class="btn-primary" onclick="wizard.saveAndNext('language', collectLanguage)">Weiter</button>
+    </div>
+  </div>
+</section>
 
-    <!-- Screen: Children & Education & Job -->
-    <section id="screen-job" class="screen">
-      <div class="card">
-        <h2>Familie, Bildung &amp; Beruf</h2>
-        <div class="form-group">
-          <label>Anzahl der Kinder</label>
-          <div class="radio-group">
-            <label class="radio-card"><input type="radio" name="kinder" value="0"> 0</label>
-            <label class="radio-card"><input type="radio" name="kinder" value="1"> 1</label>
-            <label class="radio-card"><input type="radio" name="kinder" value="2"> 2</label>
-            <label class="radio-card"><input type="radio" name="kinder" value="3"> 3</label>
-            <label class="radio-card"><input type="radio" name="kinder" value="4"> 4</label>
-            <label class="radio-card"><input type="radio" name="kinder" value="5plus"> 5+</label>
-          </div>
-        </div>
-        <div class="form-group">
-          <label>H&ouml;chster Bildungsabschluss</label>
-          <select id="bildung">
-            <option value="">-- Bitte w&auml;hlen --</option>
-            <option value="kein-abschluss">Kein Abschluss</option>
-            <option value="hauptschule">Hauptschule</option>
-            <option value="realschule">Realschule</option>
-            <option value="abitur">Gymnasium / Abitur</option>
-            <option value="ausbildung">Berufsausbildung</option>
-            <option value="studium">Studium</option>
-            <option value="promotion">Promotion</option>
-          </select>
-        </div>
-        <div class="form-group">
-          <label>Aktuelle berufliche Situation</label>
-          <select id="beruf">
-            <option value="">-- Bitte w&auml;hlen --</option>
-            <option value="angestellt">Angestellt / Arbeitnehmer</option>
-            <option value="selbstaendig">Selbstst&auml;ndig</option>
-            <option value="beamter">Beamter / Beamtin</option>
-            <option value="student">Student / Studentin</option>
-            <option value="schueler">Sch&uuml;ler / Sch&uuml;lerin</option>
-            <option value="rentner">Rentner / Rentnerin</option>
-            <option value="arbeitslos">Arbeitslos</option>
-            <option value="hausfrau">Hausfrau / Hausmann</option>
-            <option value="nicht-erwerbstaetig">Nicht erwerbst&auml;tig</option>
-            <option value="andere">Andere</option>
-          </select>
-        </div>
-        <div class="nav-btns">
-          <button class="btn-secondary" onclick="wizard.prev()">Zur&uuml;ck</button>
-          <button class="btn-primary" onclick="wizard.saveAndNext('job', collectDemographics3)">Weiter</button>
-        </div>
-      </div>
-    </section>
+<!-- ===== Screen: Origin ============================== -->
+<section id="screen-origin" class="screen">
+  <div class="card">
+    <h2>Herkunft & Staatsangehörigkeit</h2>
+    <div class="form-group">
+      <label>Heimatland <span style="color:#ef4444">*</span></label>
+      <select id="heimatland">
+        <option value="">Bitte wählen</option>
+        <option value="Deutschland">Deutschland</option>
+        <option value="Türkei">Türkei</option>
+        <option value="Polen">Polen</option>
+        <option value="Russland">Russland</option>
+        <option value="Ukraine">Ukraine</option>
+        <option value="Syrien">Syrien</option>
+        <option value="Irak">Irak</option>
+        <option value="Afghanistan">Afghanistan</option>
+        <option value="Iran">Iran</option>
+        <option value="Rumänien">Rumänien</option>
+        <option value="Bulgarien">Bulgarien</option>
+        <option value="Italien">Italien</option>
+        <option value="Spanien">Spanien</option>
+        <option value="Griechenland">Griechenland</option>
+        <option value="Frankreich">Frankreich</option>
+        <option value="Portugal">Portugal</option>
+        <option value="Kroatien">Kroatien</option>
+        <option value="Bosnien">Bosnien und Herzegowina</option>
+        <option value="Serbien">Serbien</option>
+        <option value="Kosovo">Kosovo</option>
+        <option value="Nordmazedonien">Nordmazedonien</option>
+        <option value="Albanien">Albanien</option>
+        <option value="Niederlande">Niederlande</option>
+        <option value="Belgien">Belgien</option>
+        <option value="Österreich">Österreich</option>
+        <option value="Schweiz">Schweiz</option>
+        <option value="Großbritannien">Großbritannien</option>
+        <option value="Irland">Irland</option>
+        <option value="USA">USA</option>
+        <option value="Kanada">Kanada</option>
+        <option value="China">China</option>
+        <option value="Indien">Indien</option>
+        <option value="Pakistan">Pakistan</option>
+        <option value="Bangladesch">Bangladesch</option>
+        <option value="Vietnam">Vietnam</option>
+        <option value="Thailand">Thailand</option>
+        <option value="Philippinen">Philippinen</option>
+        <option value="Japan">Japan</option>
+        <option value="Südkorea">Südkorea</option>
+        <option value="Indonesien">Indonesien</option>
+        <option value="Malaysia">Malaysia</option>
+        <option value="Singapur">Singapur</option>
+        <option value="Australien">Australien</option>
+        <option value="Neuseeland">Neuseeland</option>
+        <option value="Südafrika">Südafrika</option>
+        <option value="Ägypten">Ägypten</option>
+        <option value="Marokko">Marokko</option>
+        <option value="Tunesien">Tunesien</option>
+        <option value="Libanon">Libanon</option>
+        <option value="Jordanien">Jordanien</option>
+        <option value="Saudi-Arabien">Saudi-Arabien</option>
+        <option value="Vereinigte Arabische Emirate">Vereinigte Arabische Emirate</option>
+        <option value="Israel">Israel</option>
+        <option value="Brasilien">Brasilien</option>
+        <option value="Argentinien">Argentinien</option>
+        <option value="Mexiko">Mexiko</option>
+        <option value="Kolumbien">Kolumbien</option>
+        <option value="Venezuela">Venezuela</option>
+        <option value="Chile">Chile</option>
+        <option value="Peru">Peru</option>
+        <option value="Ecuador">Ecuador</option>
+        <option value="Bolivien">Bolivien</option>
+        <option value="Paraguay">Paraguay</option>
+        <option value="Uruguay">Uruguay</option>
+        <option value="anderes">Anderes</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Staatsangehörigkeit <span style="color:#ef4444">*</span></label>
+      <select id="staatsangehoerigkeit">
+        <option value="">Bitte wählen</option>
+        <option value="deutsch">Deutsch</option>
+        <option value="tuerkisch">Türkisch</option>
+        <option value="polnisch">Polnisch</option>
+        <option value="russisch">Russisch</option>
+        <option value="ukrainisch">Ukrainisch</option>
+        <option value="syrisch">Syrisch</option>
+        <option value="irakisch">Irakisch</option>
+        <option value="afghanisch">Afghanisch</option>
+        <option value="iranisch">Iranisch</option>
+        <option value="rumaenisch">Rumänisch</option>
+        <option value="bulgarisch">Bulgarisch</option>
+        <option value="italienisch">Italienisch</option>
+        <option value="spanisch">Spanisch</option>
+        <option value="griechisch">Griechisch</option>
+        <option value="franzoesisch">Französisch</option>
+        <option value="portugiesisch">Portugiesisch</option>
+        <option value="kroatisch">Kroatisch</option>
+        <option value="bosnisch">Bosnisch</option>
+        <option value="serbisch">Serbisch</option>
+        <option value="kosovarisch">Kosovarisch</option>
+        <option value="mazedonisch">Mazedonisch</option>
+        <option value="albanisch">Albanisch</option>
+        <option value="niederlaendisch">Niederländisch</option>
+        <option value="belgisch">Belgisch</option>
+        <option value="oesterreichisch">Österreichisch</option>
+        <option value="schweizerisch">Schweizerisch</option>
+        <option value="britisch">Britisch</option>
+        <option value="irisch">Irisch</option>
+        <option value="US-amerikanisch">US-amerikanisch</option>
+        <option value="kanadisch">Kanadisch</option>
+        <option value="chinesisch">Chinesisch</option>
+        <option value="indisch">Indisch</option>
+        <option value="pakistanisch">Pakistanisch</option>
+        <option value="bangladeschisch">Bangladeschisch</option>
+        <option value="vietnamesisch">Vietnamesisch</option>
+        <option value="thailaendisch">Thailändisch</option>
+        <option value="philippinisch">Philippinisch</option>
+        <option value="japanisch">Japanisch</option>
+        <option value="suedkoreanisch">Südkoreanisch</option>
+        <option value="indonesisch">Indonesisch</option>
+        <option value="malaysisch">Malaysisch</option>
+        <option value="singapurisch">Singapurisch</option>
+        <option value="australisch">Australisch</option>
+        <option value="neuseelaendisch">Neuseeländisch</option>
+        <option value="suedafrikanisch">Südafrikanisch</option>
+        <option value="aegyptisch">Ägyptisch</option>
+        <option value="marokkanisch">Marokkanisch</option>
+        <option value="tunesisch">Tunesisch</option>
+        <option value="libanesisch">Libanesisch</option>
+        <option value="jordanisch">Jordanisch</option>
+        <option value="saudi-arabisch">Saudi-arabisch</option>
+        <option value="VAR">Vereinigte Arabische Emirate</option>
+        <option value="israelisch">Israelisch</option>
+        <option value="brasilianisch">Brasilianisch</option>
+        <option value="argentinisch">Argentinisch</option>
+        <option value="mexikanisch">Mexikanisch</option>
+        <option value="kolumbianisch">Kolumbianisch</option>
+        <option value="venezolanisch">Venezolanisch</option>
+        <option value="chilenisch">Chilenisch</option>
+        <option value="peruanisch">Peruanisch</option>
+        <option value="ecuadorianisch">Ecuadorianisch</option>
+        <option value="bolivianisch">Bolivianisch</option>
+        <option value="paraguayisch">Paraguayisch</option>
+        <option value="uruguayisch">Uruguayisch</option>
+        <option value="anderes">Anderes</option>
+      </select>
+    </div>
+    <div class="nav-btns">
+      <button class="btn-secondary" onclick="wizard.prev()">Zurück</button>
+      <button class="btn-primary" onclick="wizard.saveAndNext('origin', collectOrigin)">Weiter</button>
+    </div>
+  </div>
+</section>
 
-    <!-- Screen: Insurance -->
-    <section id="screen-insurance" class="screen">
-      <div class="card">
-        <h2>Krankenversicherung</h2>
-        <div class="form-group">
-          <label>Versicherungsart</label>
-          <div class="radio-group">
-            <label class="radio-card"><input type="radio" name="insurance_type" value="gkv"> Gesetzlich (GKV)</label>
-            <label class="radio-card"><input type="radio" name="insurance_type" value="pkv"> Privat (PKV)</label>
-            <label class="radio-card"><input type="radio" name="insurance_type" value="beihilfe"> Beihilfe</label>
-            <label class="radio-card"><input type="radio" name="insurance_type" value="selbstzahler"> Selbstzahler</label>
-            <label class="radio-card"><input type="radio" name="insurance_type" value="asyl"> Asylbewerberleistungen</label>
-          </div>
-        </div>
-        <div class="form-group">
-          <label>Versichertennummer (optional)</label>
-          <input type="text" id="kvid" maxlength="30" placeholder="z.B. A123456789">
-        </div>
-        <div class="nav-btns">
-          <button class="btn-secondary" onclick="wizard.prev()">Zur&uuml;ck</button>
-          <button class="btn-primary" onclick="wizard.saveAndNext('insurance', collectInsurance)">Weiter</button>
-        </div>
+<!-- ===== Screen: Family Status ======================= -->
+<section id="screen-family_status" class="screen">
+  <div class="card">
+    <h2>Familienstand & Kinder</h2>
+    <div class="form-group">
+      <label>Familienstand <span style="color:#ef4444">*</span></label>
+      <select id="familienstand">
+        <option value="">Bitte wählen</option>
+        <option value="ledig">Ledig</option>
+        <option value="verheiratet">Verheiratet / Eingetr. Partnerschaft</option>
+        <option value="geschieden">Geschieden / Getrennt lebend</option>
+        <option value="verwitwet">Verwitwet</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Haben Sie Kinder? <span style="color:#ef4444">*</span></label>
+      <div class="radio-group">
+        <label class="radio-card"><input type="radio" name="kinder" value="0"> Keine Kinder</label>
+        <label class="radio-card"><input type="radio" name="kinder" value="1"> 1 Kind</label>
+        <label class="radio-card"><input type="radio" name="kinder" value="2"> 2 Kinder</label>
+        <label class="radio-card"><input type="radio" name="kinder" value="3"> 3 Kinder</label>
+        <label class="radio-card"><input type="radio" name="kinder" value="4"> 4 Kinder</label>
+        <label class="radio-card"><input type="radio" name="kinder" value="5"> 5 Kinder</label>
+        <label class="radio-card"><input type="radio" name="kinder" value="6"> 6 Kinder</label>
+        <label class="radio-card"><input type="radio" name="kinder" value="7"> 7 oder mehr Kinder</label>
       </div>
-    </section>
+    </div>
+    <div class="nav-btns">
+      <button class="btn-secondary" onclick="wizard.prev()">Zurück</button>
+      <button class="btn-primary" onclick="wizard.saveAndNext('family_status', collectFamilyStatus)">Weiter</button>
+    </div>
+  </div>
+</section>
 
-    <!-- Screen: Symptoms -->
-    <section id="screen-symptoms" class="screen">
-      <div class="card">
-        <h2>Aktuelle Beschwerden</h2>
-        <p class="help">Was f&uuml;hrt Sie heute in die Praxis? Mehrfachnennungen m&ouml;glich.</p>
-        <div class="form-group">
-          <div class="chip-group" id="symptom-chips">
-            <button class="chip" data-value="schmerzen">Schmerzen (allgemein)</button>
-            <button class="chip" data-value="kopfschmerzen">Kopfschmerzen</button>
-            <button class="chip" data-value="fieber">Fieber</button>
-            <button class="chip" data-value="husten">Husten</button>
-            <button class="chip" data-value="schnupfen">Schnupfen</button>
-            <button class="chip" data-value="bauchschmerzen">Bauchschmerzen</button>
-            <button class="chip" data-value="uebelkeit">&Uuml;belkeit / Erbrechen</button>
-            <button class="chip" data-value="durchfall">Durchfall</button>
-            <button class="chip" data-value="verstopfung">Verstopfung</button>
-            <button class="chip" data-value="hautausschlag">Hautausschlag / Juckreiz</button>
-            <button class="chip" data-value="schwindel">Schwindel</button>
-            <button class="chip" data-value="schlafstoerungen">Schlafst&ouml;rungen</button>
-            <button class="chip" data-value="muedigkeit">M&uuml;digkeit</button>
-            <button class="chip" data-value="gewicht">Gewichtsver&auml;nderung</button>
-            <button class="chip" data-value="atmung">Atembeschwerden</button>
-            <button class="chip" data-value="herz">Herzrasen / Brustschmerz</button>
-            <button class="chip" data-value="keine">Keine akuten Beschwerden</button>
-          </div>
-        </div>
-        <div class="nav-btns">
-          <button class="btn-secondary" onclick="wizard.prev()">Zur&uuml;ck</button>
-          <button class="btn-primary" onclick="wizard.saveAndNext('symptoms', collectSymptoms)">Weiter</button>
-        </div>
-      </div>
-    </section>
+<!-- ===== Screen: Children ============================ -->
+<section id="screen-children" class="screen">
+  <div class="card">
+    <h2>Geburtsjahre der Kinder</h2>
+    <p class="help">Bitte geben Sie das Geburtsjahr für jedes Kind an.</p>
+    <div id="children-container"></div>
+    <div class="nav-btns">
+      <button class="btn-secondary" onclick="wizard.prev()">Zurück</button>
+      <button class="btn-primary" onclick="wizard.saveAndNext('children', collectChildren)">Weiter</button>
+    </div>
+  </div>
+</section>
 
-    <!-- Screen: Duration -->
-    <section id="screen-duration" class="screen">
-      <div class="card">
-        <h2>Dauer der Beschwerden</h2>
-        <div class="form-group">
-          <label>Seit wann bestehen Ihre Beschwerden?</label>
-          <div class="radio-group">
-            <label class="radio-card"><input type="radio" name="duration" value="1-tag"> Weniger als 1 Tag</label>
-            <label class="radio-card"><input type="radio" name="duration" value="1-3-tage"> 1 bis 3 Tage</label>
-            <label class="radio-card"><input type="radio" name="duration" value="1-woche"> Etwa 1 Woche</label>
-            <label class="radio-card"><input type="radio" name="duration" value="1-4-wochen"> 1 bis 4 Wochen</label>
-            <label class="radio-card"><input type="radio" name="duration" value="1-6-monate"> 1 bis 6 Monate</label>
-            <label class="radio-card"><input type="radio" name="duration" value="laenger"> L&auml;nger als 6 Monate</label>
-            <label class="radio-card"><input type="radio" name="duration" value="keine"> Keine Beschwerden</label>
-          </div>
-        </div>
-        <div class="nav-btns">
-          <button class="btn-secondary" onclick="wizard.prev()">Zur&uuml;ck</button>
-          <button class="btn-primary" onclick="wizard.saveAndNext('duration', collectDuration)">Weiter</button>
-        </div>
-      </div>
-    </section>
+<!-- ===== Screen: Job ================================ -->
+<section id="screen-job" class="screen">
+  <div class="card">
+    <h2>Bildung & Beruf</h2>
+    <div class="form-group">
+      <label>Höchster Bildungsabschluss <span style="color:#ef4444">*</span></label>
+      <select id="bildung">
+        <option value="">Bitte wählen</option>
+        <option value="ohne">Ohne Abschluss</option>
+        <option value="hauptschule">Hauptschulabschluss</option>
+        <option value="realschule">Realschulabschluss</option>
+        <option value="abitur">Abitur / Fachabitur</option>
+        <option value="ausbildung">Berufsausbildung</option>
+        <option value="meister">Meister / Techniker</option>
+        <option value="bachelor">Bachelor</option>
+        <option value="master">Master</option>
+        <option value="promotion">Promotion</option>
+        <option value="habilitation">Habilitation</option>
+      </select>
+    </div>
+    <div class="form-group">
+      <label>Berufsausbildung / Fachausbildung <span style="font-size:0.85rem;color:#64748b">(optional)</span></label>
+      <input type="text" id="berufsausbildung" placeholder="z.B. Gesundheits- und Krankenpfleger, Elektriker...">
+    </div>
+    <div class="form-group">
+      <label>Derzeit tätig als <span style="font-size:0.85rem;color:#64748b">(optional)</span></label>
+      <input type="text" id="taetigkeit" placeholder="z.B. Softwareentwickler, Krankenschwester...">
+    </div>
+    <div class="form-group">
+      <label>Aktuelle berufliche Situation <span style="color:#ef4444">*</span></label>
+      <select id="berufssituation">
+        <option value="">Bitte wählen</option>
+        <option value="vollzeit">Erwerbstätig (Vollzeit)</option>
+        <option value="teilzeit">Erwerbstätig (Teilzeit)</option>
+        <option value="selbststaendig">Selbstständig / Freiberuflich</option>
+        <option value="arbeitssuchend">Arbeitssuchend / Arbeitslos</option>
+        <option value="rentner">Rentner / Pensionär</option>
+        <option value="hausfrau">Hausfrau / Hausmann</option>
+        <option value="student">Student / Schüler / Auszubildender</option>
+        <option value="in-elternzeit">In Elternzeit</option>
+        <option value="erwerbsunfaehig">Erwerbsunfähig / Dauerkrank</option>
+      </select>
+    </div>
+    <div class="nav-btns">
+      <button class="btn-secondary" onclick="wizard.prev()">Zurück</button>
+      <button class="btn-primary" onclick="wizard.saveAndNext('job', collectJob)">Weiter</button>
+    </div>
+  </div>
+</section>
 
-    <!-- Screen: Conditions -->
-    <section id="screen-conditions" class="screen">
-      <div class="card">
-        <h2>Vorerkrankungen</h2>
-        <p class="help">Welche chronischen Erkrankungen wurden bei Ihnen festgestellt? Mehrfachnennungen m&ouml;glich.</p>
-        <div class="form-group">
-          <div class="chip-group" id="condition-chips">
-            <button class="chip" data-value="bluthochdruck">Bluthochdruck</button>
-            <button class="chip" data-value="diabetes">Diabetes (Zuckerkrankheit)</button>
-            <button class="chip" data-value="herz">Herzkrankheit</button>
-            <button class="chip" data-value="asthma">Asthma / COPD</button>
-            <button class="chip" data-value="schilddruese">Schilddr&uuml;senerkrankung</button>
-            <button class="chip" data-value="niere">Nierenkrankheit</button>
-            <button class="chip" data-value="leber">Lebererkrankung</button>
-            <button class="chip" data-value="epilepsie">Epilepsie</button>
-            <button class="chip" data-value="depression">Depression / Angstst&ouml;rung</button>
-            <button class="chip" data-value="krebs">Krebs (in Behandlung / geheilt)</button>
-            <button class="chip" data-value="schlaganfall">Schlaganfall</button>
-            <button class="chip" data-value="thrombose">Thrombose / Lungenembolie</button>
-            <button class="chip" data-value="gicht">Gicht</button>
-            <button class="chip" data-value="rheuma">Rheuma / Autoimmunerkrankung</button>
-            <button class="chip" data-value="osteoporose">Osteoporose</button>
-            <button class="chip" data-value="glaukom">Glaukom / Gr&uuml;ner Star</button>
-            <button class="chip" data-value="keine">Keine Vorerkrankungen</button>
-          </div>
-        </div>
-        <div class="nav-btns">
-          <button class="btn-secondary" onclick="wizard.prev()">Zur&uuml;ck</button>
-          <button class="btn-primary" onclick="wizard.saveAndNext('conditions', collectConditions)">Weiter</button>
-        </div>
+<!-- ===== Screen: Insurance =========================== -->
+<section id="screen-insurance" class="screen">
+  <div class="card">
+    <h2>Versicherung</h2>
+    <div class="form-group">
+      <label>Versicherungsart <span style="color:#ef4444">*</span></label>
+      <div class="radio-group">
+        <label class="radio-card"><input type="radio" name="insurance_type" value="GKV"> Gesetzliche Krankenversicherung (GKV)</label>
+        <label class="radio-card"><input type="radio" name="insurance_type" value="PKV"> Private Krankenversicherung (PKV)</label>
+        <label class="radio-card"><input type="radio" name="insurance_type" value="PKV-E"> Private Krankenversicherung (Beihilfe / Beamte)</label>
+        <label class="radio-card"><input type="radio" name="insurance_type" value="freiwillig"> Freiwillig gesetzlich versichert</label>
+        <label class="radio-card"><input type="radio" name="insurance_type" value="privat"> Selbstzahler</label>
       </div>
-    </section>
+    </div>
+    <div class="form-group">
+      <label>Krankenversichertennummer (KVID) <span style="font-size:0.85rem;color:#64748b">(optional)</span></label>
+      <input type="text" id="kvid" placeholder="Auf Ihrer Versichertenkarte" maxlength="20">
+    </div>
+    <div class="nav-btns">
+      <button class="btn-secondary" onclick="wizard.prev()">Zurück</button>
+      <button class="btn-primary" onclick="wizard.saveAndNext('insurance', collectInsurance)">Weiter</button>
+    </div>
+  </div>
+</section>
 
-    <!-- Screen: Operations -->
-    <section id="screen-operations" class="screen">
-      <div class="card">
-        <h2>Operationen &amp; Hospitalisierungen</h2>
-        <div class="form-group">
-          <label>Wurden Sie jemals operiert oder l&auml;nger im Krankenhaus behandelt?</label>
-          <div class="radio-group">
-            <label class="radio-card"><input type="radio" name="ops" value="nein" onchange="toggleOps(false)"> Nein</label>
-            <label class="radio-card"><input type="radio" name="ops" value="ja" onchange="toggleOps(true)"> Ja</label>
-          </div>
-        </div>
-        <div id="ops-detail" class="hidden form-group">
-          <label>Welche Operationen / wann? (kurze Stichpunkte reichen)</label>
-          <textarea id="ops-text" rows="3" placeholder="z.B. Blinddarm 2015, Knie-OP 2020"></textarea>
-        </div>
-        <div class="nav-btns">
-          <button class="btn-secondary" onclick="wizard.prev()">Zur&uuml;ck</button>
-          <button class="btn-primary" onclick="wizard.saveAndNext('operations', collectOperations)">Weiter</button>
-        </div>
+<!-- ===== Screen: Symptoms ============================ -->
+<section id="screen-symptoms" class="screen">
+  <div class="card">
+    <h2>Aktuelle Beschwerden</h2>
+    <p class="help">Was führt Sie heute in die Praxis? Mehrfachnennungen möglich.</p>
+    <div class="form-group">
+      <div class="chip-group" id="symptom-chips">
+        <button class="chip" data-value="schmerzen">Schmerzen (allgemein)</button>
+        <button class="chip" data-value="kopfschmerzen">Kopfschmerzen</button>
+        <button class="chip" data-value="fieber">Fieber</button>
+        <button class="chip" data-value="husten">Husten</button>
+        <button class="chip" data-value="schnupfen">Schnupfen</button>
+        <button class="chip" data-value="bauchschmerzen">Bauchschmerzen</button>
+        <button class="chip" data-value="uebelkeit">Übelkeit / Erbrechen</button>
+        <button class="chip" data-value="durchfall">Durchfall</button>
+        <button class="chip" data-value="verstopfung">Verstopfung</button>
+        <button class="chip" data-value="hautausschlag">Hautausschlag / Juckreiz</button>
+        <button class="chip" data-value="schwindel">Schwindel</button>
+        <button class="chip" data-value="schlafstoerungen">Schlafstörungen</button>
+        <button class="chip" data-value="muedigkeit">Müdigkeit</button>
+        <button class="chip" data-value="gewicht">Gewichtsveränderung</button>
+        <button class="chip" data-value="atmung">Atembeschwerden</button>
+        <button class="chip" data-value="herz">Herzrasen / Brustschmerz</button>
+        <button class="chip" data-value="keine">Keine akuten Beschwerden</button>
       </div>
-    </section>
+    </div>
+    <div class="nav-btns">
+      <button class="btn-secondary" onclick="wizard.prev()">Zurück</button>
+      <button class="btn-primary" onclick="wizard.saveAndNext('symptoms', collectSymptoms)">Weiter</button>
+    </div>
+  </div>
+</section>
 
-    <!-- Screen: Medications -->
-    <section id="screen-medications" class="screen">
-      <div class="card">
-        <h2>Aktuelle Medikamente</h2>
-        <div class="form-group">
-          <label>Nehmen Sie aktuell Medikamente ein?</label>
-          <div class="radio-group">
-            <label class="radio-card"><input type="radio" name="medis" value="nein" onchange="toggleMedis(false)"> Nein</label>
-            <label class="radio-card"><input type="radio" name="medis" value="ja" onchange="toggleMedis(true)"> Ja</label>
-          </div>
-        </div>
-        <div id="medis-detail" class="hidden form-group">
-          <label>Welche Medikamente nehmen Sie ein? (Name, Dosierung, Einnahmezeit)</label>
-          <textarea id="medis-text" rows="3" placeholder="z.B. Metformin 500mg 1-0-1, Blopress 8mg 0-0-1"></textarea>
-        </div>
-        <div class="nav-btns">
-          <button class="btn-secondary" onclick="wizard.prev()">Zur&uuml;ck</button>
-          <button class="btn-primary" onclick="wizard.saveAndNext('medications', collectMedications)">Weiter</button>
-        </div>
+<!-- ===== Screen: Duration ============================ -->
+<section id="screen-duration" class="screen">
+  <div class="card">
+    <h2>Dauer der Beschwerden</h2>
+    <div class="form-group">
+      <label>Seit wann bestehen Ihre Beschwerden?</label>
+      <div class="radio-group">
+        <label class="radio-card"><input type="radio" name="duration" value="1-tag"> Weniger als 1 Tag</label>
+        <label class="radio-card"><input type="radio" name="duration" value="1-3-tage"> 1 bis 3 Tage</label>
+        <label class="radio-card"><input type="radio" name="duration" value="1-woche"> Etwa 1 Woche</label>
+        <label class="radio-card"><input type="radio" name="duration" value="1-4-wochen"> 1 bis 4 Wochen</label>
+        <label class="radio-card"><input type="radio" name="duration" value="1-6-monate"> 1 bis 6 Monate</label>
+        <label class="radio-card"><input type="radio" name="duration" value="laenger"> Länger als 6 Monate</label>
+        <label class="radio-card"><input type="radio" name="duration" value="keine"> Keine Beschwerden</label>
       </div>
-    </section>
+    </div>
+    <div class="nav-btns">
+      <button class="btn-secondary" onclick="wizard.prev()">Zurück</button>
+      <button class="btn-primary" onclick="wizard.saveAndNext('duration', collectDuration)">Weiter</button>
+    </div>
+  </div>
+</section>
 
-    <!-- Screen: Allergies -->
-    <section id="screen-allergies" class="screen">
-      <div class="card">
-        <h2>Allergien &amp; Unvertr&auml;glichkeiten</h2>
-        <div class="form-group">
-          <label>Medikamentenallergien?</label>
-          <div class="radio-group">
-            <label class="radio-card"><input type="radio" name="allergy_medi" value="nein" onchange="toggleAllergy('medi', false)"> Nein</label>
-            <label class="radio-card"><input type="radio" name="allergy_medi" value="ja" onchange="toggleAllergy('medi', true)"> Ja</label>
-          </div>
-          <input type="text" id="allergy-medi-text" class="hidden conditional-input" placeholder="Welche Medikamente?">
-        </div>
-        <div class="form-group">
-          <label>Nahrungsmittelallergien?</label>
-          <div class="radio-group">
-            <label class="radio-card"><input type="radio" name="allergy_food" value="nein" onchange="toggleAllergy('food', false)"> Nein</label>
-            <label class="radio-card"><input type="radio" name="allergy_food" value="ja" onchange="toggleAllergy('food', true)"> Ja</label>
-          </div>
-          <input type="text" id="allergy-food-text" class="hidden conditional-input" placeholder="Welche Lebensmittel?">
-        </div>
-        <div class="form-group">
-          <label>Sonstige Allergien (z.B. Pollen, Staub, Tiere)?</label>
-          <div class="radio-group">
-            <label class="radio-card"><input type="radio" name="allergy_other" value="nein" onchange="toggleAllergy('other', false)"> Nein</label>
-            <label class="radio-card"><input type="radio" name="allergy_other" value="ja" onchange="toggleAllergy('other', true)"> Ja</label>
-          </div>
-          <input type="text" id="allergy-other-text" class="hidden conditional-input" placeholder="Welche Allergene?">
-        </div>
-        <div class="nav-btns">
-          <button class="btn-secondary" onclick="wizard.prev()">Zur&uuml;ck</button>
-          <button class="btn-primary" onclick="wizard.saveAndNext('allergies', collectAllergies)">Weiter</button>
-        </div>
+<!-- ===== Screen: Conditions ========================== -->
+<section id="screen-conditions" class="screen">
+  <div class="card">
+    <h2>Vorerkrankungen</h2>
+    <p class="help">Welche chronischen Erkrankungen wurden bei Ihnen festgestellt? Mehrfachnennungen möglich.</p>
+    <div class="form-group">
+      <div class="chip-group" id="condition-chips">
+        <button class="chip" data-value="bluthochdruck">Bluthochdruck</button>
+        <button class="chip" data-value="diabetes">Diabetes (Zuckerkrankheit)</button>
+        <button class="chip" data-value="herz">Herzkrankheit</button>
+        <button class="chip" data-value="asthma">Asthma / COPD</button>
+        <button class="chip" data-value="schilddruese">Schilddrüsenerkrankung</button>
+        <button class="chip" data-value="niere">Nierenkrankheit</button>
+        <button class="chip" data-value="leber">Lebererkrankung</button>
+        <button class="chip" data-value="epilepsie">Epilepsie</button>
+        <button class="chip" data-value="depression">Depression / Angststörung</button>
+        <button class="chip" data-value="krebs">Krebs (in Behandlung / geheilt)</button>
+        <button class="chip" data-value="rheuma">Rheumatische Erkrankung</button>
+        <button class="chip" data-value="gicht">Gicht</button>
+        <button class="chip" data-value="osteoporose">Osteoporose</button>
+        <button class="chip" data-value="thrombose">Thrombose / Embolie</option>
+        <button class="chip" data-value="keine">Keine chronischen Erkrankungen</button>
       </div>
-    </section>
+    </div>
+    <div class="nav-btns">
+      <button class="btn-secondary" onclick="wizard.prev()">Zurück</button>
+      <button class="btn-primary" onclick="wizard.saveAndNext('conditions', collectConditions)">Weiter</button>
+    </div>
+  </div>
+</section>
 
-    <!-- Screen: Family History -->
-    <section id="screen-family" class="screen">
-      <div class="card">
-        <h2>Familienanamnese</h2>
-        <p class="help">Gab es bei direkten Blutsverwandten folgende Erkrankungen?</p>
-        <div class="form-group">
-          <label>Herzinfarkt oder Schlaganfall</label>
-          <div class="radio-group">
-            <label class="radio-card"><input type="radio" name="fam_herz" value="nein"> Nein</label>
-            <label class="radio-card"><input type="radio" name="fam_herz" value="ja"> Ja</label>
-            <label class="radio-card"><input type="radio" name="fam_herz" value="unbekannt"> Unbekannt</label>
-          </div>
-        </div>
-        <div class="form-group">
-          <label>Diabetes (Zuckerkrankheit)</label>
-          <div class="radio-group">
-            <label class="radio-card"><input type="radio" name="fam_diabetes" value="nein"> Nein</label>
-            <label class="radio-card"><input type="radio" name="fam_diabetes" value="ja"> Ja</label>
-            <label class="radio-card"><input type="radio" name="fam_diabetes" value="unbekannt"> Unbekannt</label>
-          </div>
-        </div>
-        <div class="form-group">
-          <label>Krebs</label>
-          <div class="radio-group">
-            <label class="radio-card"><input type="radio" name="fam_krebs" value="nein"> Nein</label>
-            <label class="radio-card"><input type="radio" name="fam_krebs" value="ja"> Ja</label>
-            <label class="radio-card"><input type="radio" name="fam_krebs" value="unbekannt"> Unbekannt</label>
-          </div>
-        </div>
-        <div class="form-group">
-          <label>Psychische Erkrankungen</label>
-          <div class="radio-group">
-            <label class="radio-card"><input type="radio" name="fam_psyche" value="nein"> Nein</label>
-            <label class="radio-card"><input type="radio" name="fam_psyche" value="ja"> Ja</label>
-            <label class="radio-card"><input type="radio" name="fam_psyche" value="unbekannt"> Unbekannt</label>
-          </div>
-        </div>
-        <div class="form-group">
-          <label>Weitere relevante Erkrankungen in der Familie (optional)</label>
-          <textarea id="fam-text" rows="2" placeholder="z.B. Bluthochdruck, rheumatische Erkrankung"></textarea>
-        </div>
-        <div class="nav-btns">
-          <button class="btn-secondary" onclick="wizard.prev()">Zur&uuml;ck</button>
-          <button class="btn-primary" onclick="wizard.saveAndNext('family', collectFamily)">Weiter</button>
-        </div>
+<!-- ===== Screen: Operations ========================== -->
+<section id="screen-operations" class="screen">
+  <div class="card">
+    <h2>Operationen</h2>
+    <div class="form-group">
+      <label>Wurden Sie jemals operiert?</label>
+      <div class="radio-group">
+        <label class="radio-card"><input type="radio" name="ops" value="nein" onclick="toggleOps(false)"> Nein</label>
+        <label class="radio-card"><input type="radio" name="ops" value="ja" onclick="toggleOps(true)"> Ja</label>
       </div>
-    </section>
+    </div>
+    <div id="ops-detail" class="hidden">
+      <div class="form-group">
+        <label>Welche Operationen?</label>
+        <textarea id="ops-text" rows="3" placeholder="Bitte beschreiben Sie kurz..." style="resize:vertical"></textarea>
+      </div>
+    </div>
+    <div class="nav-btns">
+      <button class="btn-secondary" onclick="wizard.prev()">Zurück</button>
+      <button class="btn-primary" onclick="wizard.saveAndNext('operations', collectOperations)">Weiter</button>
+    </div>
+  </div>
+</section>
 
-    <!-- Screen: Lifestyle 1 -->
-    <section id="screen-lifestyle" class="screen">
-      <div class="card">
-        <h2>Lebensgewohnheiten (1/2)</h2>
-        <div class="form-group">
-          <label>Rauchen Sie?</label>
-          <div class="radio-group">
-            <label class="radio-card"><input type="radio" name="raucher" value="nie"> Nie geraucht</label>
-            <label class="radio-card"><input type="radio" name="raucher" value="ex"> Ex-Raucher</label>
-            <label class="radio-card"><input type="radio" name="raucher" value="gelegentlich"> Gelegentlich</label>
-            <label class="radio-card"><input type="radio" name="raucher" value="taeglich"> T&auml;glich</label>
-          </div>
-        </div>
-        <div class="form-group">
-          <label>Alkoholkonsum</label>
-          <div class="radio-group">
-            <label class="radio-card"><input type="radio" name="alkohol" value="nie"> Nie</label>
-            <label class="radio-card"><input type="radio" name="alkohol" value="gelegentlich"> Gelegentlich</label>
-            <label class="radio-card"><input type="radio" name="alkohol" value="woechentlich"> W&ouml;chentlich mehrmals</label>
-            <label class="radio-card"><input type="radio" name="alkohol" value="taeglich"> T&auml;glich</label>
-          </div>
-        </div>
-        <div class="nav-btns">
-          <button class="btn-secondary" onclick="wizard.prev()">Zur&uuml;ck</button>
-          <button class="btn-primary" onclick="wizard.saveAndNext('lifestyle', collectLifestyle1)">Weiter</button>
-        </div>
+<!-- ===== Screen: Meds Bloodthin ==================== -->
+<section id="screen-meds_bloodthin" class="screen">
+  <div class="card">
+    <h2>Blutverdünnung</h2>
+    <p class="help">Nehmen Sie eines dieser Medikamente ein? Mehrfachnennungen möglich.</p>
+    <div class="form-group">
+      <div class="chip-group" id="bloodthin-chips">
+        <button class="chip" data-value="Phenprocoumon">Phenprocoumon (Marcumar&reg; u.a.)</button>
+        <button class="chip" data-value="Edoxaban">Edoxaban (Lixiana&reg;)</button>
+        <button class="chip" data-value="Apixaban">Apixaban (Eliquis&reg;)</option>
+        <button class="chip" data-value="Rivaroxaban">Rivaroxaban (Xarelto&reg; u.a.)</button>
+        <button class="chip" data-value="Ticagrelor">Ticagrelor (Brilique&reg;)</button>
+        <button class="chip" data-value="Clopidogrel">Clopidogrel (Plavix&reg;)</button>
+        <button class="chip" data-value="keine">Keine Blutverdünnung</button>
       </div>
-    </section>
+    </div>
+    <div class="form-group">
+      <label>Weitere / Details <span style="font-size:0.85rem;color:#64748b">(optional)</span></label>
+      <textarea id="bloodthin-text" rows="2" placeholder="z.B. Dosierung, Änderungen..." style="resize:vertical"></textarea>
+    </div>
+    <div class="nav-btns">
+      <button class="btn-secondary" onclick="wizard.prev()">Zurück</button>
+      <button class="btn-primary" onclick="wizard.saveAndNext('meds_bloodthin', collectMedsBloodthin)">Weiter</button>
+    </div>
+  </div>
+</section>
 
-    <!-- Screen: Lifestyle 2 -->
-    <section id="screen-lifestyle2" class="screen">
-      <div class="card">
-        <h2>Lebensgewohnheiten (2/2)</h2>
-        <div class="form-group">
-          <label>Drogenkonsum (au&szlig;er Nikotin/Alkohol)?</label>
-          <div class="radio-group">
-            <label class="radio-card"><input type="radio" name="drogen" value="nein"> Nein</label>
-            <label class="radio-card"><input type="radio" name="drogen" value="aktuell"> Aktuell</label>
-            <label class="radio-card"><input type="radio" name="drogen" value="frueher"> Fr&uuml;her</label>
-          </div>
-        </div>
-        <div class="form-group">
-          <label>Schwangerschaft / Stillzeit</label>
-          <div class="radio-group">
-            <label class="radio-card"><input type="radio" name="schwanger" value="nein"> Nicht zutreffend</label>
-            <label class="radio-card"><input type="radio" name="schwanger" value="schwanger"> Schwanger</label>
-            <label class="radio-card"><input type="radio" name="schwanger" value="stillend"> Stillend</label>
-          </div>
-        </div>
-        <div class="nav-btns">
-          <button class="btn-secondary" onclick="wizard.prev()">Zur&uuml;ck</button>
-          <button class="btn-primary" onclick="wizard.saveAndNext('lifestyle2', collectLifestyle2)">Weiter</button>
-        </div>
+<!-- ===== Screen: Meds BP =========================== -->
+<section id="screen-meds_bp" class="screen">
+  <div class="card">
+    <h2>Blutdrucksenker</h2>
+    <p class="help">Nehmen Sie eines dieser Medikamente ein?</p>
+    <div class="form-group">
+      <div class="chip-group" id="bp-chips">
+        <button class="chip" data-value="Candesartan">Candesartan</button>
+        <button class="chip" data-value="Losartan">Losartan</button>
+        <button class="chip" data-value="Telmisartan">Telmisartan</button>
+        <button class="chip" data-value="Amlodipin">Amlodipin</button>
+        <button class="chip" data-value="Lercandipin">Lercandipin</button>
+        <button class="chip" data-value="Chlortalidon">Chlortalidon</button>
+        <button class="chip" data-value="Hydrochlorothiazid">Hydrochlorothiazid</button>
+        <button class="chip" data-value="Bisoprolol">Bisoprolol</button>
+        <button class="chip" data-value="Metoprolol">Metoprolol</button>
+        <button class="chip" data-value="keine">Keine Blutdrucksenker</button>
       </div>
-    </section>
+    </div>
+    <div class="form-group">
+      <label>Weitere / Details <span style="font-size:0.85rem;color:#64748b">(optional)</span></label>
+      <textarea id="bp-text" rows="2" placeholder="z.B. Dosierung..." style="resize:vertical"></textarea>
+    </div>
+    <div class="nav-btns">
+      <button class="btn-secondary" onclick="wizard.prev()">Zurück</button>
+      <button class="btn-primary" onclick="wizard.saveAndNext('meds_bp', collectMedsBP)">Weiter</button>
+    </div>
+  </div>
+</section>
 
-    <!-- Screen: Emergency -->
-    <section id="screen-emergency" class="screen">
-      <div class="card">
-        <h2>Notfallkontakt (optional)</h2>
-        <div class="form-group">
-          <label>Name</label>
-          <input type="text" id="emergency-name" placeholder="Name des Notfallkontakts">
-        </div>
-        <div class="form-group">
-          <label>Telefonnummer</label>
-          <input type="tel" id="emergency-phone" placeholder="z.B. 0176 12345678">
-        </div>
-        <div class="nav-btns">
-          <button class="btn-secondary" onclick="wizard.prev()">Zur&uuml;ck</button>
-          <button class="btn-primary" onclick="wizard.saveAndNext('emergency', collectEmergency)">Weiter zur Zusammenfassung</button>
-        </div>
+<!-- ===== Screen: Meds Asthma ======================= -->
+<section id="screen-meds_asthma" class="screen">
+  <div class="card">
+    <h2>Asthma / COPD</h2>
+    <p class="help">Nehmen Sie eines dieser Medikamente ein?</p>
+    <div class="form-group">
+      <div class="chip-group" id="asthma-chips">
+        <button class="chip" data-value="Salbutamol">Salbutamol</button>
+        <button class="chip" data-value="keine">Keine Asthma-/COPD-Medikamente</button>
       </div>
-    </section>
+    </div>
+    <div class="form-group">
+      <label>Andere Asthma-/COPD-Medikamente <span style="font-size:0.85rem;color:#64748b">(optional)</span></label>
+      <textarea id="asthma-text" rows="2" placeholder="z.B. Budesonid, Tiotropium..." style="resize:vertical"></textarea>
+    </div>
+    <div class="nav-btns">
+      <button class="btn-secondary" onclick="wizard.prev()">Zurück</button>
+      <button class="btn-primary" onclick="wizard.saveAndNext('meds_asthma', collectMedsAsthma)">Weiter</button>
+    </div>
+  </div>
+</section>
 
-    <!-- Screen: Review -->
-    <section id="screen-review" class="screen">
-      <div class="card">
-        <h2>Zusammenfassung</h2>
-        <p class="help">Bitte pr&uuml;fen Sie Ihre Angaben vor dem Absenden.</p>
-        <div id="review-content"></div>
-        <div class="nav-btns">
-          <button class="btn-secondary" onclick="wizard.prev()">Zur&uuml;ck</button>
-          <button class="btn-primary" onclick="submitFinal()">Anamnese absenden</button>
+<!-- ===== Screen: Meds Diabetes ===================== -->
+<section id="screen-meds_diabetes" class="screen">
+  <div class="card">
+    <h2>Diabetes mellitus</h2>
+    <p class="help">Nehmen Sie eines dieser Medikamente ein?</p>
+    <div class="form-group">
+      <div class="chip-group" id="diabetes-chips">
+        <button class="chip" data-value="Insulin">Insulin</button>
+        <button class="chip" data-value="Metformin">Metformin</button>
+        <button class="chip" data-value="Sitagliptin">Sitagliptin</button>
+        <button class="chip" data-value="Glimepirid">Glimepirid</button>
+        <button class="chip" data-value="Semaglutid">Semaglutid (Ozempic&reg;, Wegovy&reg;)</button>
+        <button class="chip" data-value="Tirzepatid">Tirzepatid (Mounjaro&reg;)</button>
+        <button class="chip" data-value="Dulaglutid">Dulaglutid (Trulicity&reg;)</button>
+        <button class="chip" data-value="keine">Keine Diabetes-Medikamente</button>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Weitere / Details <span style="font-size:0.85rem;color:#64748b">(optional)</span></label>
+      <textarea id="diabetes-text" rows="2" placeholder="z.B. Dosierung..." style="resize:vertical"></textarea>
+    </div>
+    <div class="nav-btns">
+      <button class="btn-secondary" onclick="wizard.prev()">Zurück</button>
+      <button class="btn-primary" onclick="wizard.saveAndNext('meds_diabetes', collectMedsDiabetes)">Weiter</button>
+    </div>
+  </div>
+</section>
+
+<!-- ===== Screen: Meds Neuro ======================== -->
+<section id="screen-meds_neuro" class="screen">
+  <div class="card">
+    <h2>Neurologische Medikamente</h2>
+    <p class="help">Nehmen Sie eines dieser Medikamente ein?</p>
+    <div class="form-group">
+      <div class="chip-group" id="neuro-chips">
+        <button class="chip" data-value="Pregabalin">Pregabalin</button>
+        <button class="chip" data-value="Gabapentin">Gabapentin</button>
+        <button class="chip" data-value="Lamotrigin">Lamotrigin</button>
+        <button class="chip" data-value="Carbamazepin">Carbamazepin</button>
+        <button class="chip" data-value="keine">Keine neurologischen Medikamente</button>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Weitere / Details <span style="font-size:0.85rem;color:#64748b">(optional)</span></label>
+      <textarea id="neuro-text" rows="2" placeholder="z.B. Dosierung..." style="resize:vertical"></textarea>
+    </div>
+    <div class="nav-btns">
+      <button class="btn-secondary" onclick="wizard.prev()">Zurück</button>
+      <button class="btn-primary" onclick="wizard.saveAndNext('meds_neuro', collectMedsNeuro)">Weiter</button>
+    </div>
+  </div>
+</section>
+
+<!-- ===== Screen: Meds Pain ========================= -->
+<section id="screen-meds_pain" class="screen">
+  <div class="card">
+    <h2>Schmerzmittel</h2>
+    <p class="help">Nehmen Sie regelmäßig Schmerzmittel ein?</p>
+    <div class="form-group">
+      <div class="chip-group" id="pain-chips">
+        <button class="chip" data-value="Tilidin">Tilidin</button>
+        <button class="chip" data-value="Hydromorphon">Hydromorphon</button>
+        <button class="chip" data-value="Oxycodon">Oxycodon</button>
+        <button class="chip" data-value="Metamizol">Metamizol</button>
+        <button class="chip" data-value="Ibuprofen">Ibuprofen</button>
+        <button class="chip" data-value="Paracetamol">Paracetamol</button>
+        <button class="chip" data-value="keine">Keine regelmäßigen Schmerzmittel</button>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Weitere / Details <span style="font-size:0.85rem;color:#64748b">(optional)</span></label>
+      <textarea id="pain-text" rows="2" placeholder="z.B. Dosierung..." style="resize:vertical"></textarea>
+    </div>
+    <div class="nav-btns">
+      <button class="btn-secondary" onclick="wizard.prev()">Zurück</button>
+      <button class="btn-primary" onclick="wizard.saveAndNext('meds_pain', collectMedsPain)">Weiter</button>
+    </div>
+  </div>
+</section>
+
+<!-- ===== Screen: Meds GynUro ======================= -->
+<section id="screen-meds_gynuro" class="screen">
+  <div class="card">
+    <h2>Gynäkologie / Urologie</h2>
+    <p class="help">Nehmen Sie eines dieser Medikamente ein?</p>
+    <div class="form-group">
+      <div class="chip-group" id="gynuro-chips">
+        <button class="chip" data-value="Orales Antikonzeptivum">Orales Antikonzeptivum (Pille)</button>
+        <button class="chip" data-value="Tamoxifen">Tamoxifen</button>
+        <button class="chip" data-value="Tamsulosin">Tamsulosin</button>
+        <button class="chip" data-value="Finasterid">Finasterid</button>
+        <button class="chip" data-value="keine">Keine Medikamente aus diesem Bereich</button>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Weitere / Details <span style="font-size:0.85rem;color:#64748b">(optional)</span></label>
+      <textarea id="gynuro-text" rows="2" placeholder="z.B. Dosierung..." style="resize:vertical"></textarea>
+    </div>
+    <div class="nav-btns">
+      <button class="btn-secondary" onclick="wizard.prev()">Zurück</button>
+      <button class="btn-primary" onclick="wizard.saveAndNext('meds_gynuro', collectMedsGynUro)">Weiter</button>
+    </div>
+  </div>
+</section>
+
+<!-- ===== Screen: Meds Chol ========================= -->
+<section id="screen-meds_chol" class="screen">
+  <div class="card">
+    <h2>Cholesterinsenker</h2>
+    <p class="help">Nehmen Sie eines dieser Medikamente ein?</p>
+    <div class="form-group">
+      <div class="chip-group" id="chol-chips">
+        <button class="chip" data-value="Simvastatin">Simvastatin</button>
+        <button class="chip" data-value="Atorvastatin">Atorvastatin</button>
+        <button class="chip" data-value="Rosuvastatin">Rosuvastatin</button>
+        <button class="chip" data-value="Pravastatin">Pravastatin</button>
+        <button class="chip" data-value="Ezetimib">Ezetimib</button>
+        <button class="chip" data-value="keine">Keine Cholesterinsenker</button>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Weitere / Details <span style="font-size:0.85rem;color:#64748b">(optional)</span></label>
+      <textarea id="chol-text" rows="2" placeholder="z.B. Dosierung..." style="resize:vertical"></textarea>
+    </div>
+    <div class="nav-btns">
+      <button class="btn-secondary" onclick="wizard.prev()">Zurück</button>
+      <button class="btn-primary" onclick="wizard.saveAndNext('meds_chol', collectMedsChol)">Weiter</button>
+    </div>
+  </div>
+</section>
+
+<!-- ===== Screen: Meds Other ======================== -->
+<section id="screen-meds_other" class="screen">
+  <div class="card">
+    <h2>Sonstige Medikamente</h2>
+    <p class="help">Weitere Medikamente, die nicht in den vorherigen Kategorien erfasst wurden.</p>
+    <div class="form-group">
+      <label>Bitte nennen Sie weitere Medikamente <span style="font-size:0.85rem;color:#64748b">(optional)</span></label>
+      <textarea id="other-meds-text" rows="4" placeholder="z.B. Schilddrüsenmedikamente, Magenschutz, Antidepressiva etc."></textarea>
+    </div>
+    <div class="nav-btns">
+      <button class="btn-secondary" onclick="wizard.prev()">Zurück</button>
+      <button class="btn-primary" onclick="wizard.saveAndNext('meds_other', collectMedsOther)">Weiter</button>
+    </div>
+  </div>
+</section>
+
+<!-- ===== Screen: Allergies =========================== -->
+<section id="screen-allergies" class="screen">
+  <div class="card">
+    <h2>Allergien</h2>
+    <div class="form-group">
+      <label>Medikamentenallergie?</label>
+      <div class="radio-group">
+        <label class="radio-card"><input type="radio" name="allergy_medi" value="nein" onclick="toggleAllergy('medi', false)"> Nein</label>
+        <label class="radio-card"><input type="radio" name="allergy_medi" value="ja" onclick="toggleAllergy('medi', true)"> Ja</label>
+      </div>
+      <input type="text" id="allergy-medi-text" class="hidden" placeholder="Welche Medikamente?" style="margin-top:10px">
+    </div>
+    <div class="form-group">
+      <label>Nahrungsmittelallergie?</label>
+      <div class="radio-group">
+        <label class="radio-card"><input type="radio" name="allergy_food" value="nein" onclick="toggleAllergy('food', false)"> Nein</label>
+        <label class="radio-card"><input type="radio" name="allergy_food" value="ja" onclick="toggleAllergy('food', true)"> Ja</label>
+      </div>
+      <input type="text" id="allergy-food-text" class="hidden" placeholder="Welche Lebensmittel?" style="margin-top:10px">
+    </div>
+    <div class="form-group">
+      <label>Sonstige Allergien?</label>
+      <div class="radio-group">
+        <label class="radio-card"><input type="radio" name="allergy_other" value="nein" onclick="toggleAllergy('other', false)"> Nein</label>
+        <label class="radio-card"><input type="radio" name="allergy_other" value="ja" onclick="toggleAllergy('other', true)"> Ja</label>
+      </div>
+      <input type="text" id="allergy-other-text" class="hidden" placeholder="Welche Allergien?" style="margin-top:10px">
+    </div>
+    <div class="nav-btns">
+      <button class="btn-secondary" onclick="wizard.prev()">Zurück</button>
+      <button class="btn-primary" onclick="wizard.saveAndNext('allergies', collectAllergies)">Weiter</button>
+    </div>
+  </div>
+</section>
+
+<!-- ===== Screen: Family ============================== -->
+<section id="screen-family" class="screen">
+  <div class="card">
+    <h2>Familienanamnese</h2>
+    <p class="help">Gab es bei Ihren Blutsverwandten folgende Erkrankungen?</p>
+    <div class="form-group">
+      <label>Herzerkrankungen?</label>
+      <div class="radio-group">
+        <label class="radio-card"><input type="radio" name="fam_herz" value="nein"> Nein</label>
+        <label class="radio-card"><input type="radio" name="fam_herz" value="ja"> Ja</label>
+        <label class="radio-card"><input type="radio" name="fam_herz" value="unbekannt"> Unbekannt</label>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Diabetes?</label>
+      <div class="radio-group">
+        <label class="radio-card"><input type="radio" name="fam_diabetes" value="nein"> Nein</label>
+        <label class="radio-card"><input type="radio" name="fam_diabetes" value="ja"> Ja</label>
+        <label class="radio-card"><input type="radio" name="fam_diabetes" value="unbekannt"> Unbekannt</label>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Krebserkrankungen?</label>
+      <div class="radio-group">
+        <label class="radio-card"><input type="radio" name="fam_krebs" value="nein"> Nein</label>
+        <label class="radio-card"><input type="radio" name="fam_krebs" value="ja"> Ja</label>
+        <label class="radio-card"><input type="radio" name="fam_krebs" value="unbekannt"> Unbekannt</label>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Psychiatrische Erkrankungen?</label>
+      <div class="radio-group">
+        <label class="radio-card"><input type="radio" name="fam_psyche" value="nein"> Nein</label>
+        <label class="radio-card"><input type="radio" name="fam_psyche" value="ja"> Ja</label>
+        <label class="radio-card"><input type="radio" name="fam_psyche" value="unbekannt"> Unbekannt</label>
+      </div>
+    </div>
+    <div class="nav-btns">
+      <button class="btn-secondary" onclick="wizard.prev()">Zurück</button>
+      <button class="btn-primary" onclick="wizard.saveAndNext('family', collectFamily)">Weiter</button>
+    </div>
+  </div>
+</section>
+
+<!-- ===== Screen: Lifestyle =========================== -->
+<section id="screen-lifestyle" class="screen">
+  <div class="card">
+    <h2>Lebensgewohnheiten</h2>
+    <div class="form-group">
+      <label>Rauchen Sie?</label>
+      <div class="radio-group">
+        <label class="radio-card"><input type="radio" name="raucher" value="nein"> Nein, nie geraucht</label>
+        <label class="radio-card"><input type="radio" name="raucher" value="gelegentlich"> Gelegentlich</label>
+        <label class="radio-card"><input type="radio" name="raucher" value="regelmaessig"> Regelmäßig</label>
+        <label class="radio-card"><input type="radio" name="raucher" value="aufgehoert"> Aufgehört</label>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Alkoholkonsum?</label>
+      <div class="radio-group">
+        <label class="radio-card"><input type="radio" name="alkohol" value="nein"> Kein Alkohol</label>
+        <label class="radio-card"><input type="radio" name="alkohol" value="gelegentlich"> Gelegentlich</label>
+        <label class="radio-card"><input type="radio" name="alkohol" value="regelmaessig"> Regelmäßig</label>
+        <label class="radio-card"><input type="radio" name="alkohol" value="taeglich"> Täglich</label>
+      </div>
+    </div>
+    <div class="nav-btns">
+      <button class="btn-secondary" onclick="wizard.prev()">Zurück</button>
+      <button class="btn-primary" onclick="wizard.saveAndNext('lifestyle', collectLifestyle1)">Weiter</button>
+    </div>
+  </div>
+</section>
+
+<!-- ===== Screen: Lifestyle 2 ========================= -->
+<section id="screen-lifestyle2" class="screen">
+  <div class="card">
+    <h2>Lebensgewohnheiten (2)</h2>
+    <div class="form-group">
+      <label>Drogenkonsum (außer Alkohol/Zigaretten)?</label>
+      <div class="radio-group">
+        <label class="radio-card"><input type="radio" name="drogen" value="nein"> Nein</label>
+        <label class="radio-card"><input type="radio" name="drogen" value="gelegentlich"> Gelegentlich</label>
+        <label class="radio-card"><input type="radio" name="drogen" value="regelmaessig"> Regelmäßig</label>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Sind Sie schwanger?</label>
+      <div class="radio-group">
+        <label class="radio-card"><input type="radio" name="schwanger" value="nein"> Nein</label>
+        <label class="radio-card"><input type="radio" name="schwanger" value="ja"> Ja</label>
+        <label class="radio-card"><input type="radio" name="schwanger" value="nich-t-anwendbar"> Nicht anwendbar</label>
+      </div>
+    </div>
+    <div class="nav-btns">
+      <button class="btn-secondary" onclick="wizard.prev()">Zurück</button>
+      <button class="btn-primary" onclick="wizard.saveAndNext('lifestyle2', collectLifestyle2)">Weiter</button>
+    </div>
+  </div>
+</section>
+
+<!-- ===== Screen: Emergency =========================== -->
+<section id="screen-emergency" class="screen">
+  <div class="card">
+    <h2>Notfallkontakt (optional)</h2>
+    <div class="form-group">
+      <label>Name</label>
+      <input type="text" id="emergency-name" placeholder="Name des Notfallkontakts">
+    </div>
+    <div class="form-group">
+      <label>Telefonnummer</label>
+      <input type="tel" id="emergency-phone" placeholder="z.B. 0176 12345678">
+    </div>
+    <div class="nav-btns">
+      <button class="btn-secondary" onclick="wizard.prev()">Zurück</button>
+      <button class="btn-primary" onclick="wizard.saveAndNext('emergency', collectEmergency)">Weiter</button>
+    </div>
+  </div>
+</section>
+
+<!-- ===== Screen: Bodymetrics ========================= -->
+<section id="screen-bodymetrics" class="screen">
+  <div class="card">
+    <h2>Körpermaße</h2>
+    <div class="form-group">
+      <label>Körpergröße (cm) <span style="color:#ef4444">*</span></label>
+      <input type="number" id="bodymetrics-height" placeholder="z.B. 175" min="50" max="250" step="1">
+    </div>
+    <div class="form-group">
+      <label>Körpergewicht (kg) <span style="color:#ef4444">*</span></label>
+      <input type="number" id="bodymetrics-weight" placeholder="z.B. 72" min="2" max="300" step="0.1">
+    </div>
+    <div class="nav-btns">
+      <button class="btn-secondary" onclick="wizard.prev()">Zurück</button>
+      <button class="btn-primary" onclick="wizard.saveAndNext('bodymetrics', collectBodyMetrics)">Weiter</button>
+    </div>
+  </div>
+</section>
+
+<!-- ===== Screen: Contact ============================= -->
+<section id="screen-contact" class="screen">
+  <div class="card">
+    <h2>Kontaktdaten</h2>
+    <div class="form-group">
+      <label>Mobilfunknummer <span style="color:#ef4444">*</span></label>
+      <input type="tel" id="contact-mobile" placeholder="z.B. 0176 12345678">
+    </div>
+    <div class="form-group">
+      <label>E-Mail-Adresse <span style="font-size:0.85rem;color:#64748b">(optional)</span></label>
+      <input type="email" id="contact-email" placeholder="name@beispiel.de">
+      <input type="hidden" id="contact-email-verified" value="0">
+      <div id="email-status" style="margin-top:8px;font-size:0.9rem;"></div>
+      <div id="email-actions" style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+        <button class="btn-ghost" id="btn-send-code" onclick="sendEmailCode()" style="margin:0;flex:1;min-width:120px">Code senden</button>
+      </div>
+      <div id="email-code-group" style="display:none;margin-top:12px">
+        <div style="display:flex;gap:8px">
+          <input type="text" id="email-code" placeholder="6-stelliger Code" maxlength="6" inputmode="numeric" pattern="[0-9]*" style="flex:1">
+          <button class="btn-primary" id="btn-verify-code" onclick="verifyEmailCode()" style="margin-top:0">Prüfen</button>
         </div>
       </div>
-    </section>
+      <button class="btn-ghost" id="btn-skip-email" onclick="skipEmailVerify()" style="margin-top:12px;width:100%">Ich kann momentan keine E-Mails empfangen</button>
+    </div>
+    <div class="nav-btns">
+      <button class="btn-secondary" onclick="wizard.prev()">Zurück</button>
+      <button class="btn-primary" onclick="wizard.saveAndNext('contact', collectContact)">Weiter zur Zusammenfassung</button>
+    </div>
+  </div>
+</section>
 
-    <!-- Screen: Done -->
-    <section id="screen-done" class="screen">
-      <div class="card center">
-        <div class="success-icon">&#10003;</div>
-        <h2>Anamnese abgeschickt!</h2>
-        <p>Vielen Dank. Ihre Angaben wurden sicher an die Praxis übermittelt.</p>
-        <p style="font-size:0.9rem;color:var(--text-light);margin-top:8px;">
-          Patienten-ID: <strong id="done-pvs-id">—</strong>
-        </p>
-        <p class="help">Sie können dieses Fenster nun schließen.</p>
-      </div>
-    </section>
+<!-- ===== Screen: Review ============================== -->
+<section id="screen-review" class="screen">
+  <div class="card">
+    <h2>Zusammenfassung</h2>
+    <p class="help">Bitte prüfen Sie Ihre Angaben vor dem Absenden.</p>
+    <div id="review-content"></div>
+    <div class="nav-btns">
+      <button class="btn-secondary" onclick="wizard.prev()">Zurück</button>
+      <button class="btn-primary" onclick="submitFinal()">Anamnese absenden</button>
+    </div>
+  </div>
+</section>
+
+<!-- ===== Screen: Done ================================ -->
+<section id="screen-done" class="screen">
+  <div class="card center">
+    <div class="success-icon">✓</div>
+    <h2>Anamnese abgeschickt!</h2>
+    <p>Vielen Dank. Ihre Angaben wurden sicher an die Praxis übermittelt.</p>
+    <p style="font-size:0.9rem;color:#64748b;margin-top:8px">Patienten-ID: <strong id="done-pvs-id">—</strong></p>
+    <p class="help">Sie können dieses Fenster nun schließen.</p>
+  </div>
+</section>
+
   </main>
 </div>
 
-<script src="/js/app.js?v=0.4.7"></script>
+<script src="/js/app.js?v=0.5.1"></script>
 </body>
 </html>
