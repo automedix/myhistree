@@ -46,6 +46,7 @@ function switchTab(tab) {
   if (tab === 'links') loadLinks();
   if (tab === 'encounters') loadEncountersDashboard();
   if (tab === 'audit') loadAuditLog();
+  if (tab === 'settings') loadSettings();
 }
 
 // ─── Link erstellen ─────────────────────────────────────────────
@@ -326,7 +327,143 @@ function fmtDateTime(d) {
   } catch { return d; }
 }
 
-// ─── PIN Toggle ─────────────────────────────────────────────────
+// ─── Settings (TOTP) ────────────────────────────────────────────────────
+async function loadSettings() {
+  const container = document.getElementById('settings-content');
+  if (!currentAdmin) {
+    container.innerHTML = '<p class="empty">Lade...</p>';
+    return;
+  }
+  let html = '';
+
+  // Passwort ändern
+  html += `
+    <div class="card" style="margin-bottom:20px;">
+      <h3>🔐 Passwort ändern</h3>
+      <div class="form-group" style="margin-top:12px;">
+        <label>Aktuelles Passwort</label>
+        <input type="password" id="pw-current" placeholder="••••••••">
+      </div>
+      <div class="form-group">
+        <label>Neues Passwort</label>
+        <input type="password" id="pw-new" placeholder="Mindestens 8 Zeichen">
+      </div>
+      <div class="form-group">
+        <label>Neues Passwort wiederholen</label>
+        <input type="password" id="pw-confirm" placeholder="••••••••">
+      </div>
+      <button class="btn btn-primary" id="btn-change-pw" onclick="changePassword()">Passwort ändern</button>
+      <div id="pw-msg" style="margin-top:10px;font-size:0.875rem;"></div>
+    </div>
+  `;
+
+  // TOTP Status
+  if (currentAdmin.totp_enabled) {
+    html += `
+      <div style="padding:16px;background:#dcfce7;border-radius:10px;">
+        <p><strong>✅ Zwei-Faktor-Authentifizierung ist aktiviert.</strong></p>
+        <p style="font-size:0.875rem;color:#166534;margin-top:8px;">Ihr Account ist durch TOTP (Authenticator-App) geschützt.</p>
+      </div>
+    `;
+  } else {
+    html += `
+      <div style="padding:16px;background:#fef3c7;border-radius:10px;margin-bottom:16px;">
+        <p><strong>⚠️ Zwei-Faktor-Authentifizierung ist nicht aktiviert.</strong></p>
+        <p style="font-size:0.875rem;color:#92400e;margin-top:8px;">Empfohlen: Scannen Sie den QR-Code mit einer Authenticator-App.</p>
+      </div>
+      <button class="btn btn-primary" id="btn-setup-totp" onclick="setupTotp()">Authenticator einrichten</button>
+      <div id="totp-qr" style="margin-top:16px;display:none;"></div>
+      <div id="totp-confirm" style="margin-top:16px;display:none;">
+        <label>6-stelliger Code aus der App</label>
+        <input type="text" id="totp-confirm-code" placeholder="123456" maxlength="6" inputmode="numeric">
+        <button class="btn btn-primary" style="margin-top:8px;" onclick="confirmTotp()">Aktivieren</button>
+      </div>
+    `;
+  }
+  container.innerHTML = html;
+}
+
+async function setupTotp() {
+  const btn = document.getElementById('btn-setup-totp');
+  btn.disabled = true; btn.textContent = 'Lade...';
+  try {
+    const res = await fetch(`${API}/auth/setup-totp`, { method: 'POST', credentials: 'include' });
+    const data = await res.json();
+    if (!res.ok) { alert(data.error || 'Fehler'); return; }
+    const qrDiv = document.getElementById('totp-qr');
+    qrDiv.innerHTML = `<p style="margin-bottom:8px;">Scannen Sie diesen QR-Code:</p><img src="${data.qrCode}" style="max-width:240px;border-radius:8px;" alt="TOTP QR Code">`;
+    qrDiv.style.display = 'block';
+    document.getElementById('totp-confirm').style.display = 'block';
+  } catch (e) { alert('Netzwerkfehler'); }
+  finally { btn.disabled = false; btn.textContent = 'Authenticator einrichten'; }
+}
+
+async function confirmTotp() {
+  const code = document.getElementById('totp-confirm-code').value.trim();
+  if (!/^\d{6}$/.test(code)) { alert('Bitte einen gültigen 6-stelligen Code eingeben.'); return; }
+  try {
+    const res = await fetch(`${API}/auth/confirm-totp`, {
+      method: 'POST', headers: {'Content-Type':'application/json'}, credentials: 'include',
+      body: JSON.stringify({ token: code })
+    });
+    const data = await res.json();
+    if (!res.ok) { alert(data.error || 'Fehler'); return; }
+    alert('TOTP erfolgreich aktiviert! Ab sofort wird bei jedem Login ein Code verlangt.');
+    currentAdmin.totp_enabled = 1;
+    loadSettings();
+  } catch (e) { alert('Netzwerkfehler'); }
+}
+
+async function changePassword() {
+  const current = document.getElementById('pw-current').value;
+  const newPw = document.getElementById('pw-new').value;
+  const confirmPw = document.getElementById('pw-confirm').value;
+  const btn = document.getElementById('btn-change-pw');
+  const msg = document.getElementById('pw-msg');
+
+  if (!current || !newPw || !confirmPw) {
+    msg.textContent = 'Bitte alle Felder ausfüllen.';
+    msg.style.color = '#ef4444';
+    return;
+  }
+  if (newPw.length < 8) {
+    msg.textContent = 'Neues Passwort muss mindestens 8 Zeichen haben.';
+    msg.style.color = '#ef4444';
+    return;
+  }
+  if (newPw !== confirmPw) {
+    msg.textContent = 'Passwörter stimmen nicht überein.';
+    msg.style.color = '#ef4444';
+    return;
+  }
+
+  btn.disabled = true;
+  msg.textContent = 'Ändere...';
+  msg.style.color = 'var(--text-light)';
+
+  try {
+    const res = await fetch(`${API}/auth/change-password`, {
+      method: 'POST', headers: {'Content-Type':'application/json'}, credentials: 'include',
+      body: JSON.stringify({ currentPassword: current, newPassword: newPw })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      msg.textContent = data.error || 'Fehler';
+      msg.style.color = '#ef4444';
+      btn.disabled = false;
+      return;
+    }
+    msg.textContent = '✅ Passwort geändert. Sie werden abgemeldet...';
+    msg.style.color = '#16a34a';
+    setTimeout(() => { window.location.href = '/admin/login.html'; }, 2000);
+  } catch (e) {
+    msg.textContent = 'Netzwerkfehler.';
+    msg.style.color = '#ef4444';
+    btn.disabled = false;
+  }
+}
+
+// ─── PIN Toggle ─────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', () => {
   const pinCheckbox = document.getElementById('new-use-pin');
   if (pinCheckbox) {

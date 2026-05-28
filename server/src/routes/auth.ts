@@ -29,6 +29,27 @@ function generateRefreshToken(): string {
   return randomUUID().replace(/-/g, "") + randomUUID().replace(/-/g, "");
 }
 
+// ─── Simple rate limiter (in-memory) ────────────────────────────
+const loginAttempts: Record<string, { count: number; resetAt: number }> = {};
+const MAX_ATTEMPTS = 5;
+const WINDOW_MS = 60 * 1000; // 1 minute
+
+function checkRateLimit(ip: string): boolean {
+  const now = Date.now();
+  const entry = loginAttempts[ip];
+  if (!entry || now > entry.resetAt) {
+    loginAttempts[ip] = { count: 1, resetAt: now + WINDOW_MS };
+    return true;
+  }
+  if (entry.count >= MAX_ATTEMPTS) return false;
+  entry.count++;
+  return true;
+}
+
+function resetRateLimit(ip: string) {
+  delete loginAttempts[ip];
+}
+
 export async function registerAuthRoutes(fastify: FastifyInstance) {
   // ─── JWT Plugin Setup ───────────────────────────────────────────
   await (fastify as any).register(require("@fastify/jwt"), {
@@ -42,6 +63,11 @@ export async function registerAuthRoutes(fastify: FastifyInstance) {
 
   // ─── Login Step 1: Email + Password ─────────────────────────────
   fastify.post("/auth/login", async (request, reply) => {
+    const clientIp = request.ip || "unknown";
+    if (!checkRateLimit(clientIp)) {
+      return reply.status(429).send({ error: "Too many attempts. Please try again in a minute." });
+    }
+
     const { email, password } = request.body as { email?: string; password?: string };
     if (!email || !password) {
       return reply.status(400).send({ error: "Email and password required" });
@@ -52,6 +78,8 @@ export async function registerAuthRoutes(fastify: FastifyInstance) {
       logAudit("LOGIN_FAILURE", email, "Invalid credentials", undefined, request.ip);
       return reply.status(401).send({ error: "Invalid credentials" });
     }
+
+    resetRateLimit(clientIp); // reset on successful password
 
     if (admin.totp_enabled) {
       logAudit("LOGIN_STEP1", email, "TOTP required", admin.id, request.ip);
@@ -233,6 +261,40 @@ export async function registerAuthRoutes(fastify: FastifyInstance) {
       db.prepare("UPDATE admin_users SET totp_enabled = 1 WHERE id = ?").run(admin.id);
       logAudit("TOTP_ENABLED", admin.email, undefined, admin.id, request.ip);
       return { success: true };
+    } catch {
+      return reply.status(401).send({ error: "Unauthorized" });
+    }
+  });
+
+  // ─── Change Password ────────────────────────────────────────────
+  fastify.post("/auth/change-password", async (request, reply) => {
+    try {
+      const decoded = await (request as any).jwtVerify() as any;
+      const { currentPassword, newPassword } = request.body as { currentPassword?: string; newPassword?: string };
+
+      if (!currentPassword || !newPassword) {
+        return reply.status(400).send({ error: "Current and new password required" });
+      }
+      if (newPassword.length < 8) {
+        return reply.status(400).send({ error: "New password must be at least 8 characters" });
+      }
+
+      const admin = db.prepare("SELECT * FROM admin_users WHERE id = ?").get(decoded.adminId) as any;
+      if (!admin) return reply.status(404).send({ error: "Admin not found" });
+
+      if (!verifyPassword(currentPassword, admin.password_hash)) {
+        logAudit("PASSWORD_CHANGE_FAILURE", admin.email, "Incorrect current password", admin.id, request.ip);
+        return reply.status(403).send({ error: "Current password is incorrect" });
+      }
+
+      const newHash = hashPassword(newPassword);
+      db.prepare("UPDATE admin_users SET password_hash = ? WHERE id = ?").run(newHash, admin.id);
+
+      // Invalidate all existing sessions for security
+      db.prepare("DELETE FROM admin_sessions WHERE admin_id = ?").run(admin.id);
+
+      logAudit("PASSWORD_CHANGED", admin.email, undefined, admin.id, request.ip);
+      return { success: true, message: "Password changed. Please log in again." };
     } catch {
       return reply.status(401).send({ error: "Unauthorized" });
     }
