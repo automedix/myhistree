@@ -79,7 +79,7 @@ async function createLink() {
     document.getElementById('result-url').textContent = url;
     document.getElementById('result-pin').textContent = data.pin ? `PIN: ${data.pin}` : '';
     document.getElementById('result-box').style.display = 'block';
-    if (email) { try { await sendLinkEmail(email, pvsId, url, dob, data.pin); } catch(e) { console.log('E-Mail skipped', e); } }
+    if (email) sendLinkEmail(email, pvsId, url, dob, data.pin);
     loadLinks();
   } catch (e) { alert('Netzwerkfehler'); } finally { btn.disabled = false; btn.textContent = 'Link erstellen'; }
 }
@@ -479,13 +479,13 @@ async function loadUsers() {
     if (!res.ok) { container.innerHTML = '<p class="empty">Zugriff verweigert.</p>'; return; }
     const rows = await res.json();
     let html = `<div class="card"><h3>Benutzerverwaltung</h3>`;
-    if (currentAdmin && (currentAdmin.role === 'admin' || currentAdmin.role === 'superadmin')) {
+    if (currentAdmin && currentAdmin.role === 'admin') {
       html += `<div class="form-group"><input type="email" id="u-email" placeholder="E-Mail"><input type="password" id="u-password" placeholder="Passwort (mind. 8 Zeichen)"><select id="u-role"><option value="user">User</option><option value="admin">Admin</option></select><button class="btn btn-primary" onclick="createUser()">Benutzer erstellen</button></div>`;
     }
     html += '<table><thead><tr><th>E-Mail</th><th>Rolle</th><th>TOTP</th><th>Erstellt</th><th>Aktionen</th></tr></thead><tbody>';
     for (const r of rows) {
       html += `<tr><td>${r.email}</td><td>${r.role}</td><td>${r.totp_enabled ? '✅' : '—'}</td><td>${fmtDate(r.created_at)}</td><td>`;
-      if (currentAdmin && (currentAdmin.role === 'admin' || currentAdmin.role === 'superadmin') && r.email !== currentAdmin.email) {
+      if (currentAdmin && currentAdmin.role === 'admin' && r.email !== currentAdmin.email) {
         html += `<button class="btn btn-sm btn-secondary" onclick="resetUserPrompt('${r.id}')">PW reset</button> <button class="btn btn-sm btn-danger" onclick="deleteUser('${r.id}', '${r.email}')">Löschen</button>`;
       }
       html += '</td></tr>';

@@ -142,21 +142,7 @@ pre.json { background:#1e293b; color:#e2e8f0; padding:16px; border-radius:8px; o
 
   <!-- TAB: Encounters -->
   <div id="tab-encounters" class="tab-content">
-    <div class="card">
-      <h2>Offene Vorgänge</h2>
-      <p style="font-size:0.85rem;color:var(--text-light);margin-bottom:12px;">Links erstellt, aber Patient hat noch nicht begonnen.</p>
-      <div id="pending-links-container"><div class="empty">Bitte laden</div></div>
-    </div>
-    <div class="card">
-      <h2>In Bearbeitung</h2>
-      <p style="font-size:0.85rem;color:var(--text-light);margin-bottom:12px;">Patient hat Daten abgeschickt, Praxis muss noch verarbeiten.</p>
-      <div id="completed-encounters-container"><div class="empty">Bitte laden</div></div>
-    </div>
-    <div class="card">
-      <h2>Abgeschlossene Vorgänge</h2>
-      <p style="font-size:0.85rem;color:var(--text-light);margin-bottom:12px;">Praxisseitig verarbeitet (7 Tage sichtbar).</p>
-      <div id="processed-encounters-container"><div class="empty">Bitte laden</div></div>
-    </div>
+    <div id="encounters-content"></div>
   </div>
 
   <!-- TAB: Audit -->
