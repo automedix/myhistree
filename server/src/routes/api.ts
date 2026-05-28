@@ -21,7 +21,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
   fastify.get("/health", async () => ({ status: "ok", version: "0.5.6" }));
 
   // ─── Links ──────────────────────────────────────────────────────
-  fastify.post("/link/create", async (request, reply) => {
+  fastify.post("/link/create", { onRequest: requireAuth }, async (request, reply) => {
     const body = request.body as any;
     const { practiceId, pvsPatientId, patientDob, patientEmail, mobileNumber, expiresHours = 24, pin } = body;
 
@@ -42,7 +42,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
     return { token, expiresAt: expiresAt.toISOString(), link: `/anamnese/${token}`, pin: pin || null };
   });
 
-  fastify.get("/link/list/:practiceId", async (request) => {
+  fastify.get("/link/list/:practiceId", { onRequest: requireAuth }, async (request) => {
     const { practiceId } = request.params as { practiceId: string };
     return db.prepare(`SELECT token, pvs_patient_id, patient_dob, patient_email, mobile_number, status, created_at, expires_at,
              CASE WHEN pin IS NOT NULL AND pin != '' THEN 1 ELSE 0 END as has_pin
@@ -108,7 +108,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
   });
 
   // ─── Email Send ─────────────────────────────────────────────────
-  fastify.post("/link/send-email", async (request) => {
+  fastify.post("/link/send-email", { onRequest: requireAuth }, async (request) => {
     const { to, pvsPatientId, linkUrl, patientDob, pin } = request.body as any;
     const result = await sendAnamneseLink(to, pvsPatientId, linkUrl, patientDob, pin);
     if (result.success) {
@@ -236,7 +236,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
   // ─── Admin ──────────────────────────────────────────────────────
   fastify.get("/admin/encounters/list/:practiceId", { onRequest: requireAuth }, async (request) => {
     const { practiceId } = request.params as { practiceId: string };
-    const rows = db.prepare(`SELECT e.id, e.status, e.source_link_id, e.created_at, e.completed_at, e.processed_at, l.pvs_patient_id, l.patient_email
+    const rows = db.prepare(`SELECT e.id, e.status, e.source_link_id, e.created_at, e.updated_at, e.completed_at, e.processed_at, l.pvs_patient_id, l.patient_email
       FROM encounters e LEFT JOIN patient_links l ON e.source_link_id = l.token
       WHERE e.practice_id = ? ORDER BY e.created_at DESC`).all(practiceId);
     return rows;
@@ -313,6 +313,61 @@ export default async function apiRoutes(fastify: FastifyInstance) {
     const body = request.body as any;
     const { currentScreen } = body;
     db.prepare("UPDATE encounters SET current_screen = ? WHERE id = ?").run(currentScreen || null, encounterId);
+    return { success: true };
+  });
+
+  // ─── Admin: User Management ─────────────────────────────────────
+  fastify.get("/admin/users", { onRequest: requireAuth }, async (request, reply) => {
+    const admin = (request as any).user;
+    if (admin.role !== "admin") return reply.status(403).send({ error: "Forbidden" });
+    return db.prepare("SELECT id, email, role, practice_id, totp_enabled, created_at FROM admin_users ORDER BY created_at DESC").all();
+  });
+
+  fastify.post("/admin/users", { onRequest: requireAuth }, async (request, reply) => {
+    const admin = (request as any).user;
+    if (admin.role !== "admin") return reply.status(403).send({ error: "Forbidden" });
+    const body = request.body as any;
+    const { email, password, role = "user", practiceId = "demo-practice" } = body;
+    if (!email || !password || password.length < 8) return reply.status(400).send({ error: "Email and password (min 8 chars) required" });
+    const existing = db.prepare("SELECT id FROM admin_users WHERE email = ?").get(email);
+    if (existing) return reply.status(409).send({ error: "Email already exists" });
+    const bcrypt = require("bcrypt");
+    const pepper = process.env.PASSWORD_PEPPER || "myhistoree-pepper-2026";
+    const hash = await bcrypt.hash(password + pepper, 12);
+    const id = randomUUID();
+    db.prepare("INSERT INTO admin_users (id, email, password_hash, role, practice_id) VALUES (?, ?, ?, ?, ?)").run(id, email, hash, role, practiceId);
+    logAudit("CREATE_USER", id, email, undefined, request.ip);
+    return { id, email, role };
+  });
+
+  fastify.delete("/admin/users/:id", { onRequest: requireAuth }, async (request, reply) => {
+    const admin = (request as any).user;
+    if (admin.role !== "admin") return reply.status(403).send({ error: "Forbidden" });
+    const { id } = request.params as { id: string };
+    const target = db.prepare("SELECT id, email FROM admin_users WHERE id = ?").get(id) as any;
+    if (!target) return reply.status(404).send({ error: "Not found" });
+    if (target.email === admin.email) return reply.status(400).send({ error: "Cannot delete yourself" });
+    db.prepare("DELETE FROM admin_users WHERE id = ?").run(id);
+    db.prepare("DELETE FROM admin_sessions WHERE admin_id = ?").run(id);
+    logAudit("DELETE_USER", id, target.email, undefined, request.ip);
+    return { success: true };
+  });
+
+  fastify.post("/admin/users/:id/reset-password", { onRequest: requireAuth }, async (request, reply) => {
+    const admin = (request as any).user;
+    if (admin.role !== "admin") return reply.status(403).send({ error: "Forbidden" });
+    const { id } = request.params as { id: string };
+    const body = request.body as any;
+    const { newPassword } = body;
+    if (!newPassword || newPassword.length < 8) return reply.status(400).send({ error: "Password min 8 chars" });
+    const target = db.prepare("SELECT id FROM admin_users WHERE id = ?").get(id);
+    if (!target) return reply.status(404).send({ error: "Not found" });
+    const bcrypt = require("bcrypt");
+    const pepper = process.env.PASSWORD_PEPPER || "myhistoree-pepper-2026";
+    const hash = await bcrypt.hash(newPassword + pepper, 12);
+    db.prepare("UPDATE admin_users SET password_hash = ? WHERE id = ?").run(hash, id);
+    db.prepare("DELETE FROM admin_sessions WHERE admin_id = ?").run(id);
+    logAudit("RESET_PASSWORD", id, undefined, undefined, request.ip);
     return { success: true };
   });
 

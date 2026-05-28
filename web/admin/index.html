@@ -92,6 +92,7 @@ pre.json { background:#1e293b; color:#e2e8f0; padding:16px; border-radius:8px; o
     <button class="tab active" data-tab="links" onclick="switchTab('links')">📎 Einladungslinks</button>
     <button class="tab" data-tab="encounters" onclick="switchTab('encounters')">📝 Anamnesen</button>
     <button class="tab" data-tab="audit" onclick="switchTab('audit')">📋 Audit-Log</button>
+    <button class="tab" data-tab="users" onclick="switchTab('users')">👤 Nutzer</button>
     <button class="tab" data-tab="settings" onclick="switchTab('settings')">⚙️ Einstellungen</button>
   </div>
 
@@ -164,6 +165,13 @@ pre.json { background:#1e293b; color:#e2e8f0; padding:16px; border-radius:8px; o
       <h2>Audit-Log</h2>
       <p style="font-size:0.85rem;color:var(--text-light);margin-bottom:12px;">Protokoll aller administrativen Aktionen.</p>
       <div id="audit-table-container"><div class="empty">Bitte Tab wechseln zum Laden</div></div>
+    </div>
+  </div>
+  <!-- TAB: Nutzer -->
+  <div id="tab-users" class="tab-content">
+    <div class="card">
+      <h2>Benutzerverwaltung</h2>
+      <div id="users-content"><div class="empty">Bitte Tab wechseln zum Laden</div></div>
     </div>
   </div>
   <!-- TAB: Settings -->

@@ -16,13 +16,13 @@ async function initAuth() {
     // Show user info in header
     const header = document.querySelector('header');
     if (header && currentAdmin) {
-      const existing = header.querySelector('.user-info');
-      if (!existing) {
-        const userDiv = document.createElement('div');
+      let userDiv = header.querySelector('.user-info');
+      if (!userDiv) {
+        userDiv = document.createElement('div');
         userDiv.className = 'user-info';
-        userDiv.innerHTML = `<span title="${currentAdmin.role}">${currentAdmin.email}</span><button onclick="doLogout()">Abmelden</button>`;
         header.appendChild(userDiv);
       }
+      userDiv.innerHTML = `<span title="${currentAdmin.role}">${currentAdmin.email}</span><button onclick="doLogout()">Abmelden</button>`;
     }
     // Now load data
     loadLinks();
@@ -47,6 +47,7 @@ function switchTab(tab) {
   if (tab === 'encounters') loadEncountersDashboard();
   if (tab === 'audit') loadAuditLog();
   if (tab === 'settings') loadSettings();
+  if (tab === 'users') loadUsers();
 }
 
 // ─── Link erstellen ─────────────────────────────────────────────
@@ -152,14 +153,19 @@ async function loadEncountersDashboard() {
     // ABGESCHLOSSEN (7 Tage)
     html += '<div class="card"><h3>Abgeschlossen (letzte 7 Tage)</h3>';
     const recentCompleted = completed.filter(r => {
-      const d = r.completed_at ? new Date(r.completed_at) : null;
+      const ts = r.completed_at || r.updated_at || r.created_at;
+      const d = ts ? new Date(ts) : null;
       return d && (Date.now() - d.getTime()) < 7 * 24 * 60 * 60 * 1000;
     });
     const recentProcessed = processed.filter(r => {
-      const d = r.processed_at ? new Date(r.processed_at) : null;
+      const ts = r.processed_at || r.updated_at || r.created_at;
+      const d = ts ? new Date(ts) : null;
       return d && (Date.now() - d.getTime()) < 7 * 24 * 60 * 60 * 1000;
     });
-    const recentAll = [...recentCompleted, ...recentProcessed].sort((a,b) => new Date(b.completed_at||b.processed_at).getTime() - new Date(a.completed_at||a.processed_at).getTime());
+    const recentAll = [...recentCompleted, ...recentProcessed].sort((a,b) => {
+      const getTs = r => new Date(r.completed_at || r.processed_at || r.updated_at || r.created_at).getTime();
+      return getTs(b) - getTs(a);
+    });
     if (!recentAll.length) html += '<p class="empty">Keine abgeschlossenen Anamnesen in den letzten 7 Tagen.</p>';
     else html += encountersTable(recentAll, false);
     html += '</div>';
@@ -461,6 +467,70 @@ async function changePassword() {
     msg.style.color = '#ef4444';
     btn.disabled = false;
   }
+}
+
+// ─── Nutzerverwaltung ────────────────────────────────────────────
+async function loadUsers() {
+  const container = document.getElementById('users-content');
+  if (!container) return;
+  container.innerHTML = '<div class="spinner"></div>';
+  try {
+    const res = await fetch(`${API}/admin/users`, { credentials: 'include' });
+    if (!res.ok) { container.innerHTML = '<p class="empty">Zugriff verweigert.</p>'; return; }
+    const rows = await res.json();
+    let html = `<div class="card"><h3>Benutzerverwaltung</h3>`;
+    if (currentAdmin && currentAdmin.role === 'admin') {
+      html += `<div class="form-group"><input type="email" id="u-email" placeholder="E-Mail"><input type="password" id="u-password" placeholder="Passwort (mind. 8 Zeichen)"><select id="u-role"><option value="user">User</option><option value="admin">Admin</option></select><button class="btn btn-primary" onclick="createUser()">Benutzer erstellen</button></div>`;
+    }
+    html += '<table><thead><tr><th>E-Mail</th><th>Rolle</th><th>TOTP</th><th>Erstellt</th><th>Aktionen</th></tr></thead><tbody>';
+    for (const r of rows) {
+      html += `<tr><td>${r.email}</td><td>${r.role}</td><td>${r.totp_enabled ? '✅' : '—'}</td><td>${fmtDate(r.created_at)}</td><td>`;
+      if (currentAdmin && currentAdmin.role === 'admin' && r.email !== currentAdmin.email) {
+        html += `<button class="btn btn-sm btn-secondary" onclick="resetUserPrompt('${r.id}')">PW reset</button> <button class="btn btn-sm btn-danger" onclick="deleteUser('${r.id}', '${r.email}')">Löschen</button>`;
+      }
+      html += '</td></tr>';
+    }
+    html += '</tbody></table></div>';
+    container.innerHTML = html;
+  } catch (e) { container.innerHTML = '<p class="empty">Fehler beim Laden.</p>'; }
+}
+
+async function createUser() {
+  const email = document.getElementById('u-email').value.trim();
+  const password = document.getElementById('u-password').value;
+  const role = document.getElementById('u-role').value;
+  if (!email || !password || password.length < 8) { alert('Bitte E-Mail und Passwort (min. 8 Zeichen) eingeben.'); return; }
+  try {
+    const res = await fetch(`${API}/admin/users`, { method: 'POST', headers: {'Content-Type':'application/json'}, credentials: 'include', body: JSON.stringify({ email, password, role }) });
+    const data = await res.json();
+    if (!res.ok) { alert(data.error || 'Fehler'); return; }
+    loadUsers();
+    document.getElementById('u-email').value = '';
+    document.getElementById('u-password').value = '';
+  } catch (e) { alert('Netzwerkfehler'); }
+}
+
+async function deleteUser(id, email) {
+  if (!confirm(`Benutzer ${email} wirklich löschen?`)) return;
+  try {
+    const res = await fetch(`${API}/admin/users/${id}`, { method: 'DELETE', credentials: 'include' });
+    if (!res.ok) { alert('Fehler'); return; }
+    loadUsers();
+  } catch (e) { alert('Netzwerkfehler'); }
+}
+
+function resetUserPrompt(id) {
+  const pw = prompt('Neues Passwort (mind. 8 Zeichen):');
+  if (!pw || pw.length < 8) return;
+  resetUserPassword(id, pw);
+}
+
+async function resetUserPassword(id, newPassword) {
+  try {
+    const res = await fetch(`${API}/admin/users/${id}/reset-password`, { method: 'POST', headers: {'Content-Type':'application/json'}, credentials: 'include', body: JSON.stringify({ newPassword }) });
+    if (!res.ok) { alert('Fehler'); return; }
+    alert('Passwort zurückgesetzt. Der Benutzer muss sich neu anmelden.');
+  } catch (e) { alert('Netzwerkfehler'); }
 }
 
 // ─── PIN Toggle ─────────────────────────────────────────────────────
