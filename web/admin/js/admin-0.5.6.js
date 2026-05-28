@@ -79,6 +79,10 @@ async function createLink() {
     document.getElementById('result-url').textContent = url;
     document.getElementById('result-pin').textContent = data.pin ? `PIN: ${data.pin}` : '';
     document.getElementById('link-result').style.display = 'block'; document.getElementById('result-box').style.display = 'block';
+    // Generate QR code
+    const qrDiv = document.getElementById('result-qr');
+    qrDiv.innerHTML = '';
+    new QRCode(qrDiv, { text: url, width: 160, height: 160, colorDark: '#1e293b', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
     if (email) { try { await sendLinkEmail(email, pvsId, url, dob, data.pin); } catch(e) { console.log('E-Mail skipped', e); } }
     await loadLinks();
   } catch (e) { alert('Netzwerkfehler: ' + (e.message || e)); } finally { btn.disabled = false; btn.textContent = 'Link erstellen'; }
@@ -122,6 +126,20 @@ async function loadLinks() {
 function copyLink(token) {
   const url = `${window.location.origin}/anamnese/${token}`;
   navigator.clipboard.writeText(url).then(() => alert('Link kopiert!'));
+}
+
+function copyResultLink() {
+  const url = document.getElementById('result-url').textContent;
+  if (url) navigator.clipboard.writeText(url).then(() => alert('Link kopiert!'));
+}
+
+function showQRFullscreen() {
+  const url = document.getElementById('result-url').textContent;
+  if (!url) return;
+  const container = document.getElementById('qr-fullscreen-canvas');
+  container.innerHTML = '';
+  new QRCode(container, { text: url, width: 320, height: 320, colorDark: '#1e293b', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
+  document.getElementById('qr-fullscreen').style.display = 'flex';
 }
 
 // ─── Encounters Dashboard (3-Bereich) ───────────────────────────
@@ -544,3 +562,4 @@ document.addEventListener('DOMContentLoaded', () => {
   // Init auth
   initAuth();
 });
+

@@ -135,6 +135,11 @@ pre.json { background:#1e293b; color:#e2e8f0; padding:16px; border-radius:8px; o
       <div id="link-result" style="margin-top:16px;display:none;">
         <div id="result-box" style="display:none;">
           <div class="url-box" id="result-url"></div>
+          <div id="result-qr" style="margin:12px 0;text-align:center;"></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
+            <button class="btn btn-sm btn-secondary" onclick="copyResultLink()">Link kopieren</button>
+            <button class="btn btn-sm btn-secondary" onclick="showQRFullscreen()">QR vergroessern</button>
+          </div>
           <div id="result-pin" style="margin-top:8px;font-weight:600;color:#2563eb;"></div>
         </div>
       </div>
@@ -215,3 +220,4 @@ pre.json { background:#1e293b; color:#e2e8f0; padding:16px; border-radius:8px; o
 <script src="/admin/js/admin-0.5.6.js?v=hotfix3"></script>
 </body>
 </html>
+
