@@ -332,7 +332,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
     const existing = db.prepare("SELECT id FROM admin_users WHERE email = ?").get(email);
     if (existing) return reply.status(409).send({ error: "Email already exists" });
     const bcrypt = require("bcrypt");
-    const pepper = process.env.PASSWORD_PEPPER || "myhistoree-pepper-2026";
+    const pepper = process.env.PASSWORD_PEPPER || "myhistoree-pepper-change-in-production";
     const hash = await bcrypt.hash(password + pepper, 12);
     const id = randomUUID();
     db.prepare("INSERT INTO admin_users (id, email, password_hash, role, practice_id) VALUES (?, ?, ?, ?, ?)").run(id, email, hash, role, practiceId);
@@ -363,7 +363,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
     const target = db.prepare("SELECT id FROM admin_users WHERE id = ?").get(id);
     if (!target) return reply.status(404).send({ error: "Not found" });
     const bcrypt = require("bcrypt");
-    const pepper = process.env.PASSWORD_PEPPER || "myhistoree-pepper-2026";
+    const pepper = process.env.PASSWORD_PEPPER || "myhistoree-pepper-change-in-production";
     const hash = await bcrypt.hash(newPassword + pepper, 12);
     db.prepare("UPDATE admin_users SET password_hash = ? WHERE id = ?").run(hash, id);
     db.prepare("DELETE FROM admin_sessions WHERE admin_id = ?").run(id);
