@@ -1,4 +1,4 @@
-// myhistoree v0.5.3 – Online Anamnese
+// myhistoree v0.5.4 – Online Anamnese
 const API = "";
 
 let encounterId = null;
@@ -456,15 +456,14 @@ function collectContact() {
   const mobile = document.getElementById("contact-mobile").value.trim();
   const landline = document.getElementById("contact-landline").value.trim();
   const email = document.getElementById("contact-email").value.trim();
-  if (!landline) { alert("Bitte geben Sie Ihre Festnetznummer an."); return undefined; }
+  const mobileClean = mobile.replace(/[\s\-\(\)]/g, "");
   const landlineClean = landline.replace(/[\s\-\(\)]/g, "");
-  if (landlineClean.length < 6) { alert("Bitte eine gültige Festnetznummer eingeben."); return undefined; }
-  const result = { landline: landlineClean, __completed: true };
-  if (mobile) {
-    const mobileClean = mobile.replace(/[\s\-\(\)]/g, "");
-    if (mobileClean.length < 8) { alert("Bitte eine gültige Mobilfunknummer eingeben."); return undefined; }
-    result.mobile = mobileClean;
-  }
+  const hasMobile = mobileClean.length >= 6;
+  const hasLandline = landlineClean.length >= 6;
+  if (!hasMobile && !hasLandline) { alert("Bitte geben Sie mindestens eine Telefonnummer an, unter der wir Sie erreichen können."); return undefined; }
+  const result = { __completed: true };
+  if (hasMobile) result.mobile = mobileClean;
+  if (hasLandline) result.landline = landlineClean;
   if (email) {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { alert("Bitte eine gültige E-Mail-Adresse eingeben."); return undefined; }
     result.email = email;
