@@ -1,6 +1,7 @@
 import fastify from "fastify";
 import cors from "@fastify/cors";
 import cookie from "@fastify/cookie";
+import jwt from "@fastify/jwt";
 import staticPlugin from "@fastify/static";
 import { join } from "path";
 import { initSchema, ensurePracticeDefaults } from "./db/index";
@@ -38,6 +39,14 @@ app.addHook("onSend", async (request, reply, payload) => {
 
 app.register(cors, { origin: true, credentials: true });
 app.register(cookie);
+app.register(jwt, {
+  secret: process.env.JWT_SECRET || "myhistoree-jwt-secret-change-in-production",
+  cookie: {
+    cookieName: "access_token",
+    signed: false,
+  },
+  sign: { expiresIn: "15m" },
+});
 
 app.register(staticPlugin, {
   root: join(__dirname, "../../web"),

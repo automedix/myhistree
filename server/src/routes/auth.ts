@@ -51,16 +51,6 @@ function resetRateLimit(ip: string) {
 }
 
 export async function registerAuthRoutes(fastify: FastifyInstance) {
-  // ─── JWT Plugin Setup ───────────────────────────────────────────
-  await (fastify as any).register(require("@fastify/jwt"), {
-    secret: JWT_SECRET,
-    cookie: {
-      cookieName: "access_token",
-      signed: false,
-    },
-    sign: { expiresIn: ACCESS_TOKEN_TTL },
-  });
-
   // ─── Login Step 1: Email + Password ─────────────────────────────
   fastify.post("/auth/login", async (request, reply) => {
     const clientIp = request.ip || "unknown";
