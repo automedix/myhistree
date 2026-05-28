@@ -1,4 +1,4 @@
-// myhistoree v0.5.2 – Online Anamnese
+// myhistoree v0.5.3 – Online Anamnese
 const API = "";
 
 let encounterId = null;
@@ -543,6 +543,34 @@ function skipEmailVerify() {
   document.getElementById("btn-send-code").style.display = "none";
 }
 
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+function updateSendCodeButton() {
+  const email = document.getElementById("contact-email").value.trim();
+  const btn = document.getElementById("btn-send-code");
+  if (!btn) return;
+  if (isValidEmail(email)) {
+    btn.classList.add("btn-pulse");
+  } else {
+    btn.classList.remove("btn-pulse");
+  }
+}
+
+// Init
+initPage();
+
+// Email input listener for send-code button animation
+document.addEventListener("DOMContentLoaded", () => {
+  const emailInput = document.getElementById("contact-email");
+  if (emailInput) {
+    emailInput.addEventListener("input", updateSendCodeButton);
+    // initial check in case browser autofill
+    updateSendCodeButton();
+  }
+});
+
 // ─── Review & Submit ────────────────────────────────────────────
 function buildReview() {
   const items = [
@@ -624,6 +652,3 @@ async function rejectAnamnese() {
     alert("Fehler beim Löschen: " + e.message);
   }
 }
-
-// Init
-initPage();

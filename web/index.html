@@ -21,6 +21,23 @@
     .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
     .btn-secondary { background: #f1f5f9; color: #334155; border: none; padding: 14px 24px; border-radius: 10px; font-size: 1rem; cursor: pointer; }
     .btn-ghost { background: #fff; color: #94a3b8; border: 2px solid #e2e8f0; padding: 14px 24px; border-radius: 10px; font-size: 0.9rem; cursor: pointer; margin-top: 12px; width: 100%; }
+
+    .btn-pulse {
+      animation: btnPulse 1.2s ease-in-out infinite;
+      background: #16a34a !important;
+      color: #fff !important;
+      border-color: #16a34a !important;
+      font-weight: 700;
+    }
+    @keyframes btnPulse {
+      0%   { transform: scale(1); box-shadow: 0 0 0 0 rgba(22,163,74,0.5); }
+      50%  { transform: scale(1.03); box-shadow: 0 0 0 10px rgba(22,163,74,0); }
+      100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(22,163,74,0); }
+    }
+    .btn-pulse:hover {
+      background: #15803d !important;
+    }
+
     .form-group { margin-bottom: 20px; }
     .form-group label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 0.95rem; }
     .form-group input:not([type=radio]):not([type=checkbox]), .form-group select, .form-group textarea { width: 100%; padding: 12px 14px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 1rem; font-family: inherit; background: #fff; -webkit-appearance: none; }
@@ -429,13 +446,13 @@
     <div class="form-group">
       <label>Seit wann bestehen Ihre Beschwerden?</label>
       <div class="radio-group">
+        <label class="radio-card"><input type="radio" name="duration" value="keine"> Keine Beschwerden</label>
         <label class="radio-card"><input type="radio" name="duration" value="1-tag"> Weniger als 1 Tag</label>
         <label class="radio-card"><input type="radio" name="duration" value="1-3-tage"> 1 bis 3 Tage</label>
         <label class="radio-card"><input type="radio" name="duration" value="1-woche"> Etwa 1 Woche</label>
         <label class="radio-card"><input type="radio" name="duration" value="1-4-wochen"> 1 bis 4 Wochen</label>
         <label class="radio-card"><input type="radio" name="duration" value="1-6-monate"> 1 bis 6 Monate</label>
         <label class="radio-card"><input type="radio" name="duration" value="laenger"> Länger als 6 Monate</label>
-        <label class="radio-card"><input type="radio" name="duration" value="keine"> Keine Beschwerden</label>
       </div>
     </div>
     <div class="nav-btns">
@@ -452,6 +469,7 @@
     <p class="help">Welche chronischen Erkrankungen wurden bei Ihnen festgestellt? Mehrfachnennungen möglich.</p>
     <div class="form-group">
       <div class="chip-group" id="condition-chips">
+        <button class="chip" data-value="keine">Keine chronischen Erkrankungen</button>
         <button class="chip" data-value="bluthochdruck">Bluthochdruck</button>
         <button class="chip" data-value="diabetes">Diabetes (Zuckerkrankheit)</button>
         <button class="chip" data-value="herz">Herzkrankheit</button>
@@ -466,7 +484,6 @@
         <button class="chip" data-value="gicht">Gicht</button>
         <button class="chip" data-value="osteoporose">Osteoporose</button>
         <button class="chip" data-value="thrombose">Thrombose / Embolie</option>
-        <button class="chip" data-value="keine">Keine chronischen Erkrankungen</button>
       </div>
     </div>
     <div class="nav-btns">
@@ -507,6 +524,7 @@
     <p class="help">Nehmen Sie eines dieser Medikamente ein? Mehrfachnennungen möglich.</p>
     <div class="form-group">
       <div class="chip-group" id="bloodthin-chips">
+        <button class="chip" data-value="keine">Keine Blutverdünnung</button>
         <button class="chip" data-value="Phenprocoumon">Phenprocoumon (Marcumar&reg; u.a.)</button>
         <button class="chip" data-value="Edoxaban">Edoxaban (Lixiana&reg;)</button>
         <button class="chip" data-value="Apixaban">Apixaban (Eliquis&reg;)</option>
@@ -514,7 +532,6 @@
         <button class="chip" data-value="Ticagrelor">Ticagrelor (Brilique&reg;)</button>
         <button class="chip" data-value="Clopidogrel">Clopidogrel (Plavix&reg;)</button>
         <button class="chip" data-value="ASS">ASS (Aspirin&reg;)</button>
-        <button class="chip" data-value="keine">Keine Blutverdünnung</button>
       </div>
     </div>
     <div class="form-group">
@@ -535,6 +552,7 @@
     <p class="help">Nehmen Sie eines dieser Medikamente ein?</p>
     <div class="form-group">
       <div class="chip-group" id="bp-chips">
+        <button class="chip" data-value="keine">Keine Blutdrucksenker</button>
         <button class="chip" data-value="Candesartan">Candesartan</button>
         <button class="chip" data-value="Losartan">Losartan</button>
         <button class="chip" data-value="Telmisartan">Telmisartan</button>
@@ -545,7 +563,6 @@
         <button class="chip" data-value="Bisoprolol">Bisoprolol</button>
         <button class="chip" data-value="Metoprolol">Metoprolol</button>
         <button class="chip" data-value="Ramipril">Ramipril</button>
-        <button class="chip" data-value="keine">Keine Blutdrucksenker</button>
       </div>
     </div>
     <div class="form-group">
@@ -566,8 +583,8 @@
     <p class="help">Nehmen Sie eines dieser Medikamente ein?</p>
     <div class="form-group">
       <div class="chip-group" id="asthma-chips">
-        <button class="chip" data-value="Salbutamol">Salbutamol</button>
         <button class="chip" data-value="keine">Keine Asthma-/COPD-Medikamente</button>
+        <button class="chip" data-value="Salbutamol">Salbutamol</button>
       </div>
     </div>
     <div class="form-group">
@@ -588,6 +605,7 @@
     <p class="help">Nehmen Sie eines dieser Medikamente ein?</p>
     <div class="form-group">
       <div class="chip-group" id="diabetes-chips">
+        <button class="chip" data-value="keine">Keine Diabetes-Medikamente</button>
         <button class="chip" data-value="Insulin">Insulin</button>
         <button class="chip" data-value="Metformin">Metformin</button>
         <button class="chip" data-value="Sitagliptin">Sitagliptin</button>
@@ -595,7 +613,6 @@
         <button class="chip" data-value="Semaglutid">Semaglutid (Ozempic&reg;, Wegovy&reg;)</button>
         <button class="chip" data-value="Tirzepatid">Tirzepatid (Mounjaro&reg;)</button>
         <button class="chip" data-value="Dulaglutid">Dulaglutid (Trulicity&reg;)</button>
-        <button class="chip" data-value="keine">Keine Diabetes-Medikamente</button>
       </div>
     </div>
     <div class="form-group">
@@ -616,11 +633,11 @@
     <p class="help">Nehmen Sie eines dieser Medikamente ein?</p>
     <div class="form-group">
       <div class="chip-group" id="neuro-chips">
+        <button class="chip" data-value="keine">Keine neurologischen Medikamente</button>
         <button class="chip" data-value="Pregabalin">Pregabalin</button>
         <button class="chip" data-value="Gabapentin">Gabapentin</button>
         <button class="chip" data-value="Lamotrigin">Lamotrigin</button>
         <button class="chip" data-value="Carbamazepin">Carbamazepin</button>
-        <button class="chip" data-value="keine">Keine neurologischen Medikamente</button>
       </div>
     </div>
     <div class="form-group">
@@ -641,6 +658,7 @@
     <p class="help">Nehmen Sie regelmäßig Schmerzmittel ein?</p>
     <div class="form-group">
       <div class="chip-group" id="pain-chips">
+        <button class="chip" data-value="keine">Keine regelmäßigen Schmerzmittel</button>
         <button class="chip" data-value="Tilidin">Tilidin</button>
         <button class="chip" data-value="Hydromorphon">Hydromorphon</button>
         <button class="chip" data-value="Oxycodon">Oxycodon</button>
@@ -648,7 +666,6 @@
         <button class="chip" data-value="Ibuprofen">Ibuprofen</button>
         <button class="chip" data-value="Paracetamol">Paracetamol</button>
         <button class="chip" data-value="Diclofenac">Diclofenac</button>
-        <button class="chip" data-value="keine">Keine regelmäßigen Schmerzmittel</button>
       </div>
     </div>
     <div class="form-group">
@@ -669,12 +686,12 @@
     <p class="help">Nehmen Sie eines dieser Medikamente ein?</p>
     <div class="form-group">
       <div class="chip-group" id="gynuro-chips">
+        <button class="chip" data-value="keine">Keine Medikamente aus diesem Bereich</button>
         <button class="chip" data-value="Orales Antikonzeptivum">Orales Antikonzeptivum (Pille)</button>
         <button class="chip" data-value="Tamoxifen">Tamoxifen</button>
         <button class="chip" data-value="Tamsulosin">Tamsulosin</button>
         <button class="chip" data-value="Finasterid">Finasterid</button>
         <button class="chip" data-value="Hormonersatztherapie">Hormonersatztherapie (HRT)</button>
-        <button class="chip" data-value="keine">Keine Medikamente aus diesem Bereich</button>
       </div>
     </div>
     <div class="form-group">
@@ -695,12 +712,12 @@
     <p class="help">Nehmen Sie eines dieser Medikamente ein?</p>
     <div class="form-group">
       <div class="chip-group" id="chol-chips">
+        <button class="chip" data-value="keine">Keine Cholesterinsenker</button>
         <button class="chip" data-value="Simvastatin">Simvastatin</button>
         <button class="chip" data-value="Atorvastatin">Atorvastatin</button>
         <button class="chip" data-value="Rosuvastatin">Rosuvastatin</button>
         <button class="chip" data-value="Pravastatin">Pravastatin</button>
         <button class="chip" data-value="Ezetimib">Ezetimib</button>
-        <button class="chip" data-value="keine">Keine Cholesterinsenker</button>
       </div>
     </div>
     <div class="form-group">
@@ -721,11 +738,11 @@
     <p class="help">Weitere Medikamente, die nicht in den vorherigen Kategorien erfasst wurden.</p>
     <div class="form-group">
       <div class="chip-group" id="other-meds-chips">
+        <button class="chip" data-value="keine">Keine weiteren Medikamente</button>
         <button class="chip" data-value="L-Thyroxin">L-Thyroxin (Schilddrüse)</button>
         <button class="chip" data-value="Pantoprazol">Pantoprazol (Magenschutz)</button>
         <button class="chip" data-value="Omeprazol">Omeprazol (Magenschutz)</button>
         <button class="chip" data-value="Esomeprazol">Esomeprazol (Magenschutz)</button>
-        <button class="chip" data-value="keine">Keine weiteren Medikamente</button>
       </div>
     </div>
     <div class="form-group">
@@ -1007,6 +1024,6 @@
   </main>
 </div>
 
-<script src="/js/app.js?v=0.5.2"></script>
+<script src="/js/app.js?v=0.5.3"></script>
 </body>
 </html>
