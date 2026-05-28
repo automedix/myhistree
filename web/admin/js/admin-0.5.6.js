@@ -40,7 +40,7 @@ async function doLogout() {
 }
 
 // ─── Tab Switching ──────────────────────────────────────────────
-function switchTab(tab) {
+async function switchTab(tab) {
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
   document.querySelectorAll('.tab-content').forEach(t => t.classList.toggle('active', t.id === 'tab-' + tab));
   if (tab === 'links') await loadLinks();
