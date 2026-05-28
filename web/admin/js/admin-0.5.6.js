@@ -78,7 +78,7 @@ async function createLink() {
     const url = `${base}/anamnese/${data.token}`;
     document.getElementById('result-url').textContent = url;
     document.getElementById('result-pin').textContent = data.pin ? `PIN: ${data.pin}` : '';
-    document.getElementById('result-box').style.display = 'block';
+    document.getElementById('link-result').style.display = 'block'; document.getElementById('result-box').style.display = 'block';
     if (email) { try { await sendLinkEmail(email, pvsId, url, dob, data.pin); } catch(e) { console.log('E-Mail skipped', e); } }
     await loadLinks();
   } catch (e) { alert('Netzwerkfehler: ' + (e.message || e)); } finally { btn.disabled = false; btn.textContent = 'Link erstellen'; }
