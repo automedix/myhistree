@@ -1,4 +1,4 @@
-// myhistoree v0.5.4 – Online Anamnese
+// myhistoree v0.5.5 – Online Anamnese
 const API = "";
 
 let encounterId = null;
@@ -90,9 +90,8 @@ const wizard = {
   },
   async saveAndNext(category, collectorFn) {
     const data = collectorFn();
-    if (data === null) { this.next(); return; }            // skipped
-    if (data === undefined) return;                         // validation error, stay
-    // Persist to backend
+    if (data === null) { saveProgress(); this.next(); return; }
+    if (data === undefined) return;
     if (encounterId) {
       try {
         await fetch(`${API}/api/anamnese/${encounterId}/${category}`, {
@@ -103,7 +102,15 @@ const wizard = {
       } catch(e) { console.error("Speichern fehlgeschlagen", e); }
     }
     sessionStorage.setItem("myhistoree_" + category, JSON.stringify(data));
+    saveProgress();
     this.next();
+  },
+  prev() {
+    if (currentStep > 0) {
+      saveProgress();
+      currentStep--;
+      this.render();
+    }
   }
 };
 
@@ -127,15 +134,19 @@ async function verifyAndStart() {
     encounterId = json.encounterId;
     patientId = json.patientId;
     document.getElementById("screen-verify").classList.remove("active");
-    currentStep = 1;
-    wizard.render();
+    if (json.resume && linkData?.currentScreen) {
+      await restoreSession(linkData.currentScreen);
+    } else {
+      currentStep = 1;
+      wizard.render();
+    }
   } catch(e) {
     showError(e.message);
-    if (btn) { btn.disabled = false; btn.textContent = "Anamnese starten"; }
+    if (btn) { btn.disabled = false; btn.textContent = linkData?.resume ? "Fortsetzen" : "Anamnese starten"; }
   }
 }
 
-// ─── Page Init ──────────────────────────────────────────────────
+// ─── Page Init ───────────────────────────────────────────────────
 async function initPage() {
   const params = getUrlParams();
   linkToken = params.token;
@@ -162,6 +173,34 @@ async function initPage() {
     if (linkData.requiresPin) {
       document.getElementById("verify-pin-group").style.display = "block";
     }
+    // Resume: if link was already used and there's an in-progress encounter
+    if (linkData.resume) {
+      encounterId = linkData.encounterId;
+      const btn = document.getElementById("btn-verify");
+      if (btn) {
+        btn.textContent = "Anamnese fortsetzen";
+        btn.setAttribute("data-resume", "true");
+      }
+      const title = document.querySelector("#screen-verify h1");
+      if (title) {
+        title.innerHTML = "🏥 Anamnese fortsetzen";
+      }
+      const subtitle = document.querySelector("#screen-verify p");
+      if (subtitle && linkData.currentScreen) {
+        const screenNames = {
+          language: "Sprache", origin: "Herkunft", family_status: "Familienstand",
+          children: "Kinder", job: "Beruf", insurance: "Versicherung",
+          symptoms: "Beschwerden", duration: "Dauer", conditions: "Vorerkrankungen",
+          operations: "Operationen", meds_bloodthin: "Blutverdünnung", meds_bp: "Blutdrucksenker",
+          meds_asthma: "Asthma/COPD", meds_diabetes: "Diabetes", meds_neuro: "Neurologisch",
+          meds_pain: "Schmerzmittel", meds_gynuro: "Gynäkologie/Urologie", meds_chol: "Cholesterinsenker",
+          meds_other: "Sonstige Medikamente", allergies: "Allergien", family: "Familienanamnese",
+          lifestyle: "Lebensgewohnheiten", lifestyle2: "Lebensgewohnheiten (2)", emergency: "Notfallkontakt",
+          bodymetrics: "Körpermaße", contact: "Kontaktdaten", notes: "Zusätzliche Infos", review: "Zusammenfassung"
+        };
+        subtitle.innerHTML = `Sie haben Ihre Anamnese bei <strong>${screenNames[linkData.currentScreen] || linkData.currentScreen}</strong> unterbrochen.<br>Mit der gleichen Geburtsdatum${linkData.requiresPin ? ' und PIN' : ''} können Sie fortfahren.`;
+      }
+    }
   } catch(e) {
     document.body.innerHTML = `<div style="padding:40px;text-align:center;font-family:system-ui;"><h2>Fehler</h2><p>Der Link konnte nicht überprüft werden. Bitte versuchen Sie es später erneut.</p></div>`;
     return;
@@ -179,9 +218,97 @@ async function initPage() {
   initChips("chol-chips");
   initChips("other-meds-chips");
   wizard.render();
+  injectPauseButtons();
 }
 
-// ─── Chip Helpers ───────────────────────────────────────────────
+function injectPauseButtons() {
+  const skipScreens = ["verify", "done"];
+  for (const screenName of screens) {
+    if (skipScreens.includes(screenName)) continue;
+    const screenEl = document.getElementById("screen-" + screenName);
+    if (!screenEl) continue;
+    const existing = screenEl.querySelector(".btn-pause");
+    if (existing) continue;
+    const navBtns = screenEl.querySelector(".nav-btns");
+    if (!navBtns) continue;
+    const btn = document.createElement("button");
+    btn.className = "btn-pause";
+    btn.textContent = "⏸ Später fortsetzen";
+    btn.style.cssText = "width:100%;margin-top:12px;padding:10px;border:none;background:#f1f5f9;color:#64748b;border-radius:8px;font-size:0.85rem;cursor:pointer;";
+    btn.onclick = saveAndPause;
+    navBtns.parentNode.insertBefore(btn, navBtns.nextSibling);
+  }
+}
+
+// ─── Resume / Session Restore ─────────────────────────────────────────────
+async function saveProgress() {
+  if (!encounterId) return;
+  const currentScreen = screens[currentStep];
+  try {
+    await fetch(`${API}/api/anamnese/${encounterId}/progress`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ currentScreen })
+    });
+  } catch(e) { console.error("Progress save failed", e); }
+}
+
+async function restoreSession(targetScreen) {
+  if (!encounterId) return;
+  try {
+    const res = await fetch(`${API}/api/anamnese/${encounterId}/responses`);
+    const responses = await res.json();
+    restoreFormData(responses);
+    wizard.goTo(targetScreen);
+  } catch(e) {
+    console.error("Restore failed", e);
+    currentStep = 1;
+    wizard.render();
+  }
+}
+
+function restoreFormData(responses) {
+  for (const [category, data] of Object.entries(responses || {})) {
+    if (typeof data !== "object" || data === null) continue;
+    sessionStorage.setItem("myhistoree_" + category, JSON.stringify(data));
+    for (const [key, value] of Object.entries(data)) {
+      if (key === "__completed") continue;
+      const el = document.getElementById(key);
+      if (el) {
+        if (el.type === "checkbox" || el.type === "radio") {
+          const radios = document.querySelectorAll(`input[name="${el.name}"]`);
+          radios.forEach(r => { if (r.value === value) r.checked = true; });
+        } else if (el.tagName === "SELECT") {
+          el.value = value;
+        } else {
+          el.value = value;
+        }
+      }
+      // Chip groups
+      const chipGroup = document.getElementById(key.replace(/_/g, "-") + "-chips") || document.getElementById(key + "-chips");
+      if (chipGroup && typeof value === "string") {
+        const vals = value.split(", ").map(v => v.trim());
+        chipGroup.querySelectorAll(".chip").forEach(chip => {
+          chip.classList.toggle("selected", vals.includes(chip.dataset.value));
+        });
+      }
+    }
+  }
+}
+
+async function saveAndPause() {
+  await saveProgress();
+  const doneScreen = document.getElementById("screen-done");
+  if (doneScreen) {
+    const content = doneScreen.querySelector(".content") || doneScreen;
+    const original = content.innerHTML;
+    content.innerHTML = `<div style="text-align:center;padding:40px;"><div style="font-size:48px;margin-bottom:16px;">⏸</div><h2>Bearbeitung pausiert</h2><p style="color:#64748b;">Ihre Angaben wurden gespeichert. Sie können später mit dem gleichen Link fortfahren.</p><p style="font-size:0.85rem;color:#94a3b8;margin-top:8px;">Patienten-ID: <strong>${linkData?.pvsPatientId || "—"}</strong></p></div>`;
+    setTimeout(() => { content.innerHTML = original; }, 5000);
+  }
+  wizard.goTo("done");
+}
+
+// ─── Chip Helpers ────────────────────────────────────────────────────────────────────────────
 function initChips(groupId) {
   const group = document.getElementById(groupId);
   if (!group) return;

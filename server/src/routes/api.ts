@@ -46,18 +46,25 @@ export default async function apiRoutes(fastify: FastifyInstance) {
     const link = db.prepare(`SELECT l.*, p.name as practice_name, p.address, p.city, p.postal_code, p.phone, p.email as practice_email
       FROM patient_links l JOIN practices p ON l.practice_id = p.id WHERE l.token = ?`).get(token) as any;
     if (!link) return reply.status(404).send({ error: "Link not found" });
-    if (link.status !== "pending") return reply.status(410).send({ error: "Link already used or expired" });
     if (new Date(link.expires_at) < new Date()) {
       db.prepare("UPDATE patient_links SET status = 'expired' WHERE id = ?").run(link.id);
       return reply.status(410).send({ error: "Link expired" });
     }
+    if (link.status === "used") {
+      const encounter = db.prepare("SELECT id, current_screen FROM encounters WHERE source_link_id = ? AND status = 'in-progress'").get(token) as any;
+      if (encounter) {
+        return { ...link, resume: true, encounterId: encounter.id, currentScreen: encounter.current_screen };
+      }
+      return reply.status(410).send({ error: "Link already used" });
+    }
+    if (link.status !== "pending") return reply.status(410).send({ error: "Link already used or expired" });
     return link;
   });
 
   fastify.post("/link/start", async (request, reply) => {
     const body = request.body as any;
     const link = db.prepare("SELECT * FROM patient_links WHERE token = ?").get(body.token) as any;
-    if (!link || link.status !== "pending") return reply.status(400).send({ error: "Invalid or expired link" });
+    if (!link) return reply.status(400).send({ error: "Invalid or expired link" });
 
     const dobInput = body.patientDob || "";
     const dobNormalized = dobInput.replace(/\./g, "-");
@@ -68,6 +75,16 @@ export default async function apiRoutes(fastify: FastifyInstance) {
       const decodedPin = Buffer.from(link.pin, "base64").toString("utf8");
       if (decodedPin !== body.pin) return reply.status(403).send({ error: "Incorrect PIN" });
     }
+
+    if (link.status === "used") {
+      const encounter = db.prepare("SELECT id, patient_id, practice_id FROM encounters WHERE source_link_id = ? AND status = 'in-progress'").get(body.token) as any;
+      if (encounter) {
+        return { encounterId: encounter.id, patientId: encounter.patient_id, practiceId: encounter.practice_id, resume: true };
+      }
+      return reply.status(400).send({ error: "Invalid or expired link" });
+    }
+
+    if (link.status !== "pending") return reply.status(400).send({ error: "Invalid or expired link" });
 
     const patientId = randomUUID();
     db.prepare("INSERT INTO patients (id, pvs_patient_id, date_of_birth) VALUES (?, ?, ?)").run(patientId, link.pvs_patient_id, link.patient_dob);
