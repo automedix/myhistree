@@ -7,10 +7,18 @@ import { sendAnamneseLink, sendVerificationCodeEmail, validateEmail } from "../e
 const anamneseBody = z.record(z.any());
 const auditQuery = z.object({ limit: z.string().optional(), offset: z.string().optional() });
 
+async function requireAuth(request: any, reply: any) {
+  try {
+    await request.jwtVerify();
+  } catch {
+    return reply.status(401).send({ error: "Unauthorized" });
+  }
+}
+
 export default async function apiRoutes(fastify: FastifyInstance) {
   // ────────────────────────────────────────────────────────────────
   // Health
-  fastify.get("/health", async () => ({ status: "ok", version: "0.5.5" }));
+  fastify.get("/health", async () => ({ status: "ok", version: "0.5.6" }));
 
   // ─── Links ──────────────────────────────────────────────────────
   fastify.post("/link/create", async (request, reply) => {
@@ -226,7 +234,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
   });
 
   // ─── Admin ──────────────────────────────────────────────────────
-  fastify.get("/admin/encounters/list/:practiceId", async (request) => {
+  fastify.get("/admin/encounters/list/:practiceId", { onRequest: requireAuth }, async (request) => {
     const { practiceId } = request.params as { practiceId: string };
     const rows = db.prepare(`SELECT e.id, e.status, e.source_link_id, e.created_at, e.completed_at, e.processed_at, l.pvs_patient_id, l.patient_email
       FROM encounters e LEFT JOIN patient_links l ON e.source_link_id = l.token
@@ -234,7 +242,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
     return rows;
   });
 
-  fastify.get("/patients/list/:practiceId", async (request) => {
+  fastify.get("/patients/list/:practiceId", { onRequest: requireAuth }, async (request) => {
     const { practiceId } = request.params as { practiceId: string };
     const rows = db.prepare(`SELECT p.id, p.pvs_patient_id, p.date_of_birth, p.created_at,
       (SELECT COUNT(*) FROM encounters WHERE patient_id = p.id) as encounter_count
@@ -243,17 +251,17 @@ export default async function apiRoutes(fastify: FastifyInstance) {
     return rows;
   });
 
-  fastify.get("/practices/list", async () => {
+  fastify.get("/practices/list", { onRequest: requireAuth }, async () => {
     return db.prepare("SELECT id, name, address, city, postal_code, phone, email FROM practices").all();
   });
 
   // ─── Audit & Retention ──────────────────────────────────────────
-  fastify.get("/audit/log", async (request) => {
+  fastify.get("/audit/log", { onRequest: requireAuth }, async (request) => {
     const q = auditQuery.parse(request.query);
     return getAuditLog(parseInt(q.limit || "100"), parseInt(q.offset || "0"));
   });
 
-  fastify.post("/admin/apply-retention", async (request) => {
+  fastify.post("/admin/apply-retention", { onRequest: requireAuth }, async (request) => {
     const result = applyRetention();
     logAudit("APPLY_RETENTION", undefined, JSON.stringify(result), undefined, request.ip);
     return result;
@@ -280,7 +288,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
   });
 
   // ─── Admin: Mark encounter as processed ─────────────────────────
-  fastify.post("/admin/encounter/:encounterId/process", async (request, reply) => {
+  fastify.post("/admin/encounter/:encounterId/process", { onRequest: requireAuth }, async (request, reply) => {
     const { encounterId } = request.params as { encounterId: string };
     const encounter = db.prepare("SELECT id FROM encounters WHERE id = ?").get(encounterId);
     if (!encounter) return reply.status(404).send({ error: "Not found" });

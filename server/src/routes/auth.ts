@@ -1,0 +1,255 @@
+import { FastifyInstance } from "fastify";
+import { db, logAudit } from "../db/index";
+import { randomUUID, createHash } from "crypto";
+import bcrypt from "bcrypt";
+import speakeasy from "speakeasy";
+import QRCode from "qrcode";
+
+const JWT_SECRET = process.env.JWT_SECRET || "myhistoree-jwt-secret-change-in-production";
+const PEPPER = process.env.PASSWORD_PEPPER || "myhistoree-pepper-change-in-production";
+const SALT_ROUNDS = 12;
+const ACCESS_TOKEN_TTL = "15m";
+const REFRESH_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+function hashPassword(plain: string): string {
+  const peppered = plain + PEPPER;
+  return bcrypt.hashSync(peppered, SALT_ROUNDS);
+}
+
+function verifyPassword(plain: string, hash: string): boolean {
+  const peppered = plain + PEPPER;
+  return bcrypt.compareSync(peppered, hash);
+}
+
+function hashToken(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
+}
+
+function generateRefreshToken(): string {
+  return randomUUID().replace(/-/g, "") + randomUUID().replace(/-/g, "");
+}
+
+export async function registerAuthRoutes(fastify: FastifyInstance) {
+  // ─── JWT Plugin Setup ───────────────────────────────────────────
+  await (fastify as any).register(require("@fastify/jwt"), {
+    secret: JWT_SECRET,
+    cookie: {
+      cookieName: "access_token",
+      signed: false,
+    },
+    sign: { expiresIn: ACCESS_TOKEN_TTL },
+  });
+
+  // ─── Login Step 1: Email + Password ─────────────────────────────
+  fastify.post("/auth/login", async (request, reply) => {
+    const { email, password } = request.body as { email?: string; password?: string };
+    if (!email || !password) {
+      return reply.status(400).send({ error: "Email and password required" });
+    }
+
+    const admin = db.prepare("SELECT * FROM admin_users WHERE email = ?").get(email) as any;
+    if (!admin || !verifyPassword(password, admin.password_hash)) {
+      logAudit("LOGIN_FAILURE", email, "Invalid credentials", undefined, request.ip);
+      return reply.status(401).send({ error: "Invalid credentials" });
+    }
+
+    if (admin.totp_enabled) {
+      logAudit("LOGIN_STEP1", email, "TOTP required", admin.id, request.ip);
+      return { requiresTotp: true, adminId: admin.id };
+    }
+
+    // No TOTP — issue tokens directly
+    const accessToken = (fastify as any).jwt.sign({ adminId: admin.id, email: admin.email, role: admin.role });
+    const refreshToken = generateRefreshToken();
+    const refreshHash = hashToken(refreshToken);
+    const expiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL_MS).toISOString();
+
+    db.prepare("INSERT INTO admin_sessions (id, admin_id, refresh_token_hash, ip, user_agent, expires_at) VALUES (?, ?, ?, ?, ?, ?)")
+      .run(randomUUID(), admin.id, refreshHash, request.ip, request.headers["user-agent"] || null, expiresAt);
+
+    db.prepare("UPDATE admin_users SET last_login = datetime('now') WHERE id = ?").run(admin.id);
+    logAudit("LOGIN_SUCCESS", email, undefined, admin.id, request.ip);
+
+    reply.setCookie("access_token", accessToken, {
+      path: "/",
+      httpOnly: true,
+      secure: true,
+      sameSite: "strict",
+      maxAge: 15 * 60 * 1000,
+    });
+
+    return { success: true, admin: { id: admin.id, email: admin.email, role: admin.role } };
+  });
+
+  // ─── Login Step 2: TOTP Verification ────────────────────────────
+  fastify.post("/auth/verify-totp", async (request, reply) => {
+    const { adminId, token } = request.body as { adminId?: string; token?: string };
+    if (!adminId || !token) {
+      return reply.status(400).send({ error: "adminId and token required" });
+    }
+
+    const admin = db.prepare("SELECT * FROM admin_users WHERE id = ?").get(adminId) as any;
+    if (!admin || !admin.totp_secret) {
+      return reply.status(404).send({ error: "Admin not found or TOTP not set up" });
+    }
+
+    const verified = speakeasy.totp.verify({
+      secret: admin.totp_secret,
+      encoding: "base32",
+      token: token.replace(/\s/g, ""),
+      window: 1,
+    });
+
+    if (!verified) {
+      logAudit("TOTP_FAILED", admin.email, `Token: ${token}`, admin.id, request.ip);
+      return reply.status(401).send({ error: "Invalid TOTP code" });
+    }
+
+    const accessToken = (fastify as any).jwt.sign({ adminId: admin.id, email: admin.email, role: admin.role });
+    const refreshToken = generateRefreshToken();
+    const refreshHash = hashToken(refreshToken);
+    const expiresAt = new Date(Date.now() + REFRESH_TOKEN_TTL_MS).toISOString();
+
+    db.prepare("INSERT INTO admin_sessions (id, admin_id, refresh_token_hash, ip, user_agent, expires_at) VALUES (?, ?, ?, ?, ?, ?)")
+      .run(randomUUID(), admin.id, refreshHash, request.ip, request.headers["user-agent"] || null, expiresAt);
+
+    db.prepare("UPDATE admin_users SET last_login = datetime('now') WHERE id = ?").run(admin.id);
+    logAudit("LOGIN_SUCCESS", admin.email, "TOTP verified", admin.id, request.ip);
+
+    reply.setCookie("access_token", accessToken, {
+      path: "/",
+      httpOnly: true,
+      secure: true,
+      sameSite: "strict",
+      maxAge: 15 * 60 * 1000,
+    });
+
+    return { success: true, admin: { id: admin.id, email: admin.email, role: admin.role } };
+  });
+
+  // ─── Refresh Token ──────────────────────────────────────────────
+  fastify.post("/auth/refresh", async (request, reply) => {
+    const refreshToken = (request.body as any)?.refreshToken;
+    if (!refreshToken) {
+      return reply.status(400).send({ error: "refreshToken required" });
+    }
+
+    const refreshHash = hashToken(refreshToken);
+    const session = db.prepare("SELECT * FROM admin_sessions WHERE refresh_token_hash = ? AND expires_at > datetime('now')").get(refreshHash) as any;
+    if (!session) {
+      return reply.status(401).send({ error: "Invalid or expired refresh token" });
+    }
+
+    const admin = db.prepare("SELECT * FROM admin_users WHERE id = ?").get(session.admin_id) as any;
+    if (!admin) {
+      return reply.status(401).send({ error: "Admin not found" });
+    }
+
+    const accessToken = (fastify as any).jwt.sign({ adminId: admin.id, email: admin.email, role: admin.role });
+    reply.setCookie("access_token", accessToken, {
+      path: "/",
+      httpOnly: true,
+      secure: true,
+      sameSite: "strict",
+      maxAge: 15 * 60 * 1000,
+    });
+
+    return { success: true };
+  });
+
+  // ─── Logout ─────────────────────────────────────────────────────
+  fastify.post("/auth/logout", async (request, reply) => {
+    const accessToken = request.cookies?.access_token;
+    if (accessToken) {
+      try {
+        const decoded = (fastify as any).jwt.verify(accessToken) as any;
+        logAudit("LOGOUT", decoded.email, undefined, decoded.adminId, request.ip);
+      } catch {
+        // ignore invalid token on logout
+      }
+    }
+
+    const refreshToken = (request.body as any)?.refreshToken;
+    if (refreshToken) {
+      db.prepare("DELETE FROM admin_sessions WHERE refresh_token_hash = ?").run(hashToken(refreshToken));
+    }
+
+    reply.clearCookie("access_token", { path: "/" });
+    return { success: true };
+  });
+
+  // ─── Me ─────────────────────────────────────────────────────────
+  fastify.get("/auth/me", async (request, reply) => {
+    try {
+      const decoded = await (request as any).jwtVerify() as any;
+      const admin = db.prepare("SELECT id, email, role, practice_id, last_login, totp_enabled FROM admin_users WHERE id = ?").get(decoded.adminId) as any;
+      if (!admin) return reply.status(404).send({ error: "Admin not found" });
+      return admin;
+    } catch {
+      return reply.status(401).send({ error: "Unauthorized" });
+    }
+  });
+
+  // ─── Setup TOTP (QR Code) ───────────────────────────────────────
+  fastify.post("/auth/setup-totp", async (request, reply) => {
+    try {
+      const decoded = await (request as any).jwtVerify() as any;
+      const admin = db.prepare("SELECT * FROM admin_users WHERE id = ?").get(decoded.adminId) as any;
+      if (!admin) return reply.status(404).send({ error: "Admin not found" });
+
+      const secret = speakeasy.generateSecret({
+        name: `myhistoree (${admin.email})`,
+        length: 32,
+      });
+
+      db.prepare("UPDATE admin_users SET totp_secret = ? WHERE id = ?").run(secret.base32, admin.id);
+
+      const qrDataUrl = await QRCode.toDataURL(secret.otpauth_url || "");
+      return { secret: secret.base32, qrCode: qrDataUrl };
+    } catch {
+      return reply.status(401).send({ error: "Unauthorized" });
+    }
+  });
+
+  // ─── Confirm TOTP Setup ─────────────────────────────────────────
+  fastify.post("/auth/confirm-totp", async (request, reply) => {
+    try {
+      const decoded = await (request as any).jwtVerify() as any;
+      const { token } = request.body as { token?: string };
+      if (!token) return reply.status(400).send({ error: "token required" });
+
+      const admin = db.prepare("SELECT * FROM admin_users WHERE id = ?").get(decoded.adminId) as any;
+      if (!admin || !admin.totp_secret) return reply.status(400).send({ error: "TOTP not set up" });
+
+      const verified = speakeasy.totp.verify({
+        secret: admin.totp_secret,
+        encoding: "base32",
+        token: token.replace(/\s/g, ""),
+        window: 1,
+      });
+
+      if (!verified) return reply.status(400).send({ error: "Invalid TOTP code" });
+
+      db.prepare("UPDATE admin_users SET totp_enabled = 1 WHERE id = ?").run(admin.id);
+      logAudit("TOTP_ENABLED", admin.email, undefined, admin.id, request.ip);
+      return { success: true };
+    } catch {
+      return reply.status(401).send({ error: "Unauthorized" });
+    }
+  });
+}
+
+// ─── Helper: Ensure default admin exists ──────────────────────────
+export function ensureDefaultAdmin() {
+  const count = db.prepare("SELECT COUNT(*) as c FROM admin_users").get() as { c: number };
+  if (count.c === 0) {
+    const id = randomUUID();
+    const defaultPassword = process.env.DEFAULT_ADMIN_PASSWORD || "myhistoree-admin-2026";
+    const hash = hashPassword(defaultPassword);
+    db.prepare(`INSERT INTO admin_users (id, email, password_hash, role, practice_id)
+                VALUES (?, ?, ?, ?, ?)`)
+      .run(id, "admin@myhistoree.local", hash, "superadmin", "demo-practice");
+    console.log("[AUTH] Default admin created: admin@myhistoree.local / " + defaultPassword);
+    console.log("[AUTH] CHANGE THIS PASSWORD IMMEDIATELY AFTER FIRST LOGIN");
+  }
+}

@@ -20,6 +20,30 @@ const MIGRATIONS = [
   `ALTER TABLE encounters ADD COLUMN processed_at TEXT;`,
   `ALTER TABLE encounters ADD COLUMN current_screen TEXT;`,
   `CREATE INDEX IF NOT EXISTS idx_encounters_status ON encounters(status);`,
+  `CREATE TABLE IF NOT EXISTS admin_users (
+    id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+    email TEXT UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    totp_secret TEXT,
+    totp_enabled INTEGER DEFAULT 0,
+    backup_codes TEXT,
+    role TEXT DEFAULT 'praxis',
+    practice_id TEXT REFERENCES practices(id),
+    last_login TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+  );`,
+  `CREATE TABLE IF NOT EXISTS admin_sessions (
+    id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+    admin_id TEXT REFERENCES admin_users(id),
+    refresh_token_hash TEXT NOT NULL,
+    ip TEXT,
+    user_agent TEXT,
+    created_at TEXT DEFAULT (datetime('now')),
+    expires_at TEXT NOT NULL
+  );`,
+  `CREATE INDEX IF NOT EXISTS idx_admin_sessions_token ON admin_sessions(refresh_token_hash);`,
+  `CREATE INDEX IF NOT EXISTS idx_admin_sessions_admin ON admin_sessions(admin_id);`,
 ];
 
 export function initSchema() {

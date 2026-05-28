@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>myhistoree — Admin Login</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #0f172a;
+      color: #e2e8f0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+    }
+    .login-card {
+      background: #1e293b;
+      border-radius: 16px;
+      padding: 40px;
+      width: 100%;
+      max-width: 400px;
+      box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
+    }
+    .logo {
+      text-align: center;
+      margin-bottom: 32px;
+    }
+    .logo h1 {
+      font-size: 1.75rem;
+      font-weight: 700;
+      color: #38bdf8;
+      letter-spacing: -0.5px;
+    }
+    .logo p {
+      color: #94a3b8;
+      font-size: 0.875rem;
+      margin-top: 4px;
+    }
+    .form-group { margin-bottom: 20px; }
+    label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 500;
+      margin-bottom: 6px;
+      color: #cbd5e1;
+    }
+    input {
+      width: 100%;
+      padding: 12px 14px;
+      border: 1px solid #334155;
+      border-radius: 10px;
+      background: #0f172a;
+      color: #e2e8f0;
+      font-size: 1rem;
+      transition: border-color 0.2s;
+    }
+    input:focus {
+      outline: none;
+      border-color: #38bdf8;
+    }
+    .btn-primary {
+      width: 100%;
+      padding: 14px;
+      border: none;
+      border-radius: 10px;
+      background: #0ea5e9;
+      color: #fff;
+      font-size: 1rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn-primary:hover { background: #0284c7; }
+    .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
+    .error {
+      background: #7f1d1d;
+      color: #fecaca;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 0.875rem;
+      margin-bottom: 16px;
+      display: none;
+    }
+    .error.show { display: block; }
+    .totp-hint {
+      text-align: center;
+      color: #94a3b8;
+      font-size: 0.875rem;
+      margin-bottom: 16px;
+    }
+    .hidden { display: none !important; }
+    .version {
+      text-align: center;
+      margin-top: 24px;
+      font-size: 0.75rem;
+      color: #475569;
+    }
+  </style>
+</head>
+<body>
+  <div class="login-card">
+    <div class="logo">
+      <h1>myhistoree</h1>
+      <p>Admin Dashboard</p>
+    </div>
+
+    <div class="error" id="error-msg"></div>
+
+    <!-- Step 1: Email + Password -->
+    <div id="step-login">
+      <div class="form-group">
+        <label for="email">E-Mail</label>
+        <input type="email" id="email" placeholder="admin@praxis.de" autocomplete="email">
+      </div>
+      <div class="form-group">
+        <label for="password">Passwort</label>
+        <input type="password" id="password" placeholder="••••••••" autocomplete="current-password">
+      </div>
+      <button class="btn-primary" id="btn-login" onclick="doLogin()">Anmelden</button>
+    </div>
+
+    <!-- Step 2: TOTP -->
+    <div id="step-totp" class="hidden">
+      <p class="totp-hint">Geben Sie den 6-stelligen Code aus Ihrer Authenticator-App ein.</p>
+      <div class="form-group">
+        <label for="totp-code">Authenticator-Code</label>
+        <input type="text" id="totp-code" placeholder="123456" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code">
+      </div>
+      <button class="btn-primary" id="btn-totp" onclick="doTotp()">Code prüfen</button>
+    </div>
+
+    <div class="version">v0.5.6</div>
+  </div>
+
+  <script>
+    const API = window.location.origin + "/api";
+    let pendingAdminId = null;
+
+    async function doLogin() {
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value;
+      const btn = document.getElementById("btn-login");
+      const err = document.getElementById("error-msg");
+
+      if (!email || !password) {
+        err.textContent = "Bitte E-Mail und Passwort eingeben.";
+        err.classList.add("show");
+        return;
+      }
+
+      btn.disabled = true;
+      err.classList.remove("show");
+
+      try {
+        const res = await fetch(`${API}/auth/login`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ email, password }),
+          credentials: "include",
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          err.textContent = data.error || "Anmeldung fehlgeschlagen.";
+          err.classList.add("show");
+          btn.disabled = false;
+          return;
+        }
+
+        if (data.requiresTotp) {
+          pendingAdminId = data.adminId;
+          document.getElementById("step-login").classList.add("hidden");
+          document.getElementById("step-totp").classList.remove("hidden");
+          document.getElementById("totp-code").focus();
+          btn.disabled = false;
+          return;
+        }
+
+        // Success — redirect to dashboard
+        window.location.href = "/admin";
+      } catch (e) {
+        err.textContent = "Netzwerkfehler. Bitte erneut versuchen.";
+        err.classList.add("show");
+        btn.disabled = false;
+      }
+    }
+
+    async function doTotp() {
+      const token = document.getElementById("totp-code").value.trim().replace(/\s/g, "");
+      const btn = document.getElementById("btn-totp");
+      const err = document.getElementById("error-msg");
+
+      if (!token || token.length !== 6 || !/^\d{6}$/.test(token)) {
+        err.textContent = "Bitte einen gültigen 6-stelligen Code eingeben.";
+        err.classList.add("show");
+        return;
+      }
+
+      btn.disabled = true;
+      err.classList.remove("show");
+
+      try {
+        const res = await fetch(`${API}/auth/verify-totp`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ adminId: pendingAdminId, token }),
+          credentials: "include",
+        });
+        const data = await res.json();
+
+        if (!res.ok) {
+          err.textContent = data.error || "Code ungültig.";
+          err.classList.add("show");
+          btn.disabled = false;
+          return;
+        }
+
+        window.location.href = "/admin";
+      } catch (e) {
+        err.textContent = "Netzwerkfehler. Bitte erneut versuchen.";
+        err.classList.add("show");
+        btn.disabled = false;
+      }
+    }
+
+    // Enter key support
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Enter") {
+        if (!document.getElementById("step-totp").classList.contains("hidden")) {
+          doTotp();
+        } else {
+          doLogin();
+        }
+      }
+    });
+  </script>
+</body>
+</html>
