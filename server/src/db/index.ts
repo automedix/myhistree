@@ -17,6 +17,9 @@ const MIGRATIONS = [
   );`,
   `CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_log(action);`,
   `CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_log(created_at);`,
+  `ALTER TABLE encounters ADD COLUMN processed_at TEXT;`,
+  `ALTER TABLE encounters ADD COLUMN current_screen TEXT;`,
+  `CREATE INDEX IF NOT EXISTS idx_encounters_status ON encounters(status);`,
 ];
 
 export function initSchema() {
@@ -52,7 +55,9 @@ export function initSchema() {
       pvs_patient_id TEXT,
       created_at TEXT DEFAULT (datetime('now')),
       updated_at TEXT DEFAULT (datetime('now')),
-      completed_at TEXT
+      completed_at TEXT,
+      processed_at TEXT,
+      current_screen TEXT
     );
     CREATE TABLE IF NOT EXISTS questionnaire_responses (
       id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
@@ -97,6 +102,7 @@ export function initSchema() {
     CREATE INDEX IF NOT EXISTS idx_responses_encounter ON questionnaire_responses(encounter_id);
     CREATE INDEX IF NOT EXISTS idx_patients_pvs ON patients(pvs_patient_id);
     CREATE INDEX IF NOT EXISTS idx_email_verif_encounter ON email_verifications(encounter_id);
+    CREATE INDEX IF NOT EXISTS idx_encounters_status ON encounters(status);
   `);
 
   for (const migration of MIGRATIONS) {

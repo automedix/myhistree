@@ -10,7 +10,7 @@ const auditQuery = z.object({ limit: z.string().optional(), offset: z.string().o
 export default async function apiRoutes(fastify: FastifyInstance) {
   // ────────────────────────────────────────────────────────────────
   // Health
-  fastify.get("/health", async () => ({ status: "ok", version: "0.5.1" }));
+  fastify.get("/health", async () => ({ status: "ok", version: "0.5.5" }));
 
   // ─── Links ──────────────────────────────────────────────────────
   fastify.post("/link/create", async (request, reply) => {
@@ -204,14 +204,14 @@ export default async function apiRoutes(fastify: FastifyInstance) {
 
   fastify.get("/encounters/:practiceId", async (request) => {
     const { practiceId } = request.params as { practiceId: string };
-    return db.prepare(`SELECT id, status, source_link_id, pvs_patient_id, created_at, completed_at
+    return db.prepare(`SELECT id, status, source_link_id, pvs_patient_id, created_at, completed_at, processed_at
       FROM encounters WHERE practice_id = ? ORDER BY created_at DESC`).all(practiceId);
   });
 
   // ─── Admin ──────────────────────────────────────────────────────
   fastify.get("/admin/encounters/list/:practiceId", async (request) => {
     const { practiceId } = request.params as { practiceId: string };
-    const rows = db.prepare(`SELECT e.id, e.status, e.source_link_id, e.created_at, e.completed_at, l.pvs_patient_id, l.patient_email
+    const rows = db.prepare(`SELECT e.id, e.status, e.source_link_id, e.created_at, e.completed_at, e.processed_at, l.pvs_patient_id, l.patient_email
       FROM encounters e LEFT JOIN patient_links l ON e.source_link_id = l.token
       WHERE e.practice_id = ? ORDER BY e.created_at DESC`).all(practiceId);
     return rows;
@@ -261,4 +261,34 @@ export default async function apiRoutes(fastify: FastifyInstance) {
     logAudit("REJECT_ANAMNESE", encounterId, `Patient: ${encounter.patient_id}`, undefined, request.ip);
     return { success: true, message: "All data deleted" };
   });
+
+  // ─── Admin: Mark encounter as processed ─────────────────────────
+  fastify.post("/admin/encounter/:encounterId/process", async (request, reply) => {
+    const { encounterId } = request.params as { encounterId: string };
+    const encounter = db.prepare("SELECT id FROM encounters WHERE id = ?").get(encounterId);
+    if (!encounter) return reply.status(404).send({ error: "Not found" });
+    db.prepare("UPDATE encounters SET status = 'processed', processed_at = datetime('now') WHERE id = ?").run(encounterId);
+    logAudit("PROCESS_ENCOUNTER", encounterId, undefined, undefined, request.ip);
+    return { success: true };
+  });
+
+  // ─── Patient Progress (Resume) ──────────────────────────────────
+  fastify.get("/anamnese/:encounterId/progress", async (request, reply) => {
+    const { encounterId } = request.params as { encounterId: string };
+    const encounter = db.prepare("SELECT current_screen FROM encounters WHERE id = ?").get(encounterId) as any;
+    if (!encounter) return reply.status(404).send({ error: "Not found" });
+    const responses = db.prepare("SELECT category, data FROM questionnaire_responses WHERE encounter_id = ?").all(encounterId) as any[];
+    const data: Record<string, any> = {};
+    for (const r of responses) data[r.category] = JSON.parse(r.data);
+    return { currentScreen: encounter.current_screen, data };
+  });
+
+  fastify.post("/anamnese/:encounterId/progress", async (request, reply) => {
+    const { encounterId } = request.params as { encounterId: string };
+    const body = request.body as any;
+    const { currentScreen } = body;
+    db.prepare("UPDATE encounters SET current_screen = ? WHERE id = ?").run(currentScreen || null, encounterId);
+    return { success: true };
+  });
+
 }

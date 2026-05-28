@@ -32,7 +32,7 @@ app.get("/admin/*", async (request, reply) => {
   return reply.sendFile("admin/index.html");
 });
 
-app.get("/health", async () => ({ status: "ok", version: "0.5.4" }));
+app.get("/health", async () => ({ status: "ok", version: "0.5.5" }));
 
 app.listen({ port: PORT, host: "0.0.0.0" }, (err) => {
   if (err) {
