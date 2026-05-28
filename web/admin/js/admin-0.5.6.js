@@ -141,6 +141,9 @@ function showQRFullscreen() {
   new QRCode(container, { text: url, width: 320, height: 320, colorDark: '#1e293b', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
   document.getElementById('qr-fullscreen').style.display = 'flex';
 }
+function closeQRFullscreen() {
+  document.getElementById("qr-fullscreen").style.display = "none";
+}
 
 // ─── Encounters Dashboard (3-Bereich) ───────────────────────────
 async function loadEncountersDashboard() {
