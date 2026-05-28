@@ -25,7 +25,7 @@ async function initAuth() {
       userDiv.innerHTML = `<span title="${currentAdmin.role}">${currentAdmin.email}</span><button onclick="doLogout()">Abmelden</button>`;
     }
     // Now load data
-    loadLinks();
+    await loadLinks();
   } catch (e) {
     window.location.href = '/admin/login.html';
   }
@@ -43,11 +43,11 @@ async function doLogout() {
 function switchTab(tab) {
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.dataset.tab === tab));
   document.querySelectorAll('.tab-content').forEach(t => t.classList.toggle('active', t.id === 'tab-' + tab));
-  if (tab === 'links') loadLinks();
+  if (tab === 'links') await loadLinks();
   if (tab === 'encounters') loadEncountersDashboard();
   if (tab === 'audit') loadAuditLog();
   if (tab === 'settings') loadSettings();
-  if (tab === 'users') loadUsers();
+  if (tab === 'users') await loadUsers();
 }
 
 // ─── Link erstellen ─────────────────────────────────────────────
@@ -80,7 +80,7 @@ async function createLink() {
     document.getElementById('result-pin').textContent = data.pin ? `PIN: ${data.pin}` : '';
     document.getElementById('result-box').style.display = 'block';
     if (email) { try { await sendLinkEmail(email, pvsId, url, dob, data.pin); } catch(e) { console.log('E-Mail skipped', e); } }
-    loadLinks();
+    await loadLinks();
   } catch (e) { alert('Netzwerkfehler: ' + (e.message || e)); } finally { btn.disabled = false; btn.textContent = 'Link erstellen'; }
 }
 
@@ -93,7 +93,7 @@ async function sendLinkEmail(to, pvsPatientId, linkUrl, patientDob, pin) {
 
 // ─── Links laden ────────────────────────────────────────────────
 async function loadLinks() {
-  const container = document.getElementById('links-table');
+  const container = document.getElementById('links-table-container');
   container.innerHTML = '<div class="spinner"></div>';
   try {
     const res = await fetch(`${API}/link/list/${CURRENT_PRACTICE}`, { credentials: 'include' });
@@ -504,7 +504,7 @@ async function createUser() {
     const res = await fetch(`${API}/admin/users`, { method: 'POST', headers: {'Content-Type':'application/json'}, credentials: 'include', body: JSON.stringify({ email, password, role }) });
     const data = await res.json();
     if (!res.ok) { alert(data.error || 'Fehler'); return; }
-    loadUsers();
+    await loadUsers();
     document.getElementById('u-email').value = '';
     document.getElementById('u-password').value = '';
   } catch (e) { alert('Netzwerkfehler: ' + (e.message || e)); }
@@ -515,7 +515,7 @@ async function deleteUser(id, email) {
   try {
     const res = await fetch(`${API}/admin/users/${id}`, { method: 'DELETE', credentials: 'include' });
     if (!res.ok) { alert('Fehler'); return; }
-    loadUsers();
+    await loadUsers();
   } catch (e) { alert('Netzwerkfehler: ' + (e.message || e)); }
 }
 

@@ -132,7 +132,12 @@ pre.json { background:#1e293b; color:#e2e8f0; padding:16px; border-radius:8px; o
         </div>
       </div>
       <button class="btn btn-primary" id="btn-create" onclick="createLink()">Link erstellen</button>
-      <div id="link-result" style="margin-top:16px;display:none;"></div>
+      <div id="link-result" style="margin-top:16px;display:none;">
+        <div id="result-box" style="display:none;">
+          <div class="url-box" id="result-url"></div>
+          <div id="result-pin" style="margin-top:8px;font-weight:600;color:#2563eb;"></div>
+        </div>
+      </div>
     </div>
     <div class="card">
       <h2>Erstellte Links</h2>
@@ -157,7 +162,25 @@ pre.json { background:#1e293b; color:#e2e8f0; padding:16px; border-radius:8px; o
   <div id="tab-users" class="tab-content">
     <div class="card">
       <h2>Benutzerverwaltung</h2>
-      <div id="users-content"><div class="empty">Bitte Tab wechseln zum Laden</div></div>
+      <div id="users-content">
+        <div id="users-list" style="margin-bottom:20px;"><div class="empty">Bitte Tab wechseln zum Laden</div></div>
+        <div id="users-create-form" style="display:none;margin-top:16px;padding-top:16px;border-top:2px solid var(--border);">
+          <h3>Neuen Benutzer erstellen</h3>
+          <div class="form-row">
+            <div><input type="email" id="u-email" placeholder="E-Mail"></div>
+            <div><input type="password" id="u-password" placeholder="Passwort (mind. 8 Zeichen)"></div>
+          </div>
+          <div class="form-row" style="grid-template-columns:1fr 1fr;">
+            <div>
+              <select id="u-role">
+                <option value="user">User</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+            <div><button class="btn btn-primary" onclick="createUser()">Benutzer erstellen</button></div>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
   <!-- TAB: Settings -->
