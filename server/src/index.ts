@@ -51,7 +51,7 @@ app.register(jwt, {
 app.register(staticPlugin, {
   root: join(__dirname, "../../web"),
   prefix: "/",
-  wildcard: false,
+  wildcard: true,
 });
 
 // Auth routes
@@ -67,11 +67,17 @@ app.get("/anamnese/:token", async (request, reply) => {
 app.get("/admin", async (request, reply) => {
   return reply.sendFile("admin/index.html");
 });
-app.get("/admin/*", async (request, reply) => {
-  return reply.sendFile("admin/index.html");
-});
 
 app.get("/health", async () => ({ status: "ok", version: "0.5.6" }));
+
+// SPA fallback for client-side routing
+app.setNotFoundHandler(async (request, reply) => {
+  const url = request.raw.url || "";
+  if (url.startsWith("/admin/")) {
+    return reply.sendFile("admin/index.html");
+  }
+  reply.status(404).send({ error: "Not found" });
+});
 
 app.listen({ port: PORT, host: "0.0.0.0" }, (err) => {
   if (err) {
