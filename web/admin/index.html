@@ -135,7 +135,7 @@ pre.json { background:#1e293b; color:#e2e8f0; padding:16px; border-radius:8px; o
       <div id="link-result" style="margin-top:16px;display:none;">
         <div id="result-box" style="display:none;">
           <div class="url-box" id="result-url"></div>
-          <div id="result-qr" style="margin:12px 0;text-align:center;"></div>
+          <div id="result-qr" style="margin:12px 0;text-align:center;cursor:pointer;touch-action:manipulation;" onclick="showQRFullscreen()"></div>
           <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
             <button class="btn btn-sm btn-secondary" onclick="copyResultLink()">Link kopieren</button>
             <button class="btn btn-sm btn-secondary" onclick="showQRFullscreen()">QR vergroessern</button>
@@ -212,12 +212,12 @@ pre.json { background:#1e293b; color:#e2e8f0; padding:16px; border-radius:8px; o
 
 <!-- QR Fullscreen Overlay -->
 <div id="qr-fullscreen" onclick="closeQRFullscreen()">
-  <div id="qr-fullscreen-canvas"></div>
+  <div id="qr-fullscreen-canvas" onclick="event.stopPropagation();closeQRFullscreen()"></div>
   <p style="margin-top:20px;font-size:0.9rem;color:#64748b;">Zum Schliessen tippen oder Zurueck-Taste druecken</p>
 </div>
 
 <script src="/admin/js/qrcode.min.js"></script>
-<script src="/admin/js/admin-0.5.6.js?v=hotfix3"></script>
+<script src="/admin/js/admin-0.5.6.js?v=tap"></script>
 </body>
 </html>
 
