@@ -1,4 +1,4 @@
-// myhistoree v0.5.0 – Online Anamnese
+// myhistoree v0.5.1 – Online Anamnese
 const API = "";
 
 let encounterId = null;
@@ -443,10 +443,12 @@ function collectBodyMetrics() {
 function collectContact() {
   const mobile = document.getElementById("contact-mobile").value.trim();
   const email = document.getElementById("contact-email").value.trim();
-  if (!mobile) { alert("Bitte geben Sie Ihre Mobilfunknummer an."); return undefined; }
-  const mobileClean = mobile.replace(/[\s\-\(\)]/g, "");
-  if (mobileClean.length < 8) { alert("Bitte eine gültige Mobilfunknummer eingeben."); return undefined; }
-  const result = { mobile: mobileClean, __completed: true };
+  const result = { __completed: true };
+  if (mobile) {
+    const mobileClean = mobile.replace(/[\s\-\(\)]/g, "");
+    if (mobileClean.length < 8) { alert("Bitte eine gültige Mobilfunknummer eingeben."); return undefined; }
+    result.mobile = mobileClean;
+  }
   if (email) {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { alert("Bitte eine gültige E-Mail-Adresse eingeben."); return undefined; }
     result.email = email;
@@ -573,12 +575,36 @@ function buildReview() {
 
 async function submitFinal() {
   if (!encounterId) { alert("Keine Session. Bitte starten Sie neu."); return; }
+  const consent = document.getElementById("dsgvo-consent")?.checked;
+  if (!consent) { alert("Bitte bestätigen Sie den Datenschutzhinweis, um fortzufahren."); return; }
   try {
     await fetch(`${API}/api/anamnese/${encounterId}/complete`, { method: "POST" });
     document.getElementById("done-pvs-id").textContent = linkData?.pvsPatientId || "—";
+    document.getElementById("done-icon").textContent = "✓";
+    document.getElementById("done-icon").style.background = "#22c55e";
+    document.getElementById("done-title").textContent = "Anamnese abgeschickt!";
+    document.getElementById("done-message").textContent = "Vielen Dank. Ihre Angaben wurden sicher an die Praxis übermittelt.";
+    document.getElementById("done-help").textContent = "Sie können dieses Fenster nun schließen.";
     wizard.goTo("done");
   } catch(e) {
     alert("Absenden fehlgeschlagen: " + e.message);
+  }
+}
+
+async function rejectAnamnese() {
+  if (!encounterId) { alert("Keine Session. Bitte starten Sie neu."); return; }
+  if (!confirm("Möchten Sie wirklich ablehnen? Alle Ihre eingegebenen Daten werden unwiderruflich gelöscht.")) return;
+  try {
+    await fetch(`${API}/api/anamnese/${encounterId}/reject`, { method: "POST" });
+    document.getElementById("done-pvs-id").textContent = linkData?.pvsPatientId || "—";
+    document.getElementById("done-icon").textContent = "✕";
+    document.getElementById("done-icon").style.background = "#ef4444";
+    document.getElementById("done-title").textContent = "Anamnese abgelehnt";
+    document.getElementById("done-message").textContent = "Sie haben der Datenspeicherung nicht zugestimmt. Alle Ihre Angaben wurden gelöscht und nicht gespeichert.";
+    document.getElementById("done-help").textContent = "Sie können dieses Fenster nun schließen.";
+    wizard.goTo("done");
+  } catch(e) {
+    alert("Fehler beim Löschen: " + e.message);
   }
 }
 

@@ -10,7 +10,7 @@ const auditQuery = z.object({ limit: z.string().optional(), offset: z.string().o
 export default async function apiRoutes(fastify: FastifyInstance) {
   // ────────────────────────────────────────────────────────────────
   // Health
-  fastify.get("/health", async () => ({ status: "ok", version: "0.5.0" }));
+  fastify.get("/health", async () => ({ status: "ok", version: "0.5.1" }));
 
   // ─── Links ──────────────────────────────────────────────────────
   fastify.post("/link/create", async (request, reply) => {
@@ -240,5 +240,25 @@ export default async function apiRoutes(fastify: FastifyInstance) {
     const result = applyRetention();
     logAudit("APPLY_RETENTION", undefined, JSON.stringify(result), undefined, request.ip);
     return result;
+  });
+
+  // ─── Patient Rejection / Data Deletion ──────────────────────────
+  fastify.post("/anamnese/:encounterId/reject", async (request, reply) => {
+    const { encounterId } = request.params as { encounterId: string };
+    const encounter = db.prepare("SELECT patient_id, source_link_id FROM encounters WHERE id = ?").get(encounterId) as any;
+    if (!encounter) return reply.status(404).send({ error: "Encounter not found" });
+
+    // Delete all related data
+    db.prepare("DELETE FROM questionnaire_responses WHERE encounter_id = ?").run(encounterId);
+    db.prepare("DELETE FROM email_verifications WHERE encounter_id = ?").run(encounterId);
+    db.prepare("DELETE FROM encounters WHERE id = ?").run(encounterId);
+    db.prepare("DELETE FROM patients WHERE id = ?").run(encounter.patient_id);
+    // Reset link to pending so patient can start fresh if needed
+    if (encounter.source_link_id) {
+      db.prepare("UPDATE patient_links SET status = 'pending', linked_at = NULL WHERE token = ?").run(encounter.source_link_id);
+    }
+
+    logAudit("REJECT_ANAMNESE", encounterId, `Patient: ${encounter.patient_id}`, undefined, request.ip);
+    return { success: true, message: "All data deleted" };
   });
 }

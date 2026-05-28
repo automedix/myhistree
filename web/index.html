@@ -513,6 +513,7 @@
         <button class="chip" data-value="Rivaroxaban">Rivaroxaban (Xarelto&reg; u.a.)</button>
         <button class="chip" data-value="Ticagrelor">Ticagrelor (Brilique&reg;)</button>
         <button class="chip" data-value="Clopidogrel">Clopidogrel (Plavix&reg;)</button>
+        <button class="chip" data-value="ASS">ASS (Aspirin&reg;)</button>
         <button class="chip" data-value="keine">Keine Blutverdünnung</button>
       </div>
     </div>
@@ -543,6 +544,7 @@
         <button class="chip" data-value="Hydrochlorothiazid">Hydrochlorothiazid</button>
         <button class="chip" data-value="Bisoprolol">Bisoprolol</button>
         <button class="chip" data-value="Metoprolol">Metoprolol</button>
+        <button class="chip" data-value="Ramipril">Ramipril</button>
         <button class="chip" data-value="keine">Keine Blutdrucksenker</button>
       </div>
     </div>
@@ -645,6 +647,7 @@
         <button class="chip" data-value="Metamizol">Metamizol</button>
         <button class="chip" data-value="Ibuprofen">Ibuprofen</button>
         <button class="chip" data-value="Paracetamol">Paracetamol</button>
+        <button class="chip" data-value="Diclofenac">Diclofenac</button>
         <button class="chip" data-value="keine">Keine regelmäßigen Schmerzmittel</button>
       </div>
     </div>
@@ -670,6 +673,7 @@
         <button class="chip" data-value="Tamoxifen">Tamoxifen</button>
         <button class="chip" data-value="Tamsulosin">Tamsulosin</button>
         <button class="chip" data-value="Finasterid">Finasterid</button>
+        <button class="chip" data-value="Hormonersatztherapie">Hormonersatztherapie (HRT)</button>
         <button class="chip" data-value="keine">Keine Medikamente aus diesem Bereich</button>
       </div>
     </div>
@@ -904,7 +908,7 @@
   <div class="card">
     <h2>Kontaktdaten</h2>
     <div class="form-group">
-      <label>Mobilfunknummer <span style="color:#ef4444">*</span></label>
+      <label>Mobilfunknummer <span style="font-size:0.85rem;color:#64748b">(optional)</span></label>
       <input type="tel" id="contact-mobile" placeholder="z.B. 0176 12345678">
     </div>
     <div class="form-group">
@@ -912,6 +916,7 @@
       <input type="email" id="contact-email" placeholder="name@beispiel.de">
       <input type="hidden" id="contact-email-verified" value="0">
       <div id="email-status" style="margin-top:8px;font-size:0.9rem;"></div>
+      <p style="font-size:0.85rem;color:#64748b;margin-top:8px">Wir senden Ihnen einen 6-stelligen Code an diese E-Mail-Adresse. Geben Sie den Code unten ein, um Ihre E-Mail-Adresse zu bestätigen.</p>
       <div id="email-actions" style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
         <button class="btn-ghost" id="btn-send-code" onclick="sendEmailCode()" style="margin:0;flex:1;min-width:120px">Code senden</button>
       </div>
@@ -936,9 +941,25 @@
     <h2>Zusammenfassung</h2>
     <p class="help">Bitte prüfen Sie Ihre Angaben vor dem Absenden.</p>
     <div id="review-content"></div>
-    <div class="nav-btns">
+    <div style="margin-top:20px;padding:16px;background:#f1f5f9;border-radius:10px;border:1px solid #e2e8f0;">
+      <h3 style="margin:0 0 10px 0;font-size:1rem;">Datenschutzhinweis</h3>
+      <p style="font-size:0.85rem;color:#475569;margin:0 0 12px 0;line-height:1.5;">
+        Ihre Angaben werden ausschließlich zur Vorbereitung Ihres Arztbesuchs gespeichert.
+        Die Datenverarbeitung erfolgt auf Grundlage von Art. 9 DSGVO (Gesundheitsdaten) mit Ihrer ausdrücklichen Einwilligung.
+        Ihre Daten werden innerhalb der EU verarbeitet und nach den gesetzlichen Aufbewahrungsfristen gelöscht.
+        Sie haben jederzeit das Recht auf Auskunft, Berichtigung und Löschung Ihrer Daten.
+      </p>
+      <label style="display:flex;align-items:flex-start;gap:10px;font-size:0.9rem;cursor:pointer;">
+        <input type="checkbox" id="dsgvo-consent" style="width:18px;height:18px;margin-top:2px;flex-shrink:0;accent-color:#2563eb;">
+        <span>Ich habe den Datenschutzhinweis gelesen und stimme der Speicherung meiner Daten zu.</span>
+      </label>
+    </div>
+    <div class="nav-btns" style="margin-top:20px;">
       <button class="btn-secondary" onclick="wizard.prev()">Zurück</button>
-      <button class="btn-primary" onclick="submitFinal()">Anamnese absenden</button>
+      <div style="display:flex;gap:10px;flex:1;justify-content:flex-end;flex-wrap:wrap;">
+        <button class="btn-secondary" onclick="rejectAnamnese()" style="background:#fee2e2;color:#991b1b;">Ablehnen & Daten löschen</button>
+        <button class="btn-primary" onclick="submitFinal()">Anamnese absenden</button>
+      </div>
     </div>
   </div>
 </section>
@@ -946,11 +967,11 @@
 <!-- ===== Screen: Done ================================ -->
 <section id="screen-done" class="screen">
   <div class="card center">
-    <div class="success-icon">✓</div>
-    <h2>Anamnese abgeschickt!</h2>
-    <p>Vielen Dank. Ihre Angaben wurden sicher an die Praxis übermittelt.</p>
+    <div class="success-icon" id="done-icon">✓</div>
+    <h2 id="done-title">Anamnese abgeschickt!</h2>
+    <p id="done-message">Vielen Dank. Ihre Angaben wurden sicher an die Praxis übermittelt.</p>
     <p style="font-size:0.9rem;color:#64748b;margin-top:8px">Patienten-ID: <strong id="done-pvs-id">—</strong></p>
-    <p class="help">Sie können dieses Fenster nun schließen.</p>
+    <p class="help" id="done-help">Sie können dieses Fenster nun schließen.</p>
   </div>
 </section>
 
