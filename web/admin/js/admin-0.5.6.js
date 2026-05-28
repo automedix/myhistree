@@ -81,7 +81,7 @@ async function createLink() {
     document.getElementById('result-box').style.display = 'block';
     if (email) { try { await sendLinkEmail(email, pvsId, url, dob, data.pin); } catch(e) { console.log('E-Mail skipped', e); } }
     loadLinks();
-  } catch (e) { alert('Netzwerkfehler'); } finally { btn.disabled = false; btn.textContent = 'Link erstellen'; }
+  } catch (e) { alert('Netzwerkfehler: ' + (e.message || e)); } finally { btn.disabled = false; btn.textContent = 'Link erstellen'; }
 }
 
 async function sendLinkEmail(to, pvsPatientId, linkUrl, patientDob, pin) {
@@ -116,7 +116,7 @@ async function loadLinks() {
     }
     html += '</tbody></table>';
     container.innerHTML = html;
-  } catch (e) { container.innerHTML = '<div class="empty">Fehler beim Laden.</div>'; }
+  } catch (e) { container.innerHTML = '<div class="empty">Fehler: ' + (e.message || e) + '</div>'; }
 }
 
 function copyLink(token) {
@@ -171,7 +171,7 @@ async function loadEncountersDashboard() {
     html += '</div>';
 
     container.innerHTML = html;
-  } catch (e) { container.innerHTML = '<div class="empty">Fehler beim Laden.</div>'; }
+  } catch (e) { container.innerHTML = '<div class="empty">Fehler: ' + (e.message || e) + '</div>'; }
 }
 
 function encountersTable(rows, showProcessBtn) {
@@ -318,7 +318,7 @@ async function loadAuditLog() {
     }
     html += '</tbody></table>';
     container.innerHTML = html;
-  } catch (e) { container.innerHTML = '<div class="empty">Fehler beim Laden.</div>'; }
+  } catch (e) { container.innerHTML = '<div class="empty">Fehler: ' + (e.message || e) + '</div>'; }
 }
 
 // ─── Helpers ────────────────────────────────────────────────────
@@ -400,7 +400,7 @@ async function setupTotp() {
     qrDiv.innerHTML = `<p style="margin-bottom:8px;">Scannen Sie diesen QR-Code:</p><img src="${data.qrCode}" style="max-width:240px;border-radius:8px;" alt="TOTP QR Code">`;
     qrDiv.style.display = 'block';
     document.getElementById('totp-confirm').style.display = 'block';
-  } catch (e) { alert('Netzwerkfehler'); }
+  } catch (e) { alert('Netzwerkfehler: ' + (e.message || e)); }
   finally { btn.disabled = false; btn.textContent = 'Authenticator einrichten'; }
 }
 
@@ -417,7 +417,7 @@ async function confirmTotp() {
     alert('TOTP erfolgreich aktiviert! Ab sofort wird bei jedem Login ein Code verlangt.');
     currentAdmin.totp_enabled = 1;
     loadSettings();
-  } catch (e) { alert('Netzwerkfehler'); }
+  } catch (e) { alert('Netzwerkfehler: ' + (e.message || e)); }
 }
 
 async function changePassword() {
@@ -507,7 +507,7 @@ async function createUser() {
     loadUsers();
     document.getElementById('u-email').value = '';
     document.getElementById('u-password').value = '';
-  } catch (e) { alert('Netzwerkfehler'); }
+  } catch (e) { alert('Netzwerkfehler: ' + (e.message || e)); }
 }
 
 async function deleteUser(id, email) {
@@ -516,7 +516,7 @@ async function deleteUser(id, email) {
     const res = await fetch(`${API}/admin/users/${id}`, { method: 'DELETE', credentials: 'include' });
     if (!res.ok) { alert('Fehler'); return; }
     loadUsers();
-  } catch (e) { alert('Netzwerkfehler'); }
+  } catch (e) { alert('Netzwerkfehler: ' + (e.message || e)); }
 }
 
 function resetUserPrompt(id) {
@@ -530,7 +530,7 @@ async function resetUserPassword(id, newPassword) {
     const res = await fetch(`${API}/admin/users/${id}/reset-password`, { method: 'POST', headers: {'Content-Type':'application/json'}, credentials: 'include', body: JSON.stringify({ newPassword }) });
     if (!res.ok) { alert('Fehler'); return; }
     alert('Passwort zurückgesetzt. Der Benutzer muss sich neu anmelden.');
-  } catch (e) { alert('Netzwerkfehler'); }
+  } catch (e) { alert('Netzwerkfehler: ' + (e.message || e)); }
 }
 
 // ─── PIN Toggle ─────────────────────────────────────────────────────
