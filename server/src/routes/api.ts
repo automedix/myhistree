@@ -319,13 +319,13 @@ export default async function apiRoutes(fastify: FastifyInstance) {
   // ─── Admin: User Management ─────────────────────────────────────
   fastify.get("/admin/users", { onRequest: requireAuth }, async (request, reply) => {
     const admin = (request as any).user;
-    if (admin.role !== "admin") return reply.status(403).send({ error: "Forbidden" });
+    if (!["admin","superadmin"].includes(admin.role)) return reply.status(403).send({ error: "Forbidden" });
     return db.prepare("SELECT id, email, role, practice_id, totp_enabled, created_at FROM admin_users ORDER BY created_at DESC").all();
   });
 
   fastify.post("/admin/users", { onRequest: requireAuth }, async (request, reply) => {
     const admin = (request as any).user;
-    if (admin.role !== "admin") return reply.status(403).send({ error: "Forbidden" });
+    if (!["admin","superadmin"].includes(admin.role)) return reply.status(403).send({ error: "Forbidden" });
     const body = request.body as any;
     const { email, password, role = "user", practiceId = "demo-practice" } = body;
     if (!email || !password || password.length < 8) return reply.status(400).send({ error: "Email and password (min 8 chars) required" });
@@ -342,7 +342,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
 
   fastify.delete("/admin/users/:id", { onRequest: requireAuth }, async (request, reply) => {
     const admin = (request as any).user;
-    if (admin.role !== "admin") return reply.status(403).send({ error: "Forbidden" });
+    if (!["admin","superadmin"].includes(admin.role)) return reply.status(403).send({ error: "Forbidden" });
     const { id } = request.params as { id: string };
     const target = db.prepare("SELECT id, email FROM admin_users WHERE id = ?").get(id) as any;
     if (!target) return reply.status(404).send({ error: "Not found" });
@@ -355,7 +355,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
 
   fastify.post("/admin/users/:id/reset-password", { onRequest: requireAuth }, async (request, reply) => {
     const admin = (request as any).user;
-    if (admin.role !== "admin") return reply.status(403).send({ error: "Forbidden" });
+    if (!["admin","superadmin"].includes(admin.role)) return reply.status(403).send({ error: "Forbidden" });
     const { id } = request.params as { id: string };
     const body = request.body as any;
     const { newPassword } = body;
