@@ -1,4 +1,4 @@
-// myhistoree v0.5.1 – Online Anamnese
+// myhistoree v0.5.2 – Online Anamnese
 const API = "";
 
 let encounterId = null;
@@ -36,6 +36,7 @@ const screens = [
   "emergency",
   "bodymetrics",
   "contact",
+  "notes",
   "review",
   "done"
 ];
@@ -176,6 +177,7 @@ async function initPage() {
   initChips("pain-chips");
   initChips("gynuro-chips");
   initChips("chol-chips");
+  initChips("other-meds-chips");
   wizard.render();
 }
 
@@ -379,9 +381,19 @@ function collectMedsChol() {
   if (selected.length === 0) return { meds_chol: "Keine", __completed: true };
   return { meds_chol: selected.join(", "), detail: detail || undefined, __completed: true };
 }
+function collectNotes() {
+  const text = document.getElementById("notes-text").value.trim();
+  if (!text) return null; // skip if empty
+  return { notes: text, __completed: true };
+}
+
 function collectMedsOther() {
+  const meds = getChips("other-meds-chips");
   const detail = document.getElementById("other-meds-text").value.trim();
-  return { meds_other: detail || "Keine", __completed: true };
+  if (!meds.length) { alert("Bitte wählen Sie mindestens eine Option."); return undefined; }
+  const selected = meds.filter(m => m !== "keine");
+  if (selected.length === 0) return { meds_other: "Keine", __completed: true };
+  return { meds_other: selected.join(", "), detail: detail || undefined, __completed: true };
 }
 
 function collectAllergies() {
@@ -442,8 +454,12 @@ function collectBodyMetrics() {
 
 function collectContact() {
   const mobile = document.getElementById("contact-mobile").value.trim();
+  const landline = document.getElementById("contact-landline").value.trim();
   const email = document.getElementById("contact-email").value.trim();
-  const result = { __completed: true };
+  if (!landline) { alert("Bitte geben Sie Ihre Festnetznummer an."); return undefined; }
+  const landlineClean = landline.replace(/[\s\-\(\)]/g, "");
+  if (landlineClean.length < 6) { alert("Bitte eine gültige Festnetznummer eingeben."); return undefined; }
+  const result = { landline: landlineClean, __completed: true };
   if (mobile) {
     const mobileClean = mobile.replace(/[\s\-\(\)]/g, "");
     if (mobileClean.length < 8) { alert("Bitte eine gültige Mobilfunknummer eingeben."); return undefined; }
@@ -555,7 +571,8 @@ function buildReview() {
     { label: "Lebensgewohnheiten (2)", cat: "lifestyle2" },
     { label: "Notfallkontakt", cat: "emergency" },
     { label: "Körpermaße", cat: "bodymetrics" },
-    { label: "Kontakt", cat: "contact" }
+    { label: "Kontakt", cat: "contact" },
+    { label: "Zusätzliche Informationen", cat: "notes" }
   ];
   let html = "";
   let complete = 0;
