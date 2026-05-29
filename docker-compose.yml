@@ -19,19 +19,6 @@ services:
     networks:
       - myhistree
 
-  strfry:
-    image: ghcr.io/hoytech/strfry:latest
-    container_name: strfry-relay
-    restart: unless-stopped
-    ports:
-      - "7777:7777"
-    volumes:
-      - ./strfry/data:/app/strfry-db
-      - ./strfry/strfry.conf:/etc/strfry.conf:ro
-    networks:
-      - myhistree
-    command: ["relay"]
-
 networks:
   myhistree:
     driver: bridge
