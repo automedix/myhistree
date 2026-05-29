@@ -4,12 +4,16 @@ import { promisify } from "util";
 
 const resolveMx = promisify(dns.resolveMx);
 
-const SMTP_HOST = process.env.SMTP_HOST || "smtp.ionos.de";
+const SMTP_HOST = process.env.SMTP_HOST || "";
 const SMTP_PORT = parseInt(process.env.SMTP_PORT || "587");
-const SMTP_USER = process.env.SMTP_USER || "verify@automedix.de";
-const SMTP_PASS = process.env.SMTP_PASS || "euWUdhsNY!H#1GBvVekS";
-const FROM_NAME = process.env.EMAIL_FROM_NAME || "Praxis Hausärzte im Grillepark";
-const REPLY_TO = process.env.EMAIL_REPLY_TO || "verify@automedix.de";
+const SMTP_USER = process.env.SMTP_USER || "";
+const SMTP_PASS = process.env.SMTP_PASS || "";
+const FROM_NAME = process.env.EMAIL_FROM_NAME || "";
+const REPLY_TO = process.env.EMAIL_REPLY_TO || "";
+
+if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
+  console.warn("[EMAIL] SMTP credentials not configured. Email sending will fail.");
+}
 
 const transporter = nodemailer.createTransport({
   host: SMTP_HOST,

@@ -9,19 +9,21 @@ services:
     ports:
       - "3456:3456"
     volumes:
-      - /opt/myhistoree/data:/app/data
+      - ./data:/app/data
     environment:
       - NODE_ENV=production
       - TZ=Europe/Berlin
-      - PASSWORD_PEPPER=myhistoree-pepper-change-in-production
       - PORT=3456
       - DB_PATH=/app/data/myhistoree.db
-      - SMTP_HOST=smtp.ionos.de
-      - SMTP_PORT=465
-      - SMTP_USER=verify@automedix.de
-      - SMTP_PASS=euWUdhsNY!H#1GBvVekS
-      - EMAIL_FROM_NAME=Praxis Hausärzte im Grillepark
-      - EMAIL_REPLY_TO=verify@automedix.de
+      # REQUIRED: Set all secrets via env vars or .env file
+      # JWT_SECRET=               # Generate with: openssl rand -base64 32
+      # PASSWORD_PEPPER=          # Generate with: openssl rand -base64 16
+      # DEFAULT_ADMIN_PASSWORD=   # Min. 12 characters
+      # SMTP_HOST=                # e.g. smtp.ionos.de
+      # SMTP_PORT=465
+      # SMTP_USER=                # Your sender email
+      # SMTP_PASS=                # Your SMTP password
+      # EMAIL_REPLY_TO=           # Reply-To address
     networks:
       - myhistoree
 
@@ -32,8 +34,8 @@ services:
     ports:
       - "7777:7777"
     volumes:
-      - /opt/myhistoree/strfry/data:/app/strfry-db
-      - /opt/myhistoree/strfry/strfry.conf:/etc/strfry.conf:ro
+      - ./strfry/data:/app/strfry-db
+      - ./strfry/strfry.conf:/etc/strfry.conf:ro
     networks:
       - myhistoree
     command: ["relay"]

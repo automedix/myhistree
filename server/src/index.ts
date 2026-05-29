@@ -40,7 +40,7 @@ app.addHook("onSend", async (request, reply, payload) => {
 app.register(cors, { origin: true, credentials: true });
 app.register(cookie);
 app.register(jwt, {
-  secret: process.env.JWT_SECRET || "myhistoree-jwt-secret-change-in-production",
+  secret: process.env.JWT_SECRET || (() => { throw new Error("JWT_SECRET environment variable is required"); })(),
   cookie: {
     cookieName: "access_token",
     signed: false,

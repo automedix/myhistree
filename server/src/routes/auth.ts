@@ -5,8 +5,10 @@ import bcrypt from "bcrypt";
 import speakeasy from "speakeasy";
 import QRCode from "qrcode";
 
-const JWT_SECRET = process.env.JWT_SECRET || "myhistoree-jwt-secret-change-in-production";
-const PEPPER = process.env.PASSWORD_PEPPER || "myhistoree-pepper-change-in-production";
+const JWT_SECRET = process.env.JWT_SECRET || "";
+if (!JWT_SECRET) throw new Error("JWT_SECRET environment variable is required");
+const PEPPER = process.env.PASSWORD_PEPPER || "";
+if (!PEPPER) throw new Error("PASSWORD_PEPPER environment variable is required");
 const SALT_ROUNDS = 12;
 const ACCESS_TOKEN_TTL = "15m";
 const REFRESH_TOKEN_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
@@ -296,7 +298,8 @@ export function ensureDefaultAdmin() {
   const count = db.prepare("SELECT COUNT(*) as c FROM admin_users").get() as { c: number };
   if (count.c === 0) {
     const id = randomUUID();
-    const defaultPassword = process.env.DEFAULT_ADMIN_PASSWORD || "myhistoree-admin-2026";
+    const defaultPassword = process.env.DEFAULT_ADMIN_PASSWORD || "";
+    if (!defaultPassword) throw new Error("DEFAULT_ADMIN_PASSWORD environment variable is required for first-run admin creation");
     const hash = hashPassword(defaultPassword);
     db.prepare(`INSERT INTO admin_users (id, email, password_hash, role, practice_id)
                 VALUES (?, ?, ?, ?, ?)`)
