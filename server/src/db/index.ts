@@ -19,6 +19,7 @@ const MIGRATIONS = [
   `CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_log(created_at);`,
   `ALTER TABLE encounters ADD COLUMN processed_at TEXT;`,
   `ALTER TABLE encounters ADD COLUMN current_screen TEXT;`,
+  `ALTER TABLE admin_users ADD COLUMN active INTEGER DEFAULT 1;`,
   `CREATE INDEX IF NOT EXISTS idx_encounters_status ON encounters(status);`,
   `CREATE TABLE IF NOT EXISTS admin_users (
     id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
@@ -31,7 +32,8 @@ const MIGRATIONS = [
     practice_id TEXT REFERENCES practices(id),
     last_login TEXT,
     created_at TEXT DEFAULT (datetime('now')),
-    updated_at TEXT DEFAULT (datetime('now'))
+    updated_at TEXT DEFAULT (datetime('now')),
+    active INTEGER DEFAULT 1
   );`,
   `CREATE TABLE IF NOT EXISTS admin_sessions (
     id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
