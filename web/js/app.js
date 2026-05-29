@@ -297,6 +297,10 @@ function restoreFormData(responses) {
           chip.classList.toggle("selected", vals.includes(chip.dataset.value));
         });
       }
+      // Restore detail textareas
+      const detailEl2 = document.getElementById(key.replace(/_/g, "-") + "-text");
+      if (detailEl2 && data["detail"]) { detailEl2.value = data["detail"]; }
+
     }
   }
 }
@@ -425,9 +429,11 @@ function collectInsurance() {
 }
 
 function collectSymptoms() {
+  const detail = document.getElementById("symptoms-text").value.trim();
   const symptoms = getChips("symptom-chips");
-  if (!symptoms.length) { alert("Bitte wählen Sie mindestens eine Option."); return undefined; }
-  return { symptoms: symptoms.join(", "), __completed: true };
+  if (!symptoms.length && !detail) { alert("Bitte wählen Sie mindestens eine Option oder geben Sie Details ein."); return undefined; }
+  if (!symptoms.length && detail) return { symptoms: detail, __completed: true };
+  return { symptoms: symptoms.join(", "), detail: detail || undefined, __completed: true };
 }
 
 function collectDuration() {
@@ -437,9 +443,11 @@ function collectDuration() {
 }
 
 function collectConditions() {
+  const detail = document.getElementById("conditions-text").value.trim();
   const conditions = getChips("condition-chips");
-  if (!conditions.length) { alert("Bitte wählen Sie mindestens eine Option."); return undefined; }
-  return { conditions: conditions.join(", "), __completed: true };
+  if (!conditions.length && !detail) { alert("Bitte wählen Sie mindestens eine Option oder geben Sie Details ein."); return undefined; }
+  if (!conditions.length && detail) return { conditions: detail, __completed: true };
+  return { conditions: conditions.join(", "), detail: detail || undefined, __completed: true };
 }
 
 function collectOperations() {
