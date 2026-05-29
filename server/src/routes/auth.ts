@@ -70,6 +70,10 @@ export async function registerAuthRoutes(fastify: FastifyInstance) {
       logAudit("LOGIN_FAILURE", email, "Invalid credentials", undefined, request.ip);
       return reply.status(401).send({ error: "Invalid credentials" });
     }
+    if (admin.active === 0) {
+      logAudit("LOGIN_FAILURE", email, "Account deactivated", admin.id, request.ip);
+      return reply.status(403).send({ error: "Account deactivated" });
+    }
 
     resetRateLimit(clientIp); // reset on successful password
 

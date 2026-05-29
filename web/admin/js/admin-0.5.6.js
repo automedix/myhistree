@@ -513,11 +513,16 @@ async function loadUsers() {
     if (currentAdmin && (currentAdmin.role === 'admin' || currentAdmin.role === 'superadmin')) {
       html += `<div class="form-group"><input type="email" id="u-email" placeholder="E-Mail"><input type="password" id="u-password" placeholder="Passwort (mind. 8 Zeichen)"><select id="u-role"><option value="user">User</option><option value="admin">Admin</option></select><button class="btn btn-primary" onclick="createUser()">Benutzer erstellen</button></div>`;
     }
-    html += '<table><thead><tr><th>E-Mail</th><th>Rolle</th><th>TOTP</th><th>Erstellt</th><th>Aktionen</th></tr></thead><tbody>';
+    html += '<table><thead><tr><th>E-Mail</th><th>Rolle</th><th>Status</th><th>TOTP</th><th>Erstellt</th><th>Aktionen</th></tr></thead><tbody>';
     for (const r of rows) {
-      html += `<tr><td>${r.email}</td><td>${r.role}</td><td>${r.totp_enabled ? '✅' : '—'}</td><td>${fmtDate(r.created_at)}</td><td>`;
+      const statusBadge = r.active === 0
+        ? '<span class="badge badge-inactive">Inaktiv</span>'
+        : '<span class="badge badge-completed">Aktiv</span>';
+      html += `<tr><td>${escapeHtml(r.email)}</td><td>${r.role}</td><td>${statusBadge}</td><td>${r.totp_enabled ? '✅' : '—'}</td><td>${fmtDate(r.created_at)}</td><td>`;
       if (currentAdmin && (currentAdmin.role === 'admin' || currentAdmin.role === 'superadmin') && r.email !== currentAdmin.email) {
-        html += `<button class="btn btn-sm btn-secondary" onclick="resetUserPrompt('${r.id}')">PW reset</button> <button class="btn btn-sm btn-danger" onclick="deleteUser('${r.id}', '${r.email}')">Löschen</button>`;
+        html += `<button class="btn btn-sm btn-secondary" onclick="resetUserPrompt('${r.id}')">PW reset</button> `;
+        html += `<button class="btn btn-sm ${r.active === 0 ? 'btn-success' : 'btn-warning'}" onclick="toggleUserActive('${r.id}', ${r.active === 0 ? 1 : 0})">${r.active === 0 ? 'Aktivieren' : 'Deaktivieren'}</button> `;
+        html += `<button class="btn btn-sm btn-danger" onclick="deleteUser('${r.id}', '${escapeHtml(r.email)}')">Löschen</button>`;
       }
       html += '</td></tr>';
     }
@@ -561,6 +566,16 @@ async function resetUserPassword(id, newPassword) {
     const res = await fetch(`${API}/admin/users/${id}/reset-password`, { method: 'POST', headers: {'Content-Type':'application/json'}, credentials: 'include', body: JSON.stringify({ newPassword }) });
     if (!res.ok) { alert('Fehler'); return; }
     alert('Passwort zurückgesetzt. Der Benutzer muss sich neu anmelden.');
+  } catch (e) { alert('Netzwerkfehler: ' + (e.message || e)); }
+}
+
+async function toggleUserActive(id, activate) {
+  const action = activate ? 'aktivieren' : 'deaktivieren';
+  if (!confirm(`Benutzer wirklich ${action}?`)) return;
+  try {
+    const res = await fetch(`${API}/admin/users/${id}/toggle-active`, { method: 'POST', credentials: 'include' });
+    if (!res.ok) { alert('Fehler'); return; }
+    await loadUsers();
   } catch (e) { alert('Netzwerkfehler: ' + (e.message || e)); }
 }
 

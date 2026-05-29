@@ -331,7 +331,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
   fastify.get("/admin/users", { onRequest: requireAuth }, async (request, reply) => {
     const admin = (request as any).user;
     if (!["admin","superadmin"].includes(admin.role)) return reply.status(403).send({ error: "Forbidden" });
-    return db.prepare("SELECT id, email, role, practice_id, totp_enabled, created_at FROM admin_users ORDER BY created_at DESC").all();
+    return db.prepare("SELECT id, email, role, practice_id, totp_enabled, active, created_at FROM admin_users ORDER BY created_at DESC").all();
   });
 
   fastify.post("/admin/users", { onRequest: requireAuth }, async (request, reply) => {
@@ -380,6 +380,20 @@ export default async function apiRoutes(fastify: FastifyInstance) {
     db.prepare("DELETE FROM admin_sessions WHERE admin_id = ?").run(id);
     logAudit("RESET_PASSWORD", id, undefined, undefined, request.ip);
     return { success: true };
+  });
+
+  fastify.post("/admin/users/:id/toggle-active", { onRequest: requireAuth }, async (request, reply) => {
+    const admin = (request as any).user;
+    if (!["admin","superadmin"].includes(admin.role)) return reply.status(403).send({ error: "Forbidden" });
+    const { id } = request.params as { id: string };
+    const target = db.prepare("SELECT id, email, active FROM admin_users WHERE id = ?").get(id) as any;
+    if (!target) return reply.status(404).send({ error: "Not found" });
+    if (target.email === admin.email) return reply.status(400).send({ error: "Cannot deactivate yourself" });
+    const newActive = target.active === 0 ? 1 : 0;
+    db.prepare("UPDATE admin_users SET active = ? WHERE id = ?").run(newActive, id);
+    db.prepare("DELETE FROM admin_sessions WHERE admin_id = ?").run(id);
+    logAudit(newActive === 1 ? "ACTIVATE_USER" : "DEACTIVATE_USER", id, target.email, undefined, request.ip);
+    return { success: true, active: newActive };
   });
 
 }
