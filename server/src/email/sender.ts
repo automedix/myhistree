@@ -80,11 +80,11 @@ export async function sendAnamneseLink(
   const htmlBody = `<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;background:#f8fafc;margin:0;padding:20px;color:#1e293b}
 .container{max-width:480px;margin:0 auto;background:#fff;border-radius:16px;padding:32px;box-shadow:0 4px 20px rgba(0,0,0,0.08)}
-.logo{font-size:1.3rem;font-weight:700;color:#2563eb;margin-bottom:24px}
+.logo{font-size:1.3rem;font-weight:700;color:#1E3A5F;margin-bottom:24px}
 h1{font-size:1.1rem;color:#1e293b;margin-bottom:12px}
 p{font-size:.95rem;line-height:1.6;color:#475569;margin:8px 0}
-.link-box{background:#eff6ff;border-left:4px solid #2563eb;padding:16px;border-radius:0 8px 8px 0;margin:16px 0;word-break:break-all}
-.link-box a{color:#2563eb;font-weight:600;text-decoration:none}
+.link-box{background:#eff6ff;border-left:4px solid #1E3A5F;padding:16px;border-radius:0 8px 8px 0;margin:16px 0;word-break:break-all}
+.link-box a{color:#1E3A5F;font-weight:600;text-decoration:none}
 .meta{background:#f1f5f9;padding:12px 16px;border-radius:8px;margin:12px 0;font-size:.9rem}
 .meta strong{color:#1e293b}
 .footer{margin-top:24px;padding-top:16px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#94a3b8}</style></head>
@@ -128,11 +128,11 @@ export async function sendVerificationCodeEmail(
   const htmlBody = `<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;background:#f8fafc;margin:0;padding:20px;color:#1e293b}
 .container{max-width:480px;margin:0 auto;background:#fff;border-radius:16px;padding:32px;box-shadow:0 4px 20px rgba(0,0,0,0.08)}
-.logo{font-size:1.3rem;font-weight:700;color:#2563eb;margin-bottom:24px}
+.logo{font-size:1.3rem;font-weight:700;color:#1E3A5F;margin-bottom:24px}
 h1{font-size:1.1rem;color:#1e293b;margin-bottom:12px}
 p{font-size:.95rem;line-height:1.6;color:#475569;margin:8px 0}
-.code-box{background:#eff6ff;border:2px dashed #2563eb;padding:20px;border-radius:12px;margin:20px 0;text-align:center}
-.code-box .code{font-size:2rem;font-weight:700;color:#2563eb;letter-spacing:8px;font-family:monospace}
+.code-box{background:#eff6ff;border:2px dashed #1E3A5F;padding:20px;border-radius:12px;margin:20px 0;text-align:center}
+.code-box .code{font-size:2rem;font-weight:700;color:#1E3A5F;letter-spacing:8px;font-family:monospace}
 .footer{margin-top:24px;padding-top:16px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#94a3b8}</style></head>
 <body><div class="container"><div class="logo">🏥 Hausärzte im Grillepark</div><h1>E-Mail-Adresse bestätigen</h1>
 <p>Guten Tag,</p><p>vielen Dank für die Angabe Ihrer E-Mail-Adresse im Rahmen Ihrer digitalen Anamnese.</p>
