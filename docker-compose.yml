@@ -12,6 +12,8 @@ services:
       - /opt/myhistoree/data:/app/data
     environment:
       - NODE_ENV=production
+      - TZ=Europe/Berlin
+      - PASSWORD_PEPPER=myhistoree-pepper-change-in-production
       - PORT=3456
       - DB_PATH=/app/data/myhistoree.db
       - SMTP_HOST=smtp.ionos.de

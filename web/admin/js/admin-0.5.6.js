@@ -343,15 +343,20 @@ async function loadAuditLog() {
 }
 
 // ─── Helpers ────────────────────────────────────────────────────
+function _parseAsUTC(d) {
+  if (!d) return null;
+  if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(d)) {
+    return new Date(d.replace(' ', 'T') + 'Z');
+  }
+  return new Date(d);
+}
 function fmtDate(d) {
   if (!d) return '-';
-  try { return new Date(d).toLocaleDateString('de-DE'); } catch { return d; }
+  try { const dt = _parseAsUTC(d); if (!dt || isNaN(dt.getTime())) return d; return dt.toLocaleDateString('de-DE', { timeZone: 'Europe/Berlin' }); } catch { return d; }
 }
 function fmtDateTime(d) {
   if (!d) return '-';
-  try {
-    return new Date(d).toLocaleString('de-DE', { timeZone: 'Europe/Berlin' });
-  } catch { return d; }
+  try { const dt = _parseAsUTC(d); if (!dt || isNaN(dt.getTime())) return d; return dt.toLocaleString('de-DE', { timeZone: 'Europe/Berlin' }); } catch { return d; }
 }
 
 // ─── Settings (TOTP) ────────────────────────────────────────────────────
