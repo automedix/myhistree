@@ -1,6 +1,11 @@
 // myhistoree v0.5.5 – Online Anamnese
 const API = "";
 
+function escapeHtml(str) {
+  if (str === null || str === undefined) return "";
+  return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/\x27/g, "&#039;");
+}
+
 let encounterId = null;
 let patientId = null;
 let currentStep = 0;
