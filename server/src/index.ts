@@ -84,5 +84,5 @@ app.listen({ port: PORT, host: "0.0.0.0" }, (err) => {
     app.log.error(err);
     process.exit(1);
   }
-  console.log(`myhistoree läuft auf http://0.0.0.0:${PORT}`);
+  console.log(`myhistree läuft auf http://0.0.0.0:${PORT}`);
 });

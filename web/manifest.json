@@ -1,6 +1,6 @@
 {
-  "name": "myhistoree – Online Anamnese",
-  "short_name": "myhistoree",
+  "name": "myhistree – Online Anamnese",
+  "short_name": "myhistree",
   "description": "Digitale Anamnese für Hausärzte",
   "start_url": "/",
   "display": "standalone",

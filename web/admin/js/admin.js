@@ -1,4 +1,4 @@
-// myhistoree Admin Dashboard JS v0.4.0
+// myhistree Admin Dashboard JS v0.4.0
 const API = '/api';
 let encounterFilter = 'all'; // 'all' | 'completed' | 'in-progress'
 const CURRENT_PRACTICE = 'demo-practice';
@@ -267,7 +267,7 @@ async function viewEncounter(encounterId, pvsId) {
     };
 
     let html = '<div class="print-view">';
-    html += `<div style="text-align:center;margin-bottom:20px;"><h2 style="color:var(--primary);margin:0;">myhistoree Anamnese</h2><div style="color:var(--text-light);font-size:0.9rem;">PVS Patienten-ID: <strong>${pvsId || '-'}</strong> | Datum: ${new Date(data.created_at).toLocaleString('de-DE', { timeZone: 'Europe/Berlin' })}</div></div>`;
+    html += `<div style="text-align:center;margin-bottom:20px;"><h2 style="color:var(--primary);margin:0;">myhistree Anamnese</h2><div style="color:var(--text-light);font-size:0.9rem;">PVS Patienten-ID: <strong>${pvsId || '-'}</strong> | Datum: ${new Date(data.created_at).toLocaleString('de-DE', { timeZone: 'Europe/Berlin' })}</div></div>`;
 
     for (const r of data.responses || []) {
       const obj = typeof r.data === "string" ? JSON.parse(r.data) : r.data;
@@ -302,7 +302,7 @@ async function copyEncounterText(encounterId) {
     const res = await fetch(`${API}/encounter/${encounterId}`);
     const data = await res.json();
 
-    let text = `myhistoree Anamnese\n`;
+    let text = `myhistree Anamnese\n`;
     text += `PVS Patienten-ID: ${data.pvs_patient_id || '-'}\n`;
     text += `Datum: ${new Date(data.created_at).toLocaleString('de-DE', { timeZone: 'Europe/Berlin' })}\n`;
     text += `Status: ${data.status}\n`;

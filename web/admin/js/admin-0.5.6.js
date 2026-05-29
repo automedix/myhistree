@@ -1,4 +1,4 @@
-// myhistoree Admin Dashboard JS v0.5.6
+// myhistree Admin Dashboard JS v0.5.6
 const API = '/api';
 let encounterFilter = 'all'; // 'all' | 'completed' | 'in-progress'
 const CURRENT_PRACTICE = 'demo-practice';

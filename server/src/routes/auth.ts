@@ -222,7 +222,7 @@ export async function registerAuthRoutes(fastify: FastifyInstance) {
       if (!admin) return reply.status(404).send({ error: "Admin not found" });
 
       const secret = speakeasy.generateSecret({
-        name: `myhistoree (${admin.email})`,
+        name: `myhistree (${admin.email})`,
         length: 32,
       });
 

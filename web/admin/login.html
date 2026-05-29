@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>myhistoree — Admin Login</title>
+  <title>myhistree — Admin Login</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -12,6 +12,7 @@
       color: #e2e8f0;
       min-height: 100vh;
       display: flex;
+      flex-direction: column;
       align-items: center;
       justify-content: center;
       padding: 20px;
@@ -98,12 +99,40 @@
       font-size: 0.75rem;
       color: #475569;
     }
+    .login-footer {
+      text-align: center;
+      margin-top: 20px;
+      padding-top: 16px;
+      border-top: 1px solid #334155;
+      font-size: 0.75rem;
+      color: #64748b;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .login-footer a {
+      color: #94a3b8;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      transition: color 0.2s;
+    }
+    .login-footer a:hover {
+      color: #38bdf8;
+    }
+    .login-footer svg {
+      vertical-align: middle;
+      opacity: 0.8;
+    }
   </style>
 </head>
 <body>
   <div class="login-card">
     <div class="logo">
-      <h1>myhistoree</h1>
+      <h1>myhistree</h1>
       <p>Admin Dashboard</p>
     </div>
 
@@ -133,6 +162,24 @@
     </div>
 
     <div class="version">v0.5.6</div>
+
+    <div class="login-footer">
+      <span>Vibecoded mit</span>
+      <a href="https://clawi.ai" target="_blank" rel="noopener">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <path d="M2 10c2.5-3 5-3 7.5 0s5 3 7.5 0 5-3 7.5 0"/>
+          <path d="M2 16c2.5-3 5-3 7.5 0s5 3 7.5 0 5-3 7.5 0"/>
+        </svg>
+        Clawi.ai
+      </a>
+      <span>und</span>
+      <a href="https://hermes-agent.nousresearch.com" target="_blank" rel="noopener">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+        </svg>
+        Hermes Agent
+      </a>
+    </div>
   </div>
 
   <script>

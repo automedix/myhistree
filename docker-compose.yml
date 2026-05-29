@@ -1,10 +1,10 @@
 services:
-  myhistoree:
+  myhistree:
     build:
       context: .
       dockerfile: Dockerfile
-    image: myhistoree-myhistoree:latest
-    container_name: myhistoree
+    image: myhistree-myhistree:latest
+    container_name: myhistree
     restart: unless-stopped
     ports:
       - "3456:3456"
@@ -17,7 +17,7 @@ services:
       - PORT=3456
       - DB_PATH=/app/data/myhistoree.db
     networks:
-      - myhistoree
+      - myhistree
 
   strfry:
     image: ghcr.io/hoytech/strfry:latest
@@ -29,9 +29,9 @@ services:
       - ./strfry/data:/app/strfry-db
       - ./strfry/strfry.conf:/etc/strfry.conf:ro
     networks:
-      - myhistoree
+      - myhistree
     command: ["relay"]
 
 networks:
-  myhistoree:
+  myhistree:
     driver: bridge

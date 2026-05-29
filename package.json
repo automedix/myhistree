@@ -1,7 +1,7 @@
 {
-  "name": "myhistoree-server",
+  "name": "myhistree-server",
   "version": "0.5.6",
-  "description": "myhistoree backend",
+  "description": "myhistree backend",
   "main": "dist/index.js",
   "scripts": {
     "build": "cd server && npx tsc",
