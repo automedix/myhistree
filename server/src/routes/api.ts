@@ -183,7 +183,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
 
   fastify.post("/anamnese/:encounterId/complete", async (request) => {
     const { encounterId } = request.params as { encounterId: string };
-    db.prepare("UPDATE encounters SET status = 'completed', completed_at = datetime('now') WHERE id = ?").run(encounterId);
+    db.prepare("UPDATE encounters SET status = 'submitted', completed_at = datetime('now') WHERE id = ?").run(encounterId);
     logAudit("COMPLETE_ANAMNESE", encounterId, undefined, undefined, request.ip);
     return { success: true };
   });

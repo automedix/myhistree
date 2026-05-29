@@ -154,8 +154,8 @@ async function loadEncountersDashboard() {
     if (!res.ok) { container.innerHTML = '<div class="empty">Zugriff verweigert — bitte neu anmelden.</div>'; return; }
     const rows = await res.json();
     const pending = rows.filter(r => r.status === 'pending' || !r.status);
-    const inProgress = rows.filter(r => r.status === 'in-progress');
-    const completed = rows.filter(r => r.status === 'completed');
+    const inProgress = rows.filter(r => r.status === 'in-progress' || r.status === 'submitted' || r.status === 'completed');
+    const completed = rows.filter(r => false); // legacy — merged into In Bearbeitung
     const processed = rows.filter(r => r.status === 'processed');
 
     let html = '';
@@ -173,7 +173,7 @@ async function loadEncountersDashboard() {
 
     // ABGESCHLOSSEN (7 Tage)
     html += '<div class="card"><h3>Abgeschlossen (letzte 7 Tage)</h3>';
-    const recentCompleted = completed.filter(r => {
+    const recentCompleted = [].filter(r => {
       const ts = r.completed_at || r.updated_at || r.created_at;
       const d = ts ? new Date(ts) : null;
       return d && (Date.now() - d.getTime()) < 7 * 24 * 60 * 60 * 1000;
@@ -183,7 +183,7 @@ async function loadEncountersDashboard() {
       const d = ts ? new Date(ts) : null;
       return d && (Date.now() - d.getTime()) < 7 * 24 * 60 * 60 * 1000;
     });
-    const recentAll = [...recentCompleted, ...recentProcessed].sort((a,b) => {
+    const recentAll = [...recentProcessed].sort((a,b) => {
       const getTs = r => new Date(r.completed_at || r.processed_at || r.updated_at || r.created_at).getTime();
       return getTs(b) - getTs(a);
     });
@@ -198,7 +198,7 @@ async function loadEncountersDashboard() {
 function encountersTable(rows, showProcessBtn) {
   let html = '<table><thead><tr><th>Datum</th><th>PVS-ID</th><th>Status</th><th>Aktionen</th></tr></thead><tbody>';
   for (const r of rows) {
-    const statusClass = r.status === 'completed' ? 'badge-completed' : (r.status === 'processed' ? 'badge-processed' : 'badge-inprogress');
+    const statusClass = r.status === 'processed' ? 'badge-processed' : (r.status === 'submitted' ? 'badge-submitted' : 'badge-inprogress');
     html += `<tr>
       <td>${fmtDateTime(r.created_at)}</td>
       <td>${r.pvs_patient_id || '-'}</td>
