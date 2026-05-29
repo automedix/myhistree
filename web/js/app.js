@@ -452,65 +452,73 @@ function collectOperations() {
 function collectMedsBloodthin() {
   const meds = getChips("bloodthin-chips");
   const detail = document.getElementById("bloodthin-text").value.trim();
-  if (!meds.length) { alert("Bitte wählen Sie mindestens eine Option."); return undefined; }
+  if (!meds.length && !detail) { alert("Bitte wählen Sie mindestens eine Option oder geben Sie Details ein."); return undefined; }
   const selected = meds.filter(m => m !== "keine");
-  if (selected.length === 0) return { meds_bloodthin: "Keine", __completed: true };
+  if (selected.length === 0 && !detail) return { meds_bloodthin: "Keine", __completed: true };
+  if (selected.length === 0 && detail) return { meds_bloodthin: detail, __completed: true };
   return { meds_bloodthin: selected.join(", "), detail: detail || undefined, __completed: true };
 }
 function collectMedsBP() {
   const meds = getChips("bp-chips");
   const detail = document.getElementById("bp-text").value.trim();
-  if (!meds.length) { alert("Bitte wählen Sie mindestens eine Option."); return undefined; }
+  if (!meds.length && !detail) { alert("Bitte wählen Sie mindestens eine Option oder geben Sie Details ein."); return undefined; }
   const selected = meds.filter(m => m !== "keine");
-  if (selected.length === 0) return { meds_bp: "Keine", __completed: true };
+  if (selected.length === 0 && !detail) return { meds_bp: "Keine", __completed: true };
+  if (selected.length === 0 && detail) return { meds_bp: detail, __completed: true };
   return { meds_bp: selected.join(", "), detail: detail || undefined, __completed: true };
 }
 function collectMedsAsthma() {
   const meds = getChips("asthma-chips");
   const detail = document.getElementById("asthma-text").value.trim();
-  if (!meds.length) { alert("Bitte wählen Sie mindestens eine Option."); return undefined; }
+  if (!meds.length && !detail) { alert("Bitte wählen Sie mindestens eine Option oder geben Sie Details ein."); return undefined; }
   const selected = meds.filter(m => m !== "keine");
-  if (selected.length === 0) return { meds_asthma: "Keine", __completed: true };
+  if (selected.length === 0 && !detail) return { meds_asthma: "Keine", __completed: true };
+  if (selected.length === 0 && detail) return { meds_asthma: detail, __completed: true };
   return { meds_asthma: selected.join(", "), detail: detail || undefined, __completed: true };
 }
 function collectMedsDiabetes() {
   const meds = getChips("diabetes-chips");
   const detail = document.getElementById("diabetes-text").value.trim();
-  if (!meds.length) { alert("Bitte wählen Sie mindestens eine Option."); return undefined; }
+  if (!meds.length && !detail) { alert("Bitte wählen Sie mindestens eine Option oder geben Sie Details ein."); return undefined; }
   const selected = meds.filter(m => m !== "keine");
-  if (selected.length === 0) return { meds_diabetes: "Keine", __completed: true };
+  if (selected.length === 0 && !detail) return { meds_diabetes: "Keine", __completed: true };
+  if (selected.length === 0 && detail) return { meds_diabetes: detail, __completed: true };
   return { meds_diabetes: selected.join(", "), detail: detail || undefined, __completed: true };
 }
 function collectMedsNeuro() {
   const meds = getChips("neuro-chips");
   const detail = document.getElementById("neuro-text").value.trim();
-  if (!meds.length) { alert("Bitte wählen Sie mindestens eine Option."); return undefined; }
+  if (!meds.length && !detail) { alert("Bitte wählen Sie mindestens eine Option oder geben Sie Details ein."); return undefined; }
   const selected = meds.filter(m => m !== "keine");
-  if (selected.length === 0) return { meds_neuro: "Keine", __completed: true };
+  if (selected.length === 0 && !detail) return { meds_neuro: "Keine", __completed: true };
+  if (selected.length === 0 && detail) return { meds_neuro: detail, __completed: true };
   return { meds_neuro: selected.join(", "), detail: detail || undefined, __completed: true };
 }
 function collectMedsPain() {
   const meds = getChips("pain-chips");
   const detail = document.getElementById("pain-text").value.trim();
-  if (!meds.length) { alert("Bitte wählen Sie mindestens eine Option."); return undefined; }
+  if (!meds.length && !detail) { alert("Bitte wählen Sie mindestens eine Option oder geben Sie Details ein."); return undefined; }
   const selected = meds.filter(m => m !== "keine");
-  if (selected.length === 0) return { meds_pain: "Keine", __completed: true };
+  if (selected.length === 0 && !detail) return { meds_pain: "Keine", __completed: true };
+  if (selected.length === 0 && detail) return { meds_pain: detail, __completed: true };
   return { meds_pain: selected.join(", "), detail: detail || undefined, __completed: true };
 }
 function collectMedsGynUro() {
   const meds = getChips("gynuro-chips");
   const detail = document.getElementById("gynuro-text").value.trim();
-  if (!meds.length) { alert("Bitte wählen Sie mindestens eine Option."); return undefined; }
+  if (!meds.length && !detail) { alert("Bitte wählen Sie mindestens eine Option oder geben Sie Details ein."); return undefined; }
   const selected = meds.filter(m => m !== "keine");
-  if (selected.length === 0) return { meds_gynuro: "Keine", __completed: true };
+  if (selected.length === 0 && !detail) return { meds_gynuro: "Keine", __completed: true };
+  if (selected.length === 0 && detail) return { meds_gynuro: detail, __completed: true };
   return { meds_gynuro: selected.join(", "), detail: detail || undefined, __completed: true };
 }
 function collectMedsChol() {
   const meds = getChips("chol-chips");
   const detail = document.getElementById("chol-text").value.trim();
-  if (!meds.length) { alert("Bitte wählen Sie mindestens eine Option."); return undefined; }
+  if (!meds.length && !detail) { alert("Bitte wählen Sie mindestens eine Option oder geben Sie Details ein."); return undefined; }
   const selected = meds.filter(m => m !== "keine");
-  if (selected.length === 0) return { meds_chol: "Keine", __completed: true };
+  if (selected.length === 0 && !detail) return { meds_chol: "Keine", __completed: true };
+  if (selected.length === 0 && detail) return { meds_chol: detail, __completed: true };
   return { meds_chol: selected.join(", "), detail: detail || undefined, __completed: true };
 }
 function collectNotes() {
@@ -522,9 +530,10 @@ function collectNotes() {
 function collectMedsOther() {
   const meds = getChips("other-meds-chips");
   const detail = document.getElementById("other-meds-text").value.trim();
-  if (!meds.length) { alert("Bitte wählen Sie mindestens eine Option."); return undefined; }
+  if (!meds.length && !detail) { alert("Bitte wählen Sie mindestens eine Option oder geben Sie Details ein."); return undefined; }
   const selected = meds.filter(m => m !== "keine");
-  if (selected.length === 0) return { meds_other: "Keine", __completed: true };
+  if (selected.length === 0 && !detail) return { meds_other: "Keine", __completed: true };
+  if (selected.length === 0 && detail) return { meds_other: detail, __completed: true };
   return { meds_other: selected.join(", "), detail: detail || undefined, __completed: true };
 }
 
