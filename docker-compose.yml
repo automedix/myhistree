@@ -10,20 +10,12 @@ services:
       - "3456:3456"
     volumes:
       - ./data:/app/data
+    env_file: .env
     environment:
       - NODE_ENV=production
       - TZ=Europe/Berlin
       - PORT=3456
       - DB_PATH=/app/data/myhistoree.db
-      # REQUIRED: Set all secrets via env vars or .env file
-      # JWT_SECRET=               # Generate with: openssl rand -base64 32
-      # PASSWORD_PEPPER=          # Generate with: openssl rand -base64 16
-      # DEFAULT_ADMIN_PASSWORD=   # Min. 12 characters
-      # SMTP_HOST=                # e.g. smtp.ionos.de
-      # SMTP_PORT=465
-      # SMTP_USER=                # Your sender email
-      # SMTP_PASS=                # Your SMTP password
-      # EMAIL_REPLY_TO=           # Reply-To address
     networks:
       - myhistoree
 

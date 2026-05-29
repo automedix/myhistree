@@ -312,6 +312,17 @@ export default async function apiRoutes(fastify: FastifyInstance) {
     const { encounterId } = request.params as { encounterId: string };
     const body = request.body as any;
     const { currentScreen } = body;
+    const validScreens = [
+      "language","origin","family_status","children","job","insurance",
+      "symptoms","duration","conditions","operations","meds_bloodthin",
+      "meds_bp","meds_asthma","meds_diabetes","meds_neuro","meds_pain",
+      "meds_gynuro","meds_chol","meds_other","allergies","family",
+      "lifestyle","lifestyle2","emergency","bodymetrics","contact",
+      "notes","review","done"
+    ];
+    if (currentScreen && !validScreens.includes(currentScreen)) {
+      return reply.status(400).send({ error: "Invalid screen identifier" });
+    }
     db.prepare("UPDATE encounters SET current_screen = ? WHERE id = ?").run(currentScreen || null, encounterId);
     return { success: true };
   });

@@ -22,7 +22,7 @@ async function initAuth() {
         userDiv.className = 'user-info';
         header.appendChild(userDiv);
       }
-      userDiv.innerHTML = `<span title="${currentAdmin.role}">${currentAdmin.email}</span><button onclick="doLogout()">Abmelden</button>`;
+      userDiv.innerHTML = `<span title="${escapeHtml(currentAdmin.role)}">${escapeHtml(currentAdmin.email)}</span><button onclick="doLogout()">Abmelden</button>`;
     }
     // Now load data
     await loadLinks();
@@ -108,9 +108,9 @@ async function loadLinks() {
       const statusClass = r.status === 'pending' ? 'badge-pending' : (r.status === 'used' ? 'badge-used' : 'badge-expired');
       html += `<tr>
         <td><code>${r.token.slice(0,16)}...</code></td>
-        <td>${r.pvs_patient_id || '-'}</td>
-        <td>${r.patient_dob || '-'}</td>
-        <td>${r.patient_email || '-'}</td>
+        <td>${escapeHtml(r.pvs_patient_id ? r.pvs_patient_id : '-')}</td>
+        <td>${escapeHtml(r.patient_dob ? r.patient_dob : '-')}</td>
+        <td>${escapeHtml(r.patient_email ? r.patient_email : '-')}</td>
         <td><span class="badge ${statusClass}">${r.status}</span></td>
         <td>${fmtDate(r.created_at)}</td>
         <td>${fmtDate(r.expires_at)}</td>
@@ -201,7 +201,7 @@ function encountersTable(rows, showProcessBtn) {
     const statusClass = r.status === 'processed' ? 'badge-processed' : (r.status === 'submitted' ? 'badge-submitted' : 'badge-inprogress');
     html += `<tr>
       <td>${fmtDateTime(r.created_at)}</td>
-      <td>${r.pvs_patient_id || '-'}</td>
+      <td>${escapeHtml(r.pvs_patient_id ? r.pvs_patient_id : '-')}</td>
       <td><span class="badge ${statusClass}">${r.status}</span></td>
       <td>
         <button class="btn btn-sm btn-primary" onclick="viewEncounter('${r.id}')">Ansehen</button>
@@ -235,7 +235,7 @@ async function viewEncounter(encounterId) {
     if (data.error) { alert(data.error); return; }
     const enc = data.encounter;
     let html = '<div class="print-view">';
-    html += `<h2>Anamnese ${enc.id.slice(0,8)} — ${enc.pvs_patient_id || '—'}</h2>`;
+    html += `<h2>Anamnese ${escapeHtml(enc.id.slice(0,8))} — ${escapeHtml(enc.pvs_patient_id ? enc.pvs_patient_id : '—')}</h2>`;
     html += `<p><strong>Erstellt:</strong> ${fmtDateTime(enc.created_at)}</p>`;
     if (data.responses) {
       const items = [
@@ -274,7 +274,7 @@ async function viewEncounter(encounterId) {
           if (obj && Object.keys(obj).length > 0) {
             for (const [k, v] of Object.entries(obj)) {
               if (k.startsWith('__')) continue;
-              html += `<div class="field"><div class="field-label">${k}</div><div class="field-value">${formatValue(v)}</div></div>`;
+              html += `<div class="field"><div class="field-label">${escapeHtml(k)}</div><div class="field-value">${formatValue(v)}</div></div>`;
             }
           } else { html += '<p><em>Keine Angaben</em></p>'; }
           html += '</div>';
@@ -287,11 +287,16 @@ async function viewEncounter(encounterId) {
   } catch (e) { alert('Fehler beim Laden'); }
 }
 
+function escapeHtml(str) {
+  if (str === null || str === undefined) return '';
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#039;');
+}
+
 function formatValue(v) {
   if (v === null || v === undefined) return '—';
   if (typeof v === 'boolean') return v ? 'Ja' : 'Nein';
-  if (Array.isArray(v)) return v.join(', ');
-  return String(v);
+  if (Array.isArray(v)) return v.map(escapeHtml).join(', ');
+  return escapeHtml(v);
 }
 
 async function copyEncounterText(encounterId) {

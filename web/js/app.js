@@ -158,16 +158,16 @@ async function initPage() {
     const res = await fetch(`${API}/api/link/validate/${linkToken}`);
     if (!res.ok) {
       const err = await res.json();
-      document.body.innerHTML = `<div style="padding:40px;text-align:center;font-family:system-ui;"><h2>Link ungültig</h2><p>${err.error || "Dieser Link ist abgelaufen oder bereits verwendet."}</p></div>`;
+      document.body.innerHTML = `<div style="padding:40px;text-align:center;font-family:system-ui;"><h2>Link ungültig</h2><p>${escapeHtml(err.error) || "Dieser Link ist abgelaufen oder bereits verwendet."}</p></div>`;
       return;
     }
     linkData = await res.json();
     const info = document.getElementById("verify-info");
     if (info) {
       info.innerHTML = `<div style="background:#f0fdf4;border:1px solid #22c55e;border-radius:8px;padding:12px;margin-bottom:16px;">
-        <strong>Praxis:</strong> ${linkData.practiceName || "Hausärzte im Grillepark"}<br>
-        ${linkData.pvsPatientId ? `<strong>Patienten-ID:</strong> ${linkData.pvsPatientId}<br>` : ""}
-        ${linkData.patientEmail ? `<strong>E-Mail:</strong> ${linkData.patientEmail}<br>` : ""}
+        <strong>Praxis:</strong> ${escapeHtml(linkData.practiceName) || "Hausärzte im Grillepark"}<br>
+        ${linkData.pvsPatientId ? `<strong>Patienten-ID:</strong> ${escapeHtml(linkData.pvsPatientId)}<br>` : ""}
+        ${linkData.patientEmail ? `<strong>E-Mail:</strong> ${escapeHtml(linkData.patientEmail)}<br>` : ""}
       </div>`;
     }
     if (linkData.requiresPin) {
@@ -198,7 +198,7 @@ async function initPage() {
           lifestyle: "Lebensgewohnheiten", lifestyle2: "Lebensgewohnheiten (2)", emergency: "Notfallkontakt",
           bodymetrics: "Körpermaße", contact: "Kontaktdaten", notes: "Zusätzliche Infos", review: "Zusammenfassung"
         };
-        subtitle.innerHTML = `Sie haben Ihre Anamnese bei <strong>${screenNames[linkData.currentScreen] || linkData.currentScreen}</strong> unterbrochen.<br>Mit der gleichen Geburtsdatum${linkData.requiresPin ? ' und PIN' : ''} können Sie fortfahren.`;
+        subtitle.innerHTML = `Sie haben Ihre Anamnese bei <strong>${escapeHtml(screenNames[linkData.currentScreen] || linkData.currentScreen)}</strong> unterbrochen.<br>Mit der gleichen Geburtsdatum${linkData.requiresPin ? ' und PIN' : ''} können Sie fortfahren.`;
       }
     }
   } catch(e) {
@@ -302,7 +302,7 @@ async function saveAndPause() {
   if (doneScreen) {
     const content = doneScreen.querySelector(".content") || doneScreen;
     const original = content.innerHTML;
-    content.innerHTML = `<div style="text-align:center;padding:40px;"><div style="font-size:48px;margin-bottom:16px;">⏸</div><h2>Bearbeitung pausiert</h2><p style="color:#64748b;">Ihre Angaben wurden gespeichert. Sie können später mit dem gleichen Link fortfahren.</p><p style="font-size:0.85rem;color:#94a3b8;margin-top:8px;">Patienten-ID: <strong>${linkData?.pvsPatientId || "—"}</strong></p></div>`;
+    content.innerHTML = `<div style="text-align:center;padding:40px;"><div style="font-size:48px;margin-bottom:16px;">⏸</div><h2>Bearbeitung pausiert</h2><p style="color:#64748b;">Ihre Angaben wurden gespeichert. Sie können später mit dem gleichen Link fortfahren.</p><p style="font-size:0.85rem;color:#94a3b8;margin-top:8px;">Patienten-ID: <strong>${escapeHtml(linkData?.pvsPatientId) || "—"}</strong></p></div>`;
     setTimeout(() => { content.innerHTML = original; }, 5000);
   }
   wizard.goTo("done");
@@ -341,7 +341,7 @@ function toggleAllergy(type, show) { document.getElementById("allergy-" + type +
 function buildChildrenScreen() {
   const saved = sessionStorage.getItem("myhistoree_family_status");
   let kinderAnzahl = 0;
-  if (saved) { try { kinderAnzahl = JSON.parse(saved).kinder || 0; } catch(e){} }
+  if (saved) { try { kinderAnzahl = parseInt(JSON.parse(saved).kinder, 10) || 0; } catch(e){} if (kinderAnzahl < 0 || kinderAnzahl > 20) kinderAnzahl = 0; }
   const container = document.getElementById("children-container");
   if (!container) return;
   let html = "";
