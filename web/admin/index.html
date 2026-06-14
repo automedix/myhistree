@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>myhistree – Praxis Admin</title>
+<style>
+:root { --primary:#2563eb; --primary-dark:#1d4ed8; --bg:#f1f5f9; --card:#fff; --text:#1e293b; --text-light:#64748b; --border:#e2e8f0; --success:#22c55e; --warning:#f59e0b; --danger:#ef4444; --radius:12px; }
+* { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif; background:var(--bg); color:var(--text); line-height:1.5; }
+.container { max-width:1100px; margin:0 auto; padding:20px; }
+header { background:var(--primary); color:#fff; padding:16px 20px; border-radius:var(--radius); margin-bottom:24px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; }
+header h1 { font-size:1.3rem; }
+header .version { font-size:0.8rem; opacity:0.8; }
+header .user-info { display:flex; align-items:center; gap:12px; font-size:0.85rem; }
+header .user-info span { opacity:0.9; }
+header .user-info button { background:rgba(255,255,255,0.15); color:#fff; border:none; padding:6px 12px; border-radius:6px; cursor:pointer; font-size:0.8rem; }
+header .user-info button:hover { background:rgba(255,255,255,0.25); }
+.card { background:var(--card); border-radius:var(--radius); padding:20px; margin-bottom:20px; box-shadow:0 2px 8px rgba(0,0,0,0.04); border:1px solid var(--border); }
+.card h2 { font-size:1.1rem; margin-bottom:16px; color:var(--text); }
+.card h3 { font-size:0.95rem; margin:16px 0 8px; color:var(--text-light); }
+.form-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px; }
+@media(max-width:600px){ .form-row { grid-template-columns:1fr; } }
+label { font-size:0.9rem; font-weight:600; color:var(--text-light); display:block; margin-bottom:4px; }
+input, select, textarea { width:100%; padding:10px 12px; border:2px solid var(--border); border-radius:8px; font-size:0.95rem; font-family:inherit; }
+input:focus, select:focus, textarea:focus { outline:none; border-color:var(--primary); }
+.btn { padding:10px 18px; border-radius:8px; font-size:0.95rem; font-weight:600; border:none; cursor:pointer; }
+.btn-primary { background:var(--primary); color:#fff; }
+.btn-primary:hover { background:var(--primary-dark); }
+.btn-secondary { background:var(--bg); color:var(--text); border:2px solid var(--border); }
+.btn-sm { padding:6px 12px; font-size:0.8rem; }
+.btn-success { background:var(--success); color:#fff; }
+table { width:100%; border-collapse:collapse; font-size:0.9rem; }
+th, td { text-align:left; padding:10px; border-bottom:1px solid var(--border); }
+th { font-weight:600; color:var(--text-light); font-size:0.8rem; text-transform:uppercase; letter-spacing:0.5px; }
+tr:hover { background:#f8fafc; }
+.badge { display:inline-block; padding:3px 8px; border-radius:4px; font-size:0.75rem; font-weight:600; }
+.badge-pending { background:#dbeafe; color:#1d4ed8; }
+.badge-used { background:#dcfce7; color:#166534; }
+.badge-expired { background:#fee2e2; color:#991b1b; }
+.badge-completed { background:#dcfce7; color:#166534; }
+.badge-inprogress { background:#fef3c7; color:#92400e; }
+.badge-submitted { background:#ffedd5; color:#9a3412; }
+.badge-processed { background:#e2e8f0; color:#334155; }
+    .badge-inactive { background:#fee2e2; color:#991b1b; }
+    .btn-success { background:#16a34a; color:#fff; }
+    .btn-warning { background:#f59e0b; color:#fff; }
+.url-box { background:#f1f5f9; padding:12px; border-radius:8px; font-family:ui-monospace,monospace; font-size:0.85rem; word-break:break-all; margin:8px 0; }
+.tabs { display:flex; gap:4px; margin-bottom:20px; border-bottom:2px solid var(--border); }
+.tab { padding:10px 16px; border:none; background:none; font-size:0.95rem; cursor:pointer; color:var(--text-light); border-bottom:2px solid transparent; margin-bottom:-2px; }
+.tab.active { color:var(--primary); border-bottom-color:var(--primary); font-weight:600; }
+.tab:hover { color:var(--primary); }
+.tab-content { display:none; }
+.tab-content.active { display:block; }
+.empty { text-align:center; padding:40px; color:var(--text-light); }
+.spinner { width:24px; height:24px; border:3px solid var(--border); border-top-color:var(--primary); border-radius:50%; animation:spin .8s linear infinite; margin:20px auto; }
+@keyframes spin{to{transform:rotate(360deg)}}
+.qr-container { text-align:center; padding:20px; }
+.qr-container canvas { border-radius:12px; box-shadow:0 4px 16px rgba(0,0,0,0.1); }
+.qr-big canvas { width:280px !important; height:280px !important; }
+.qr-actions { display:flex; justify-content:center; gap:12px; margin-top:16px; flex-wrap:wrap; }
+.modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.4); z-index:200; justify-content:center; align-items:center; }
+.modal-overlay.active { display:flex; }
+.modal { background:var(--card); border-radius:var(--radius); max-width:700px; width:90%; max-height:85vh; overflow:auto; padding:24px; }
+.modal-header { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
+.modal h2 { font-size:1.1rem; }
+.close-btn { background:none; border:none; font-size:1.5rem; cursor:pointer; color:var(--text-light); }
+pre.json { background:#1e293b; color:#e2e8f0; padding:16px; border-radius:8px; overflow:auto; font-size:0.8rem; max-height:400px; }
+.print-view { background:#fff; padding:20px; border:1px solid var(--border); border-radius:8px; }
+.print-view h3 { color:var(--primary); border-bottom:2px solid var(--primary); padding-bottom:6px; margin-top:20px; }
+.print-view .field { margin:8px 0; }
+.print-view .field-label { font-weight:600; color:var(--text-light); font-size:0.85rem; }
+.print-view .field-value { color:var(--text); }
+.print-actions { display:flex; gap:8px; margin-top:16px; padding-top:16px; border-top:1px solid var(--border); }
+@media print {
+  body * { visibility:hidden; }
+  .modal-overlay, .modal-overlay * { visibility:visible; }
+  .modal-overlay { position:absolute; left:0; top:0; width:100%; height:100%; background:#fff; display:block; }
+  .modal { max-width:100%; width:100%; max-height:none; box-shadow:none; }
+  .modal-header, .print-actions { display:none; }
+  .print-view { border:none; }
+}
+#qr-fullscreen { display:none;position:fixed;inset:0;background:#fff;z-index:9999;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;touch-action:manipulation; }
+#qr-fullscreen canvas { box-shadow:0 8px 32px rgba(0,0,0,0.15); }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>🏠 Praxis Dashboard</h1>
+    <div class="version">myhistree v0.6.7</div>
+    <div class="user-info" id="user-info"></div>
+  </header>
+
+  <div class="tabs">
+    <button class="tab active" data-tab="links" onclick="switchTab('links')">📎 Einladungslinks</button>
+    <button class="tab" data-tab="encounters" onclick="switchTab('encounters')">📝 Anamnesen</button>
+    <button class="tab" data-tab="audit" onclick="switchTab('audit')">📋 Audit-Log</button>
+    <button class="tab" data-tab="users" onclick="switchTab('users')">👤 Nutzer</button>
+    <button class="tab" data-tab="settings" onclick="switchTab('settings')">⚙️ Einstellungen</button>
+  </div>
+
+  <!-- TAB: Links -->
+  <div id="tab-links" class="tab-content active">
+    <div class="card">
+      <h2>Neuen Link erstellen</h2>
+      <div class="form-row">
+        <div>
+          <label>PVS Patienten-ID *</label>
+          <input type="text" id="new-pvs-id" placeholder="z.B. 12345">
+        </div>
+        <div>
+          <label>Geburtsdatum *</label>
+          <input type="date" id="new-patient-dob">
+        </div>
+      </div>
+      <div class="form-row">
+        <div>
+          <label>E-Mail (optional)</label>
+          <input type="email" id="new-patient-email" placeholder="patient@email.de">
+        </div>
+        <div>
+          <label>Gültigkeit (Stunden)</label>
+          <select id="new-expiry">
+            <option value="24">24 Stunden</option>
+            <option value="72" selected>72 Stunden</option>
+            <option value="168">7 Tage</option>
+            <option value="720">30 Tage</option>
+          </select>
+        </div>
+      </div>
+      <div style="margin-bottom:12px;">
+        <label>Dokumententyp</label>
+        <select id="new-doc-type" onchange="document.getElementById('consent-select-row').style.display=this.value==='consent_form'?'block':'none'">
+          <option value="anamnese" selected>📋 Anamnesebogen</option>
+          <option value="consent_form">📝 Aufklärungsbogen</option>
+        </select>
+      </div>
+      <div id="consent-select-row" style="display:none;margin-bottom:12px;">
+        <label>Aufklärungsbogen</label>
+        <select id="new-consent-form"></select>
+      </div>
+      <div style="margin-bottom:12px;">
+        <label><input type="checkbox" id="new-use-pin" onchange="document.getElementById('pin-row').style.display=this.checked?'block':'none'"> 🔒 PIN-Schutz aktivieren</label>
+        <div id="pin-row" style="display:none;margin-top:8px;">
+          <input type="text" id="new-pin" placeholder="4-stellige PIN (leer = automatisch)" inputmode="numeric" pattern="[0-9]*" maxlength="6">
+        </div>
+      </div>
+      <button class="btn btn-primary" id="btn-create" onclick="createLink()">Link erstellen</button>
+      <div id="link-result" style="margin-top:16px;display:none;">
+        <div id="result-box" style="display:none;">
+          <div class="url-box" id="result-url"></div>
+          <div id="result-qr" style="margin:12px 0;text-align:center;cursor:pointer;touch-action:manipulation;" onclick="showQRFullscreen()"></div>
+          <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
+            <button class="btn btn-sm btn-secondary" onclick="copyResultLink()">Link kopieren</button>
+            <button class="btn btn-sm btn-secondary" onclick="showQRFullscreen()">QR vergroessern</button>
+          </div>
+          <div id="result-pin" style="margin-top:8px;font-weight:600;color:#2563eb;"></div>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Erstellte Links</h2>
+      <div id="links-table-container"><div class="spinner"></div></div>
+    </div>
+  </div>
+
+  <!-- TAB: Encounters -->
+  <div id="tab-encounters" class="tab-content">
+    <div id="encounters-content"></div>
+  </div>
+
+  <!-- TAB: Audit -->
+  <div id="tab-audit" class="tab-content">
+    <div class="card">
+      <h2>Audit-Log</h2>
+      <p style="font-size:0.85rem;color:var(--text-light);margin-bottom:12px;">Protokoll aller administrativen Aktionen.</p>
+      <div id="audit-table-container"><div class="empty">Bitte Tab wechseln zum Laden</div></div>
+    </div>
+  </div>
+  <!-- TAB: Nutzer -->
+  <div id="tab-users" class="tab-content">
+    <div class="card">
+      <h2>Benutzerverwaltung</h2>
+      <div id="users-content">
+        <div id="users-list" style="margin-bottom:20px;"><div class="empty">Bitte Tab wechseln zum Laden</div></div>
+        <div id="users-create-form" style="display:none;margin-top:16px;padding-top:16px;border-top:2px solid var(--border);">
+          <h3>Neuen Benutzer erstellen</h3>
+          <div class="form-row">
+            <div><input type="email" id="u-email" placeholder="E-Mail"></div>
+            <div><input type="password" id="u-password" placeholder="Passwort (mind. 8 Zeichen)"></div>
+          </div>
+          <div class="form-row" style="grid-template-columns:1fr 1fr;">
+            <div>
+              <select id="u-role">
+                <option value="user">User</option>
+                <option value="admin">Admin</option>
+              </select>
+            </div>
+            <div><button class="btn btn-primary" onclick="createUser()">Benutzer erstellen</button></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <!-- TAB: Settings -->
+  <div id="tab-settings" class="tab-content">
+    <div class="card">
+      <h2>Sicherheitseinstellungen</h2>
+      <div id="settings-content">
+        <p class="empty">Lade Einstellungen...</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modal">
+  <div class="modal">
+    <div class="modal-header">
+      <h2 id="modal-title">Detail</h2>
+      <button class="close-btn" onclick="closeModal()">&times;</button>
+    </div>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<!-- QR Fullscreen Overlay -->
+<div id="qr-fullscreen" onclick="closeQRFullscreen()">
+  <div id="qr-fullscreen-canvas" onclick="event.stopPropagation();closeQRFullscreen()"></div>
+  <p style="margin-top:20px;font-size:0.9rem;color:#64748b;">Zum Schliessen tippen oder Zurueck-Taste druecken</p>
+</div>
+
+<script src="/admin/js/qrcode.min.js"></script>
+<script src="/admin/js/admin-0.5.7.js?v=3"></script>
+</body>
+</html>
+
