@@ -1,10 +1,50 @@
-// myhistoree v0.5.5 – Online Anamnese
+// myhistree v0.6.5 – Online Anamnese
+// === i18n Fallback – Language Switcher disabled for now =====================
+const i18nFallbacks = {
+  "screen.verify.btn.start": "Anamnese starten",
+  "screen.verify.btn.resume": "Anamnese fortsetzen",
+  "screen.verify.title.resume": "Willkommen zurück",
+  "screen.verify.lang.switch": "Language: English",
+  "screen.verify.lang.active": "Sprache: Deutsch",
+  "screen.verify.resume.subtitle": "Sie haben Ihre Anamnese bereits begonnen. Möchten Sie am Punkt \\{screen}\\ fortfahren?",
+  "screen.verify.resume.pin": "Ihr persönlicher PIN-Code:",
+  "language": "Sprache",
+  "origin": "Herkunft",
+  "family_status": "Familienstand",
+  "children": "Kinder",
+  "job": "Beruf",
+  "insurance": "Versicherung",
+  "symptoms": "Beschwerden",
+  "duration": "Dauer",
+  "conditions": "Vorerkrankungen",
+  "operations": "Operationen",
+  "meds_bloodthin": "Blutverdünner",
+  "meds_bp": "Blutdruckmedikamente",
+  "meds_asthma": "Asthma-Medikamente",
+  "meds_diabetes": "Diabetes-Medikamente",
+  "meds_neuro": "Neurologie-Medikamente",
+  "meds_pain": "Schmerzmedikamente",
+  "meds_gynuro": "Gyn/Uro-Medikamente",
+  "meds_chol": "Cholesterin-Medikamente",
+  "meds_other": "Sonstige Medikamente",
+  "allergies": "Allergie",
+  "family": "Familie",
+  "lifestyle": "Lebensstil",
+  "lifestyle2": "Lebensstil 2",
+  "emergency": "Notfall",
+  "bodymetrics": "Körpermaße",
+  "contact": "Kontakt",
+  "notes": "Notizen",
+  "review": "Übersicht",
+  "alert.select.one": "Bitte wählen Sie mindestens eine Option aus.",
+  "alert.fill.required": "Bitte füllen Sie alle Pflichtfelder aus.",
+  "alert.fill.all": "Bitte beantworten Sie alle Fragen."
+};
+function t(key) { return i18nFallbacks[key] || null; }
+window.t = t;
+function setLanguage(lang) { console.log("Language switcher disabled, requested:", lang); }
+// ========================================================================
 const API = "";
-
-function escapeHtml(str) {
-  if (str === null || str === undefined) return "";
-  return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/\x27/g, "&#039;");
-}
 
 let encounterId = null;
 let patientId = null;
@@ -41,6 +81,7 @@ const screens = [
   "emergency",
   "bodymetrics",
   "contact",
+  "email_verified",
   "notes",
   "review",
   "done"
@@ -53,8 +94,17 @@ function parseTokenFromPath() {
 }
 function getUrlParams() {
   const p = new URLSearchParams(window.location.search);
-  return { token: p.get("token") || parseTokenFromPath() };
+  return {
+    token: p.get("token") || parseTokenFromPath(),
+    verify: p.get("verify"),
+    verifyToken: p.get("verifyToken")
+  };
 }
+function escapeHtml(str) {
+  if (!str) return "";
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/""/g, "&quot;");
+}
+
 function showError(msg) {
   const el = document.getElementById("verify-error");
   if (el) { el.textContent = msg; el.style.display = "block"; }
@@ -78,20 +128,31 @@ const wizard = {
       this.render();
     }
   },
-  goTo(name) {
+  async goTo(name) {
     const idx = screens.indexOf(name);
-    if (idx >= 0) { currentStep = idx; this.render(); }
+    if (idx >= 0) { currentStep = idx; await this.render(); }
   },
-  render() {
+  async render() {
     document.querySelectorAll(".screen").forEach((el) => el.classList.remove("active"));
-    const currentScreen = screens[currentStep];
+    let currentScreen = screens[currentStep];
+    // Auto-skip email_verified if no magic-link verification happened
+    if (currentScreen === "email_verified" && sessionStorage.getItem("myhistoree_email_verified") !== "1") {
+      currentStep++;
+      currentScreen = screens[currentStep];
+    }
     const el = document.getElementById("screen-" + currentScreen);
     if (el) el.classList.add("active");
+    // Save progress to sessionStorage for resume
+    try {
+      sessionStorage.setItem("myhistoree_step", String(currentStep));
+      sessionStorage.setItem("myhistoree_mode", checkinMode);
+      sessionStorage.setItem("myhistoree_encounter", encounterId || "");
+    } catch(e) {}
     // Dynamic children screen: rebuild based on kid count from family_status
     if (currentScreen === "children") buildChildrenScreen();
     const pct = Math.round((currentStep / (screens.length - 1)) * 100);
     document.getElementById("progress-fill").style.width = pct + "%";
-    if (currentScreen === "review") buildReview();
+    if (currentScreen === "review") await buildReview();
   },
   async saveAndNext(category, collectorFn) {
     const data = collectorFn();
@@ -106,7 +167,7 @@ const wizard = {
         });
       } catch(e) { console.error("Speichern fehlgeschlagen", e); }
     }
-    sessionStorage.setItem("myhistoree_" + category, JSON.stringify(data));
+    sessionStorage.setItem("myhistoree_" + category, JSON.stringify({...data, __completed: true}));
     saveProgress();
     this.next();
   },
@@ -147,14 +208,84 @@ async function verifyAndStart() {
     }
   } catch(e) {
     showError(e.message);
-    if (btn) { btn.disabled = false; btn.textContent = linkData?.resume ? "Fortsetzen" : "Anamnese starten"; }
+    if (btn) { btn.disabled = false; btn.textContent = linkData?.resume ? t("screen.verify.btn.resume") : t("screen.verify.btn.start"); }
   }
+}
+
+// ─── Magic Link Verification ──────────────────────────────────
+async function checkMagicLinkVerification() {
+  const params = getUrlParams();
+  const verifyToken = params.verifyToken;
+  if (!verifyToken) return false;
+  try {
+    const res = await fetch(`${API}/api/email/verify-magic?token=${encodeURIComponent(verifyToken)}`);
+    if (!res.ok) return false;
+    const json = await res.json();
+    if (json.verified) {
+      encounterId = json.encounterId;
+      if (json.linkToken) linkToken = json.linkToken;
+      sessionStorage.setItem("myhistoree_email_verified", "1");
+      await markContactEmailVerified();
+      return true;
+    }
+  } catch(e) { console.error("Magic link check failed", e); }
+  return false;
 }
 
 // ─── Page Init ───────────────────────────────────────────────────
 async function initPage() {
   const params = getUrlParams();
   linkToken = params.token;
+
+  // ── Magic-Link Handler: vor allem anderen prüfen ──
+  if (params.verify === "email" && params.verifyToken) {
+    const ok = await checkMagicLinkVerification();
+    if (ok) {
+      try {
+        const res = await fetch(`${API}/api/link/validate/${linkToken}`);
+        if (res.ok) linkData = await res.json();
+      } catch(e) {}
+      const savedMode = sessionStorage.getItem("myhistoree_mode");
+      if (savedMode === "quick") { screens = quickScreens; checkinMode = "quick"; }
+      // Restore anamnesis data from server into new tab's sessionStorage
+      if (encounterId) {
+        try {
+          const res = await fetch(`${API}/api/anamnese/${encounterId}/responses`);
+          if (res.ok) {
+            const responses = await res.json();
+            restoreFormData(responses);
+          }
+        } catch(e) { console.error("Data restore failed", e); }
+      }
+      await wizard.goTo("contact");
+      // Server-Fallback: keine sessionStorage-Füllung da tab-lokal
+      if (encounterId) {
+        try {
+          const res = await fetch(`${API}/api/anamnese/${encounterId}/contact`);
+          if (res.ok) {
+            const c = await res.json();
+            // Retry loop: wait for DOM to render
+            for (let retries = 0; retries < 20; retries++) {
+              const mobileEl = document.getElementById("contact-mobile");
+              const landlineEl = document.getElementById("contact-landline");
+              const emailEl = document.getElementById("contact-email");
+              const verifiedEl = document.getElementById("contact-email-verified");
+              if (mobileEl) { mobileEl.value = c.mobile || ""; }
+              if (landlineEl) { landlineEl.value = c.landline || ""; }
+              if (emailEl) { emailEl.value = c.email || ""; }
+              if (verifiedEl) {
+                verifiedEl.value = c.email_verified ? "1" : "0";
+              }
+              if (mobileEl && emailEl) break;
+              await new Promise(r => setTimeout(r, 100));
+            }
+          }
+        } catch(e) { console.error("Contact fill failed", e); }
+      }
+      return;
+    }
+  }
+
   if (!linkToken) {
     document.body.innerHTML = `<div style="padding:40px;text-align:center;font-family:system-ui;"><h2>Kein gültiger Link</h2><p>Bitte verwenden Sie den Link, den Sie von Ihrer Praxis erhalten haben.</p></div>`;
     return;
@@ -183,27 +314,32 @@ async function initPage() {
       encounterId = linkData.encounterId;
       const btn = document.getElementById("btn-verify");
       if (btn) {
-        btn.textContent = "Anamnese fortsetzen";
+        btn.textContent = t("screen.verify.btn.resume");
         btn.setAttribute("data-resume", "true");
       }
       const title = document.querySelector("#screen-verify h1");
       if (title) {
-        title.innerHTML = "🏥 Anamnese fortsetzen";
+        title.innerHTML = t("screen.verify.title.resume");
       }
-      const subtitle = document.querySelector("#screen-verify p");
+      const subtitle = document.querySelector("#screen-verify .subtitle");
       if (subtitle && linkData.currentScreen) {
         const screenNames = {
-          language: "Sprache", origin: "Herkunft", family_status: "Familienstand",
-          children: "Kinder", job: "Beruf", insurance: "Versicherung",
-          symptoms: "Beschwerden", duration: "Dauer", conditions: "Vorerkrankungen",
-          operations: "Operationen", meds_bloodthin: "Blutverdünnung", meds_bp: "Blutdrucksenker",
-          meds_asthma: "Asthma/COPD", meds_diabetes: "Diabetes", meds_neuro: "Neurologisch",
-          meds_pain: "Schmerzmittel", meds_gynuro: "Gynäkologie/Urologie", meds_chol: "Cholesterinsenker",
-          meds_other: "Sonstige Medikamente", allergies: "Allergien", family: "Familienanamnese",
-          lifestyle: "Lebensgewohnheiten", lifestyle2: "Lebensgewohnheiten (2)", emergency: "Notfallkontakt",
-          bodymetrics: "Körpermaße", contact: "Kontaktdaten", notes: "Zusätzliche Infos", review: "Zusammenfassung"
+          language: t("screen.language.title"), origin: t("screen.origin.title"), family_status: t("screen.family_status.title"),
+          children: t("screen.children.title"), job: t("screen.job.title"), insurance: t("screen.insurance.title"),
+          symptoms: t("screen.symptoms.title"), duration: t("screen.duration.title"), conditions: t("screen.conditions.title"),
+          operations: t("screen.operations.title"), meds_bloodthin: t("screen.meds_bloodthin.title"), meds_bp: t("screen.meds_bp.title"),
+          meds_asthma: t("screen.meds_asthma.title"), meds_diabetes: t("screen.meds_diabetes.title"), meds_neuro: t("screen.meds_neuro.title"),
+          meds_pain: t("screen.meds_pain.title"), meds_gynuro: t("screen.meds_gynuro.title"), meds_chol: t("screen.meds_chol.title"),
+          meds_other: t("screen.meds_other.title"), allergies: t("screen.allergies.title"), family: t("screen.family.title"),
+          lifestyle: t("screen.lifestyle.title"), lifestyle2: t("screen.lifestyle2.title"), emergency: t("screen.emergency.title"),
+          bodymetrics: t("screen.bodymetrics.title"), contact: t("screen.contact.title"), notes: t("screen.notes.title"), review: t("screen.review.title")
         };
-        subtitle.innerHTML = `Sie haben Ihre Anamnese bei <strong>${escapeHtml(screenNames[linkData.currentScreen] || linkData.currentScreen)}</strong> unterbrochen.<br>Mit der gleichen Geburtsdatum${linkData.requiresPin ? ' und PIN' : ''} können Sie fortfahren.`;
+        const screenName = escapeHtml(screenNames[linkData.currentScreen] || linkData.currentScreen);
+        let resumeText = t("screen.verify.resume.subtitle").replace("{screen}", screenName);
+        if (linkData.requiresPin) {
+          resumeText += " " + t("screen.verify.resume.pin");
+        }
+        subtitle.innerHTML = resumeText;
       }
     }
   } catch(e) {
@@ -223,7 +359,24 @@ async function initPage() {
   initChips("chol-chips");
   initChips("other-meds-chips");
   wizard.render();
+  initLangSwitcher();
   injectPauseButtons();
+}
+
+function initLangSwitcher() {
+  const container = document.getElementById("lang-switch-container");
+  if (!container) return;
+  const btn = document.getElementById("lang-switch-btn");
+  if (!btn) return;
+  btn.addEventListener("click", function() {
+    const current = window.__i18n.lang || 'de';
+    const next = (current === 'de') ? 'en' : 'de';
+    setLanguage(next);
+    // Update button text to the OTHER language
+    btn.textContent = window.t("screen.verify.lang." + (next === 'de' ? "switch" : "active"));
+  });
+  // Set initial button text
+  btn.textContent = window.t("screen.verify.lang.switch");
 }
 
 function injectPauseButtons() {
@@ -238,7 +391,7 @@ function injectPauseButtons() {
     if (!navBtns) continue;
     const btn = document.createElement("button");
     btn.className = "btn-pause";
-    btn.textContent = "⏸ Später fortsetzen";
+    btn.textContent = "Später fortsetzen";
     btn.style.cssText = "width:100%;margin-top:12px;padding:10px;border:none;background:#f1f5f9;color:#64748b;border-radius:8px;font-size:0.85rem;cursor:pointer;";
     btn.onclick = saveAndPause;
     navBtns.parentNode.insertBefore(btn, navBtns.nextSibling);
@@ -275,7 +428,7 @@ async function restoreSession(targetScreen) {
 function restoreFormData(responses) {
   for (const [category, data] of Object.entries(responses || {})) {
     if (typeof data !== "object" || data === null) continue;
-    sessionStorage.setItem("myhistoree_" + category, JSON.stringify(data));
+    sessionStorage.setItem("myhistoree_" + category, JSON.stringify({...data, __completed: true}));
     for (const [key, value] of Object.entries(data)) {
       if (key === "__completed") continue;
       const el = document.getElementById(key);
@@ -297,10 +450,6 @@ function restoreFormData(responses) {
           chip.classList.toggle("selected", vals.includes(chip.dataset.value));
         });
       }
-      // Restore detail textareas
-      const detailEl2 = document.getElementById(key.replace(/_/g, "-") + "-text");
-      if (detailEl2 && data["detail"]) { detailEl2.value = data["detail"]; }
-
     }
   }
 }
@@ -311,7 +460,7 @@ async function saveAndPause() {
   if (doneScreen) {
     const content = doneScreen.querySelector(".content") || doneScreen;
     const original = content.innerHTML;
-    content.innerHTML = `<div style="text-align:center;padding:40px;"><div style="font-size:48px;margin-bottom:16px;">⏸</div><h2>Bearbeitung pausiert</h2><p style="color:#64748b;">Ihre Angaben wurden gespeichert. Sie können später mit dem gleichen Link fortfahren.</p><p style="font-size:0.85rem;color:#94a3b8;margin-top:8px;">Patienten-ID: <strong>${escapeHtml(linkData?.pvsPatientId) || "—"}</strong></p></div>`;
+    content.innerHTML = `<div style="text-align:center;padding:40px;"><h2>Bearbeitung pausiert</h2><p style="color:#64748b;">Ihre Angaben wurden gespeichert. Sie können später mit dem gleichen Link fortfahren.</p><p style="font-size:0.85rem;color:#94a3b8;margin-top:8px;">Patienten-ID: <strong>${escapeHtml(linkData?.pvsPatientId) || "—"}</strong></p></div>`;
     setTimeout(() => { content.innerHTML = original; }, 5000);
   }
   wizard.goTo("done");
@@ -345,6 +494,7 @@ function getChips(groupId) {
 // ─── Toggles ────────────────────────────────────────────────────
 function toggleOps(show) { document.getElementById("ops-detail").classList.toggle("hidden", !show); }
 function toggleAllergy(type, show) { document.getElementById("allergy-" + type + "-text").classList.toggle("hidden", !show); }
+function toggleCondition(type, show) { document.getElementById("condition-" + type + "-text").classList.toggle("hidden", !show); }
 
 // ─── Dynamic Children Screen Builder ────────────────────────────
 function buildChildrenScreen() {
@@ -376,23 +526,24 @@ function buildChildrenScreen() {
 function collectLanguage() {
   const languages = getChips("lang-chips");
   const interpreter = document.querySelector('input[name="interpreter"]:checked')?.value;
-  if (!languages.length) { alert("Bitte wählen Sie mindestens eine Sprache."); return undefined; }
+  if (!languages.length) { alert("Bitte wählen Sie mindestens eine Sprache aus."); return undefined; }
+  // Language switcher disabled for now
   return { languages: languages.join(", "), interpreter, __completed: true };
 }
 
 function collectOrigin() {
   const heimatland = document.getElementById("heimatland").value;
   const staatsangehoerigkeit = document.getElementById("staatsangehoerigkeit").value;
-  if (!heimatland) { alert("Bitte wählen Sie Ihr Heimatland."); return undefined; }
-  if (!staatsangehoerigkeit) { alert("Bitte wählen Sie Ihre Staatsangehörigkeit."); return undefined; }
+  if (!heimatland) { alert(t("alert.fill.required")); return undefined; }
+  if (!staatsangehoerigkeit) { alert(t("alert.fill.required")); return undefined; }
   return { heimatland, staatsangehoerigkeit, __completed: true };
 }
 
 function collectFamilyStatus() {
   const familienstand = document.getElementById("familienstand").value;
   const kinder = document.querySelector('input[name="kinder"]:checked')?.value;
-  if (!familienstand) { alert("Bitte Familienstand angeben."); return undefined; }
-  if (!kinder) { alert("Bitte angeben, ob Sie Kinder haben."); return undefined; }
+  if (!familienstand) { alert(t("alert.fill.required")); return undefined; }
+  if (!kinder) { alert(t("alert.fill.required")); return undefined; }
   return { familienstand, kinder, __completed: true };
 }
 
@@ -407,7 +558,7 @@ function collectChildren() {
     children.push({ index: i, year: y || null });
   }
   const hasEmpty = children.some(c => !c.year);
-  if (hasEmpty) { alert("Bitte geben Sie für jedes Kind ein Geburtsjahr an oder überspringen Sie diesen Schritt."); return undefined; }
+  if (hasEmpty) { alert(t("alert.fill.required")); return undefined; }
   return { children, __completed: true };
 }
 
@@ -416,117 +567,115 @@ function collectJob() {
   const berufsausbildung = document.getElementById("berufsausbildung").value.trim();
   const taetigkeit = document.getElementById("taetigkeit").value.trim();
   const situation = document.getElementById("berufssituation").value;
-  if (!bildung) { alert("Bitte höchsten Bildungsabschluss angeben."); return undefined; }
-  if (!situation) { alert("Bitte aktuelle berufliche Situation angeben."); return undefined; }
+  if (!bildung) { alert(t("alert.fill.required")); return undefined; }
+  if (!situation) { alert(t("alert.fill.required")); return undefined; }
   return { bildung, berufsausbildung: berufsausbildung || undefined, taetigkeit: taetigkeit || undefined, situation, __completed: true };
 }
 
 function collectInsurance() {
   const type = document.querySelector('input[name="insurance_type"]:checked')?.value;
   const kvid = document.getElementById("kvid").value.trim();
-  if (!type) { alert("Bitte Versicherungsart wählen."); return undefined; }
+  if (!type) { alert(t("alert.fill.required")); return undefined; }
   return { insurance_type: type, kvid: kvid || undefined, __completed: true };
 }
 
 function collectSymptoms() {
-  const detail = document.getElementById("symptoms-text").value.trim();
   const symptoms = getChips("symptom-chips");
-  if (!symptoms.length && !detail) { alert("Bitte wählen Sie mindestens eine Option oder geben Sie Details ein."); return undefined; }
-  if (!symptoms.length && detail) return { symptoms: detail, __completed: true };
-  return { symptoms: symptoms.join(", "), detail: detail || undefined, __completed: true };
+  if (!symptoms.length) { alert(t("alert.select.one")); return undefined; }
+  const notes = document.getElementById("symptoms-notes").value.trim();
+  return { symptoms: symptoms.join(", "), notes: notes || undefined, __completed: true };
 }
 
 function collectDuration() {
   const duration = document.querySelector('input[name="duration"]:checked')?.value;
-  if (!duration) { alert("Bitte Dauer angeben."); return undefined; }
+  if (!duration) { alert(t("alert.fill.required")); return undefined; }
   return { duration, __completed: true };
 }
 
 function collectConditions() {
-  const detail = document.getElementById("conditions-text").value.trim();
   const conditions = getChips("condition-chips");
-  if (!conditions.length && !detail) { alert("Bitte wählen Sie mindestens eine Option oder geben Sie Details ein."); return undefined; }
-  if (!conditions.length && detail) return { conditions: detail, __completed: true };
-  return { conditions: conditions.join(", "), detail: detail || undefined, __completed: true };
+  const heart = document.querySelector('input[name="cond_heart"]:checked')?.value;
+  const heartText = document.getElementById("condition-heart-text").value.trim();
+  const cancer = document.querySelector('input[name="cond_cancer"]:checked')?.value;
+  const cancerText = document.getElementById("condition-cancer-text").value.trim();
+  if (!heart || !cancer) { alert("Bitte beantworten Sie die Fragen zu Herzkrankheit und Krebs."); return undefined; }
+  return {
+    conditions: conditions.length ? conditions.join(", ") : undefined,
+    heart: heart === "ja" ? (heartText || "Ja") : "Nein",
+    cancer: cancer === "ja" ? (cancerText || "Ja") : "Nein",
+    __completed: true
+  };
 }
 
 function collectOperations() {
   const ops = document.querySelector('input[name="ops"]:checked')?.value;
   const detail = document.getElementById("ops-text").value.trim();
-  if (!ops) { alert("Bitte auswählen."); return undefined; }
+  if (!ops) { alert(t("alert.select.one")); return undefined; }
   return { operations: ops === "ja" ? (detail || "Ja, Details folgen") : "Nein", __completed: true };
 }
 
 function collectMedsBloodthin() {
   const meds = getChips("bloodthin-chips");
   const detail = document.getElementById("bloodthin-text").value.trim();
-  if (!meds.length && !detail) { alert("Bitte wählen Sie mindestens eine Option oder geben Sie Details ein."); return undefined; }
+  if (!meds.length) { alert(t("alert.select.one")); return undefined; }
   const selected = meds.filter(m => m !== "keine");
-  if (selected.length === 0 && !detail) return { meds_bloodthin: "Keine", __completed: true };
-  if (selected.length === 0 && detail) return { meds_bloodthin: detail, __completed: true };
+  if (selected.length === 0) return { meds_bloodthin: "Keine", __completed: true };
   return { meds_bloodthin: selected.join(", "), detail: detail || undefined, __completed: true };
 }
 function collectMedsBP() {
   const meds = getChips("bp-chips");
   const detail = document.getElementById("bp-text").value.trim();
-  if (!meds.length && !detail) { alert("Bitte wählen Sie mindestens eine Option oder geben Sie Details ein."); return undefined; }
+  if (!meds.length) { alert(t("alert.select.one")); return undefined; }
   const selected = meds.filter(m => m !== "keine");
-  if (selected.length === 0 && !detail) return { meds_bp: "Keine", __completed: true };
-  if (selected.length === 0 && detail) return { meds_bp: detail, __completed: true };
+  if (selected.length === 0) return { meds_bp: "Keine", __completed: true };
   return { meds_bp: selected.join(", "), detail: detail || undefined, __completed: true };
 }
 function collectMedsAsthma() {
   const meds = getChips("asthma-chips");
   const detail = document.getElementById("asthma-text").value.trim();
-  if (!meds.length && !detail) { alert("Bitte wählen Sie mindestens eine Option oder geben Sie Details ein."); return undefined; }
+  if (!meds.length) { alert(t("alert.select.one")); return undefined; }
   const selected = meds.filter(m => m !== "keine");
-  if (selected.length === 0 && !detail) return { meds_asthma: "Keine", __completed: true };
-  if (selected.length === 0 && detail) return { meds_asthma: detail, __completed: true };
+  if (selected.length === 0) return { meds_asthma: "Keine", __completed: true };
   return { meds_asthma: selected.join(", "), detail: detail || undefined, __completed: true };
 }
 function collectMedsDiabetes() {
   const meds = getChips("diabetes-chips");
   const detail = document.getElementById("diabetes-text").value.trim();
-  if (!meds.length && !detail) { alert("Bitte wählen Sie mindestens eine Option oder geben Sie Details ein."); return undefined; }
+  if (!meds.length) { alert(t("alert.select.one")); return undefined; }
   const selected = meds.filter(m => m !== "keine");
-  if (selected.length === 0 && !detail) return { meds_diabetes: "Keine", __completed: true };
-  if (selected.length === 0 && detail) return { meds_diabetes: detail, __completed: true };
+  if (selected.length === 0) return { meds_diabetes: "Keine", __completed: true };
   return { meds_diabetes: selected.join(", "), detail: detail || undefined, __completed: true };
 }
 function collectMedsNeuro() {
   const meds = getChips("neuro-chips");
   const detail = document.getElementById("neuro-text").value.trim();
-  if (!meds.length && !detail) { alert("Bitte wählen Sie mindestens eine Option oder geben Sie Details ein."); return undefined; }
+  if (!meds.length) { alert(t("alert.select.one")); return undefined; }
   const selected = meds.filter(m => m !== "keine");
-  if (selected.length === 0 && !detail) return { meds_neuro: "Keine", __completed: true };
-  if (selected.length === 0 && detail) return { meds_neuro: detail, __completed: true };
+  if (selected.length === 0) return { meds_neuro: "Keine", __completed: true };
   return { meds_neuro: selected.join(", "), detail: detail || undefined, __completed: true };
 }
 function collectMedsPain() {
   const meds = getChips("pain-chips");
   const detail = document.getElementById("pain-text").value.trim();
-  if (!meds.length && !detail) { alert("Bitte wählen Sie mindestens eine Option oder geben Sie Details ein."); return undefined; }
+  if (!meds.length) { alert(t("alert.select.one")); return undefined; }
   const selected = meds.filter(m => m !== "keine");
-  if (selected.length === 0 && !detail) return { meds_pain: "Keine", __completed: true };
-  if (selected.length === 0 && detail) return { meds_pain: detail, __completed: true };
+  if (selected.length === 0) return { meds_pain: "Keine", __completed: true };
   return { meds_pain: selected.join(", "), detail: detail || undefined, __completed: true };
 }
 function collectMedsGynUro() {
   const meds = getChips("gynuro-chips");
   const detail = document.getElementById("gynuro-text").value.trim();
-  if (!meds.length && !detail) { alert("Bitte wählen Sie mindestens eine Option oder geben Sie Details ein."); return undefined; }
+  if (!meds.length) { alert(t("alert.select.one")); return undefined; }
   const selected = meds.filter(m => m !== "keine");
-  if (selected.length === 0 && !detail) return { meds_gynuro: "Keine", __completed: true };
-  if (selected.length === 0 && detail) return { meds_gynuro: detail, __completed: true };
+  if (selected.length === 0) return { meds_gynuro: "Keine", __completed: true };
   return { meds_gynuro: selected.join(", "), detail: detail || undefined, __completed: true };
 }
 function collectMedsChol() {
   const meds = getChips("chol-chips");
   const detail = document.getElementById("chol-text").value.trim();
-  if (!meds.length && !detail) { alert("Bitte wählen Sie mindestens eine Option oder geben Sie Details ein."); return undefined; }
+  if (!meds.length) { alert(t("alert.select.one")); return undefined; }
   const selected = meds.filter(m => m !== "keine");
-  if (selected.length === 0 && !detail) return { meds_chol: "Keine", __completed: true };
-  if (selected.length === 0 && detail) return { meds_chol: detail, __completed: true };
+  if (selected.length === 0) return { meds_chol: "Keine", __completed: true };
   return { meds_chol: selected.join(", "), detail: detail || undefined, __completed: true };
 }
 function collectNotes() {
@@ -538,10 +687,9 @@ function collectNotes() {
 function collectMedsOther() {
   const meds = getChips("other-meds-chips");
   const detail = document.getElementById("other-meds-text").value.trim();
-  if (!meds.length && !detail) { alert("Bitte wählen Sie mindestens eine Option oder geben Sie Details ein."); return undefined; }
+  if (!meds.length) { alert(t("alert.select.one")); return undefined; }
   const selected = meds.filter(m => m !== "keine");
-  if (selected.length === 0 && !detail) return { meds_other: "Keine", __completed: true };
-  if (selected.length === 0 && detail) return { meds_other: detail, __completed: true };
+  if (selected.length === 0) return { meds_other: "Keine", __completed: true };
   return { meds_other: selected.join(", "), detail: detail || undefined, __completed: true };
 }
 
@@ -552,7 +700,7 @@ function collectAllergies() {
   const foodText = document.getElementById("allergy-food-text").value.trim();
   const other = document.querySelector('input[name="allergy_other"]:checked')?.value;
   const otherText = document.getElementById("allergy-other-text").value.trim();
-  if (!medi || !food || !other) { alert("Bitte alle Felder ausfüllen."); return undefined; }
+  if (!medi || !food || !other) { alert(t("alert.fill.all")); return undefined; }
   return {
     allergy_medication: medi === "ja" ? (mediText || "Ja") : "Nein",
     allergy_food: food === "ja" ? (foodText || "Ja") : "Nein",
@@ -566,21 +714,21 @@ function collectFamily() {
   const diabetes = document.querySelector('input[name="fam_diabetes"]:checked')?.value;
   const krebs = document.querySelector('input[name="fam_krebs"]:checked')?.value;
   const psych = document.querySelector('input[name="fam_psyche"]:checked')?.value;
-  if (!herz || !diabetes || !krebs || !psych) { alert("Bitte alle Felder ausfüllen."); return undefined; }
+  if (!herz || !diabetes || !krebs || !psych) { alert(t("alert.fill.all")); return undefined; }
   return { fam_herz: herz, fam_diabetes: diabetes, fam_krebs: krebs, fam_psych: psych, __completed: true };
 }
 
 function collectLifestyle1() {
   const rauchen = document.querySelector('input[name="raucher"]:checked')?.value;
   const alkohol = document.querySelector('input[name="alkohol"]:checked')?.value;
-  if (!rauchen || !alkohol) { alert("Bitte alle Felder ausfüllen."); return undefined; }
+  if (!rauchen || !alkohol) { alert(t("alert.fill.all")); return undefined; }
   return { rauchen, alkohol, __completed: true };
 }
 
 function collectLifestyle2() {
   const drogen = document.querySelector('input[name="drogen"]:checked')?.value;
   const schwanger = document.querySelector('input[name="schwanger"]:checked')?.value;
-  if (!drogen || !schwanger) { alert("Bitte alle Felder ausfüllen."); return undefined; }
+  if (!drogen || !schwanger) { alert(t("alert.fill.all")); return undefined; }
   return { drogen, schwanger, __completed: true };
 }
 
@@ -633,6 +781,17 @@ async function sendEmailCode() {
   btn.textContent = "Wird gesendet...";
   statusEl.textContent = "";
   try {
+    // ── SAVE contact data to server BEFORE sending code ──
+    const contactData = collectContact();
+    if (contactData && encounterId) {
+      await fetch(`${API}/api/anamnese/${encounterId}/contact`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(contactData)
+      });
+      sessionStorage.setItem("myhistoree_contact", JSON.stringify(contactData));
+    }
+    // ── Now send verification email ──
     const res = await fetch(`${API}/api/email/send-code`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -640,16 +799,39 @@ async function sendEmailCode() {
     });
     const json = await res.json();
     if (!res.ok) throw new Error(json.error || "Fehler beim Senden");
-    statusEl.textContent = "Code gesendet! Bitte prüfen Sie Ihr Postfach.";
+    statusEl.innerHTML = "Bestätigungslink gesendet!<br>Bitte prüfen Sie Ihr E-Mail-Postfach und tippen Sie auf den Link in der Nachricht.";
     statusEl.style.color = "#22c55e";
-    document.getElementById("email-code-group").style.display = "block";
   } catch(e) {
     statusEl.textContent = e.message;
     statusEl.style.color = "#ef4444";
   } finally {
+    btn.textContent = "Prüfen Sie Ihr E-Mail-Postfach";
     btn.disabled = false;
-    btn.textContent = "Code senden";
   }
+}
+
+async function markContactEmailVerified() {
+  if (!encounterId) return;
+  try {
+    // Fetch current contact data
+    const res = await fetch(`${API}/api/anamnese/${encounterId}/contact`);
+    if (res.ok) {
+      const data = await res.json();
+      // Only update if there's an email in the contact record
+      if (data && data.email) {
+        data.email_verified = true;
+        data.__completed = true;
+        // Save back to server
+        await fetch(`${API}/api/anamnese/${encounterId}/contact`, {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(data)
+        });
+        // Also update sessionStorage
+        sessionStorage.setItem("myhistoree_contact", JSON.stringify(data));
+      }
+    }
+  } catch(e) { console.error("Failed to update contact email_verified", e); }
 }
 
 async function verifyEmailCode() {
@@ -668,9 +850,11 @@ async function verifyEmailCode() {
     });
     const json = await res.json();
     if (!res.ok) throw new Error(json.error || "Verifizierung fehlgeschlagen");
-    statusEl.textContent = "✓ E-Mail erfolgreich verifiziert.";
+    statusEl.textContent = "E-Mail erfolgreich verifiziert.";
     statusEl.style.color = "#22c55e";
     document.getElementById("contact-email-verified").value = "1";
+    sessionStorage.setItem("myhistoree_email_verified", "1");
+    await markContactEmailVerified();
     document.getElementById("email-code-group").style.display = "none";
   } catch(e) {
     statusEl.textContent = e.message;
@@ -681,6 +865,9 @@ async function verifyEmailCode() {
   }
 }
 
+function resumeFromVerified() {
+  wizard.next();
+}
 function skipEmailVerify() {
   document.getElementById("contact-email-verified").value = "0";
   const statusEl = document.getElementById("email-status");
@@ -711,6 +898,7 @@ initPage();
 
 // Email input listener for send-code button animation
 document.addEventListener("DOMContentLoaded", () => {
+  if (typeof updateDomTranslations === "function") updateDomTranslations();
   const emailInput = document.getElementById("contact-email");
   if (emailInput) {
     emailInput.addEventListener("input", updateSendCodeButton);
@@ -720,83 +908,123 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 // ─── Review & Submit ────────────────────────────────────────────
-function buildReview() {
+async function buildReview() {
+  const T = (k, fallback) => (typeof t === "function" ? t(k) : null) || fallback || k;
   const items = [
-    { label: "Sprachen", cat: "language" },
-    { label: "Herkunft", cat: "origin" },
-    { label: "Familienstand", cat: "family_status" },
-    { label: "Kinder", cat: "children" },
-    { label: "Bildung & Beruf", cat: "job" },
-    { label: "Versicherung", cat: "insurance" },
-    { label: "Beschwerden", cat: "symptoms" },
-    { label: "Dauer", cat: "duration" },
-    { label: "Vorerkrankungen", cat: "conditions" },
-    { label: "Operationen", cat: "operations" },
-    { label: "Blutverdünnung", cat: "meds_bloodthin" },
-    { label: "Blutdrucksenker", cat: "meds_bp" },
-    { label: "Asthma/COPD", cat: "meds_asthma" },
-    { label: "Diabetes", cat: "meds_diabetes" },
-    { label: "Neurologische Medikamente", cat: "meds_neuro" },
-    { label: "Schmerzmittel", cat: "meds_pain" },
-    { label: "Gynäkologie/Urologie", cat: "meds_gynuro" },
-    { label: "Cholesterinsenker", cat: "meds_chol" },
-    { label: "Sonstige Medikamente", cat: "meds_other" },
-    { label: "Allergien", cat: "allergies" },
-    { label: "Familienanamnese", cat: "family" },
-    { label: "Lebensgewohnheiten (1)", cat: "lifestyle" },
-    { label: "Lebensgewohnheiten (2)", cat: "lifestyle2" },
-    { label: "Notfallkontakt", cat: "emergency" },
-    { label: "Körpermaße", cat: "bodymetrics" },
-    { label: "Kontakt", cat: "contact" },
-    { label: "Zusätzliche Informationen", cat: "notes" }
+    { label: T("screen.language.title", "Sprache"), cat: "language" },
+    { label: T("screen.origin.title", "Herkunft"), cat: "origin" },
+    { label: T("screen.family_status.title", "Familienstand"), cat: "family_status" },
+    { label: T("screen.children.title", "Kinder"), cat: "children" },
+    { label: T("screen.job.title", "Beruf"), cat: "job" },
+    { label: T("screen.insurance.title", "Versicherung"), cat: "insurance" },
+    { label: T("screen.symptoms.title", "Beschwerden"), cat: "symptoms" },
+    { label: T("screen.duration.title", "Dauer"), cat: "duration" },
+    { label: T("screen.conditions.title", "Vorerkrankungen"), cat: "conditions" },
+    { label: T("screen.operations.title", "Operationen"), cat: "operations" },
+    { label: T("screen.meds_bloodthin.title", "Blutverdünnung"), cat: "meds_bloodthin" },
+    { label: T("screen.meds_bp.title", "Blutdrucksenker"), cat: "meds_bp" },
+    { label: T("screen.meds_asthma.title", "Asthma/COPD"), cat: "meds_asthma" },
+    { label: T("screen.meds_diabetes.title", "Diabetes"), cat: "meds_diabetes" },
+    { label: T("screen.meds_neuro.title", "Neurologisch"), cat: "meds_neuro" },
+    { label: T("screen.meds_pain.title", "Schmerzmittel"), cat: "meds_pain" },
+    { label: T("screen.meds_gynuro.title", "Gynäkologie/Urologie"), cat: "meds_gynuro" },
+    { label: T("screen.meds_chol.title", "Cholesterinsenker"), cat: "meds_chol" },
+    { label: T("screen.meds_other.title", "Sonstige Medikamente"), cat: "meds_other" },
+    { label: T("screen.allergies.title", "Allergien"), cat: "allergies" },
+    { label: T("screen.family.title", "Familienanamnese"), cat: "family" },
+    { label: T("screen.lifestyle.title", "Lebensgewohnheiten"), cat: "lifestyle" },
+    { label: T("screen.lifestyle2.title", "Lebensgewohnheiten (2)"), cat: "lifestyle2" },
+    { label: T("screen.emergency.title", "Notfallkontakt"), cat: "emergency" },
+    { label: T("screen.bodymetrics.title", "Körpermaße"), cat: "bodymetrics" },
+    { label: T("screen.contact.title", "Kontaktdaten"), cat: "contact" },
+    { label: T("screen.notes.title", "Zusätzliche Infos"), cat: "notes" }
   ];
+  // Server-Fallback: load missing data when coming from Magic-Link / new tab
+  if (encounterId) {
+    const missing = items.some(it => !sessionStorage.getItem("myhistoree_" + it.cat));
+    if (missing) {
+      try {
+        const res = await fetch(`${API}/api/anamnese/${encounterId}/responses`);
+        if (res.ok) {
+          const responses = await res.json();
+          restoreFormData(responses);
+        }
+      } catch(e) { console.error("Review server load failed", e); }
+    }
+  }
   let html = "";
   let complete = 0;
   items.forEach(it => {
     const saved = sessionStorage.getItem("myhistoree_" + it.cat);
     if (saved) {
-      const data = JSON.parse(saved);
-      if (data.__completed) { html += `<div class="review-item"><strong>${it.label}</strong> — <span style="color:#22c55e;">✓ Gespeichert</span></div>`; complete++; }
-      else { html += `<div class="review-item"><strong>${it.label}</strong> — <span style="color:#f59e0b;">⚠ Entwurf</span></div>`; }
+      try {
+        const data = JSON.parse(saved);
+        if (data.__completed) {
+          html += `<div class="review-item"><strong>${it.label}</strong> — <span style="color:#22c55e;">${T("label.saved", "Gespeichert")}</span></div>`;
+          // Expand contact details inline
+          if (it.cat === "contact") {
+            if (data.mobile) html += `<div class="review-detail">&nbsp;&nbsp;Mobil: ${escapeHtml(data.mobile)}</div>`;
+            if (data.landline) html += `<div class="review-detail">&nbsp;&nbsp;Festnetz: ${escapeHtml(data.landline)}</div>`;
+            if (data.email) {
+              const verified = data.email_verified ? "verifiziert" : "nicht verifiziert";
+              html += `<div class="review-detail">&nbsp;&nbsp;E-Mail: ${escapeHtml(data.email)} <span style="font-size:0.8rem;color:#64748b;">(${verified})</span></div>`;
+            }
+          }
+          // Expand bodymetrics inline
+          if (it.cat === "bodymetrics") {
+            if (data.height_cm) html += `<div class="review-detail">&nbsp;&nbsp;Größe: ${data.height_cm} cm</div>`;
+            if (data.weight_kg) html += `<div class="review-detail">&nbsp;&nbsp;Gewicht: ${data.weight_kg} kg</div>`;
+          }
+          complete++;
+        }
+        else { html += `<div class="review-item"><strong>${it.label}</strong> — <span style="color:#f59e0b;">${T("label.draft", "Entwurf")}</span></div>`; }
+      } catch(e) {
+        html += `<div class="review-item"><strong>${it.label}</strong> — <span style="color:#f59e0b;">Entwurf</span></div>`;
+      }
     } else {
-      html += `<div class="review-item"><strong>${it.label}</strong> — <span style="color:#94a3b8;">–</span></div>`;
+      html += `<div class="review-item"><strong>${it.label}</strong> — <span style="color:#94a3b8;">${T("label.empty", "Nicht ausgefüllt")}</span></div>`;
     }
   });
-  html += `<div style="margin-top:12px;padding:10px;background:#dbeafe;border-radius:8px;font-size:0.9rem;">${complete}/${items.length} Abschnitte bearbeitet</div>`;
+  const progressText = T("progress.text", "{complete} von {total} abgeschlossen").replace("{complete}", complete).replace("{total}", items.length);
+  html += `<div style="margin-top:12px;padding:10px;background:#dbeafe;border-radius:8px;font-size:0.9rem;">${complete}/${items.length} ${progressText}</div>`;
   document.getElementById("review-content").innerHTML = html;
 }
 
 async function submitFinal() {
+  console.log("[submitFinal] start, encounterId=" + encounterId);
   if (!encounterId) { alert("Keine Session. Bitte starten Sie neu."); return; }
-  const consent = document.getElementById("dsgvo-consent")?.checked;
-  if (!consent) { alert("Bitte bestätigen Sie den Datenschutzhinweis, um fortzufahren."); return; }
+  const consentBox = document.getElementById("dsgvo-consent");
+  const consent = consentBox ? consentBox.checked : false;
+  console.log("[submitFinal] consent=" + consent);
+  if (!consent) { alert("Bitte stimmen Sie der Datenschutzerklärung zu."); return; }
   try {
-    await fetch(`${API}/api/anamnese/${encounterId}/complete`, { method: "POST" });
+    const res = await fetch(`${API}/api/anamnese/${encounterId}/complete`, { method: "POST" });
+    console.log("[submitFinal] complete status=" + res.status);
+    if (!res.ok) throw new Error("Server antwortete mit " + res.status);
     document.getElementById("done-pvs-id").textContent = linkData?.pvsPatientId || "—";
-    document.getElementById("done-icon").textContent = "✓";
-    document.getElementById("done-icon").style.background = "#22c55e";
-    document.getElementById("done-title").textContent = "Anamnese abgeschickt!";
+        document.getElementById("done-title").textContent = "Anamnese abgeschickt!";
     document.getElementById("done-message").textContent = "Vielen Dank. Ihre Angaben wurden sicher an die Praxis übermittelt.";
     document.getElementById("done-help").textContent = "Sie können dieses Fenster nun schließen.";
     wizard.goTo("done");
   } catch(e) {
-    alert("Absenden fehlgeschlagen: " + e.message);
+    console.error("[submitFinal] error", e);
+    alert("Fehler: " + e.message);
   }
 }
 
 async function rejectAnamnese() {
   if (!encounterId) { alert("Keine Session. Bitte starten Sie neu."); return; }
-  if (!confirm("Möchten Sie wirklich ablehnen? Alle Ihre eingegebenen Daten werden unwiderruflich gelöscht.")) return;
+  if (!confirm("Möchten Sie wirklich ablehnen? Alle eingegebenen Daten werden unwiderruflich gelöscht.")) return;
   try {
     await fetch(`${API}/api/anamnese/${encounterId}/reject`, { method: "POST" });
-    document.getElementById("done-pvs-id").textContent = linkData?.pvsPatientId || "—";
-    document.getElementById("done-icon").textContent = "✕";
+    document.getElementById("done-pvs-id").textContent = linkData?.pvsPatientId || "\u2014";
+    document.getElementById("done-icon").textContent = "\u2715";
     document.getElementById("done-icon").style.background = "#ef4444";
     document.getElementById("done-title").textContent = "Anamnese abgelehnt";
-    document.getElementById("done-message").textContent = "Sie haben der Datenspeicherung nicht zugestimmt. Alle Ihre Angaben wurden gelöscht und nicht gespeichert.";
+    document.getElementById("done-message").textContent = "Ihre Anamnese wurde abgebrochen.";
     document.getElementById("done-help").textContent = "Sie können dieses Fenster nun schließen.";
     wizard.goTo("done");
   } catch(e) {
-    alert("Fehler beim Löschen: " + e.message);
+    alert("Fehler: " + e.message);
   }
 }

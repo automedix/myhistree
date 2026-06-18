@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Einwilligung zur KI-gestützten Gesprächsdokumentation (x.scribe)</title>
+<style>
+/* ---------- Basis ---------- */
+:root {
+  --primary: #4477BB;
+  --accent: #3366AA;
+  --text: #1e293b;
+  --text-light: #475569;
+  --border: #cbd5e1;
+  --bg: #f8fafc;
+}
+
+* { box-sizing: border-box; }
+
+html { font-size: 15px; }
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif;
+  background: #e2e8f0;
+  color: var(--text);
+  line-height: 1.65;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- A4-Seitenlayout ---------- */
+.page {
+  width: 210mm;
+  min-height: 297mm;
+  margin: 1.5rem auto;
+  padding: 22mm 20mm 25mm 20mm;
+  background: #fff;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.12);
+  position: relative;
+}
+
+/* Kopfzeile */
+.page-header {
+  border-bottom: 3px solid var(--primary);
+  padding-bottom: 1rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.page-header .brand {
+  font-size: 1.35rem;
+  font-weight: 700;
+  color: var(--primary);
+  letter-spacing: -0.02em;
+}
+
+.page-header .doctype {
+  font-size: 0.8rem;
+  color: var(--text-light);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  font-weight: 600;
+}
+
+/* Titel */
+.doc-title {
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--primary);
+  margin: 0 0 0.25rem 0;
+}
+
+.doc-subtitle {
+  font-size: 0.9rem;
+  color: var(--text-light);
+  margin: 0 0 1.25rem 0;
+}
+
+/* Sektionen */
+.section {
+  margin-bottom: 1.1rem;
+}
+
+.section h2 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--primary);
+  margin: 0 0 0.5rem 0;
+  padding-bottom: 0.25rem;
+  border-bottom: 1.5px solid #e2e8f0;
+}
+
+.section p {
+  margin: 0.4rem 0;
+  font-size: 0.92rem;
+  color: #334155;
+}
+
+.section ul {
+  margin: 0.4rem 0;
+  padding-left: 1.4rem;
+}
+
+.section li {
+  margin: 0.25rem 0;
+  font-size: 0.92rem;
+  color: #334155;
+}
+
+.section strong { color: #1e293b; }
+
+/* Hinweis-Box */
+.notice-box {
+  background: #f1f5f9;
+  border-left: 4px solid var(--accent);
+  padding: 0.75rem 1rem;
+  margin: 0.75rem 0;
+  border-radius: 0 6px 6px 0;
+  font-size: 0.9rem;
+  color: #334155;
+}
+
+.notice-box strong { color: var(--primary); }
+
+/* Zwei-Spalten für Zertifizierungen */
+.cert-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem 1.5rem;
+}
+
+@media (max-width: 600px) {
+  .cert-grid { grid-template-columns: 1fr; }
+}
+
+/* Unterschriftsfelder */
+.signatures {
+  margin-top: 2rem;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+}
+
+.sign-box {
+  border-top: 1.5px solid #94a3b8;
+  padding-top: 0.5rem;
+  margin-top: 2.5rem;
+}
+
+.sign-box .label {
+  font-size: 0.85rem;
+  color: var(--text-light);
+  font-weight: 600;
+}
+
+.sign-box .hint {
+  font-size: 0.78rem;
+  color: #94a3b8;
+  margin-top: 0.2rem;
+}
+
+/* Fußzeile */
+.page-footer {
+  position: absolute;
+  bottom: 12mm;
+  left: 20mm;
+  right: 20mm;
+  font-size: 0.75rem;
+  color: #94a3b8;
+  border-top: 1px solid #e2e8f0;
+  padding-top: 0.4rem;
+  display: flex;
+  justify-content: space-between;
+}
+
+/* ---------- Druck-Optimierung ---------- */
+@media print {
+  @page {
+    size: A4 portrait;
+    margin: 0;
+  }
+
+  body {
+    background: #fff;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  .page {
+    width: 210mm;
+    min-height: 297mm;
+    margin: 0;
+    padding: 20mm 18mm 22mm 18mm;
+    box-shadow: none;
+    page-break-after: always;
+  }
+
+  .page:last-child { page-break-after: auto; }
+
+  .page-footer { position: absolute; bottom: 10mm; }
+
+  .no-print { display: none !important; }
+}
+
+/* ---------- Bildschirm-Hinweis ---------- */
+.print-hint {
+  text-align: center;
+  padding: 0.75rem;
+  background: var(--primary);
+  color: #fff;
+  font-size: 0.9rem;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+.print-hint button {
+  background: #fff;
+  color: var(--primary);
+  border: none;
+  padding: 0.4rem 1rem;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-left: 0.5rem;
+  font-family: inherit;
+}
+
+@media print { .print-hint { display: none; } }
+</style>
+</head>
+<body>
+
+<div class="print-hint no-print">
+  Druckoptimierte A4-Version – <button onclick="window.print()">Jetzt drucken</button> oder als PDF speichern (Strg+P / Cmd+P)
+</div>
+
+<!-- ===================== SEITE 1 ===================== -->
+<div class="page">
+
+  <div class="page-header">
+    <div class="brand">Hausärzte im Grillepark</div>
+    <div class="doctype">Aufklärung &amp; Einwilligung</div>
+  </div>
+
+  <h1 class="doc-title">Einwilligung zur KI-gestützten Gesprächsdokumentation</h1>
+  <p class="doc-subtitle">Produkt: <strong>x.scribe</strong> (medatixx GmbH) – KI-Anbieter: Corti ApS, Kopenhagen</p>
+
+  <div class="notice-box">
+    <strong>Hinweis:</strong> Dies ist ein <strong>Einwilligungsformular</strong> gemäß Art. 6 Abs. 1 lit. a und Art. 9 Abs. 2 lit. a DSGVO. Ihre Einwilligung ist <strong>freiwillig</strong>. Sie können die Behandlung auch ohne Einwilligung in die KI-gestützte Gesprächsdokumentation erhalten. Sie können Ihre Einwilligung jederzeit mit Wirkung für die Zukunft widerrufen.
+  </div>
+
+  <div class="section">
+    <h2>1. Verantwortlicher</h2>
+    <p>Verantwortliche Stelle im Sinne der DSGVO:</p>
+    <p><strong>Hausärzte im Grillepark</strong><br>
+    Musterstraße 1, 12345 Musterstadt<br>
+    Telefon: 01234 567890<br>
+    E-Mail: praxis@example.com</p>
+  </div>
+
+  <div class="section">
+    <h2>2. Zweck der Datenverarbeitung</h2>
+    <p>Wir setzen das Produkt <strong>x.scribe</strong> der medatixx GmbH ein, um Arzt-Patienten-Gespräche während der Konsultation <strong>aufzuzeichnen</strong> und mittels Künstlicher Intelligenz (KI) in strukturierte, editierbare <strong>Dokumentationsvorschläge</strong> zu überführen. Diese können direkt in die Patientenakte (z. B. Anamnese, Befund oder Sonografie-Abschnitt) übernommen werden.</p>
+    <ul>
+      <li><strong>Zweck:</strong> Echtzeit-Transkription und strukturierte Dokumentation des Arzt-Patienten-Gesprächs zur Qualitätssicherung und Effizienzsteigerung</li>
+      <li><strong>Art der Daten:</strong> Audioaufzeichnungen (Sprachdaten), daraus abgeleitete Texttranskripte und Dokumentationsvorschläge</li>
+      <li><strong>Besondere Kategorien:</strong> Die Aufzeichnungen können Gesundheitsdaten (Diagnosen, Symptome, Medikation, Behandlungspläne) enthalten</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>3. KI-Anbieter und Technologie</h2>
+    <ul>
+      <li><strong>Produktname:</strong> x.scribe</li>
+      <li><strong>Hersteller / Anbieter:</strong> medatixx GmbH</li>
+      <li><strong>KI-Anbieter (Speech-to-Text &amp; KI-Modell):</strong> Corti ApS, Kopenhagen, Dänemark</li>
+      <li><strong>Verarbeitungsort:</strong> Ausschließlich innerhalb der Europäischen Union (EU-Hosting)</li>
+      <li><strong>Drittlandübermittlung:</strong> Nein – es erfolgt keine Datenübermittlung in Staaten außerhalb des Europäischen Wirtschaftsraums (EWR)</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>4. Sicherheit und Zertifizierungen</h2>
+    <p>Der eingesetzte Dienst erfüllt folgende Sicherheitsstandards:</p>
+    <ul>
+      <li><strong>BSI C5-Typ-2</strong> – Cloud-Compliance des Bundesamtes für Sicherheit in der Informationstechnik</li>
+      <li><strong>ISO/IEC 27001</strong> – Informationssicherheits-Management</li>
+      <li><strong>DSGVO-konform</strong> – Erfüllung der Anforderungen der Datenschutz-Grundverordnung</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>5. Trainingsdaten und KI-Modell</h2>
+    <ul>
+      <li>Die zugrundeliegenden KI-Modelle wurden mit <strong>anonymisierten medizinischen Daten</strong> trainiert</li>
+      <li>Es erfolgt kein Training mit identifizierbaren Patientendaten aus dieser Praxis</li>
+      <li>Ihre persönlichen Gesprächsinhalte werden nicht zur Modellverbesserung verwendet</li>
+    </ul>
+  </div>
+
+  <div class="page-footer">
+    <span>x.scribe Einwilligung – Version 1.0</span>
+    <span>Seite 1 / 2</span>
+  </div>
+
+</div>
+
+<!-- ===================== SEITE 2 ===================== -->
+<div class="page">
+
+  <div class="page-header">
+    <div class="brand">Hausärzte im Grillepark</div>
+    <div class="doctype">Aufklärung &amp; Einwilligung</div>
+  </div>
+
+  <div class="section">
+    <h2>6. Ärztliche Kontrolle (Mensch-in-der-Schleife)</h2>
+    <p>Der von der KI erstellte Dokumentationsvorschlag wird <strong>vor der Übernahme</strong> in die Patientenakte oder den Arztbrief <strong>vom behandelnden Arzt geprüft, korrigiert und freigegeben</strong>. Es erfolgt keine automatische Speicherung ohne vorherige ärztliche Kontrolle.</p>
+  </div>
+
+  <div class="section">
+    <h2>7. Speicherdauer und Löschung</h2>
+    <ul>
+      <li>Die <strong>Audioaufzeichnung</strong> des Gesprächs wird nach erfolgter Transkription und ärztlicher Freigabe <strong>unverzüglich gelöscht</strong> (spätestens innerhalb von 72 Stunden)</li>
+      <li>Der <strong>freigegebene Text</strong> (Dokumentationsvorschlag nach ärztlicher Prüfung) wird in der Patientenakte gespeichert und unterliegt der gesetzlichen Aufbewahrungsfrist von 10 Jahren (§ 630f BGB)</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>8. Rechtsgrundlage</h2>
+    <p>Die Verarbeitung erfolgt auf Grundlage Ihrer <strong>ausdrücklichen Einwilligung</strong> gemäß:</p>
+    <ul>
+      <li><strong>Art. 6 Abs. 1 lit. a DSGVO</strong> – Einwilligung in die Verarbeitung personenbezogener Daten</li>
+      <li><strong>Art. 9 Abs. 2 lit. a DSGVO</strong> – Einwilligung in die Verarbeitung besonderer Kategorien personenbezogener Daten (Gesundheitsdaten)</li>
+    </ul>
+  </div>
+
+  <div class="section">
+    <h2>9. Ihre Rechte</h2>
+    <p>Sie haben das Recht auf:</p>
+    <ul>
+      <li><strong>Auskunft</strong> über die zu Ihrer Person gespeicherten Daten (Art. 15 DSGVO)</li>
+      <li><strong>Berichtigung</strong> unrichtiger Daten (Art. 16 DSGVO)</li>
+      <li><strong>Löschung</strong> Ihrer Daten („Recht auf Vergessenwerden“, Art. 17 DSGVO)</li>
+      <li><strong>Einschränkung</strong> der Verarbeitung (Art. 18 DSGVO)</li>
+      <li><strong>Widerruf</strong> der Einwilligung jederzeit mit Wirkung für die Zukunft (Art. 7 Abs. 3 DSGVO)</li>
+      <li><strong>Beschwerde</strong> bei der zuständigen Datenschutzaufsichtsbehörde</li>
+    </ul>
+    <p>Widerrufen Sie Ihre Einwilligung, werden die bis dahin rechtmäßig erhobenen Daten nicht berührt; für die Zukunft findet keine weitere Aufzeichnung und KI-Auswertung mehr statt.</p>
+  </div>
+
+  <div class="section">
+    <h2>10. Erklärung der Einwilligung</h2>
+    <div class="notice-box">
+      Ich willige ein, dass meine Arzt-Patienten-Gespräche im Rahmen meiner Behandlung zur Erstellung von Dokumentationsvorschlägen mittels der KI-gestützten Software <strong>x.scribe</strong> aufgezeichnet und verarbeitet werden dürfen. Mir ist bekannt, dass ich diese Einwilligung jederzeit widerrufen kann.
+    </div>
+  </div>
+
+  <!-- Unterschriften -->
+  <div class="signatures">
+    <div>
+      <div class="sign-box">
+        <div class="label">Ort, Datum</div>
+        <div class="hint">______________________________</div>
+      </div>
+      <div class="sign-box">
+        <div class="label">Unterschrift Patient / gesetzlicher Vertreter</div>
+        <div class="hint">_______________________________________________</div>
+      </div>
+    </div>
+    <div>
+      <div class="sign-box">
+        <div class="label">Ort, Datum</div>
+        <div class="hint">______________________________</div>
+      </div>
+      <div class="sign-box">
+        <div class="label">Unterschrift Arzt / Behandelnder</div>
+        <div class="hint">_______________________________________________</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="section" style="margin-top: 1.5rem;">
+    <p style="font-size: 0.82rem; color: #64748b;">
+      <strong>Hinweis zum Muster:</strong> Dies ist eine Mustervorlage. Bitte ergänzen Sie Praxisname, Adresse und Kontaktdaten unter Abschnitt 1 entsprechend Ihren örtlichen Gegebenheiten. Die rechtsverbindliche Version sollte durch die Praxisleitung auf Aktualität geprüft werden.
+    </p>
+  </div>
+
+  <div class="page-footer">
+    <span>x.scribe Einwilligung – Version 1.0</span>
+    <span>Seite 2 / 2</span>
+  </div>
+
+</div>
+
+</body>
+</html>

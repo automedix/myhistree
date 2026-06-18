@@ -46,7 +46,7 @@
     if (!raw) return '<p>Kein Inhalt verfügbar.</p>';
     const tpl = document.createElement('template');
     tpl.innerHTML = raw;
-    ['script','iframe','object','embed','style','link','meta','base','form','input','textarea','button'].forEach(tag => {
+    ['script','iframe','object','embed','style','link','meta','base','form'].forEach(tag => {
       tpl.content.querySelectorAll(tag).forEach(n => n.remove());
     });
     tpl.content.querySelectorAll('*').forEach(node => {
@@ -319,7 +319,7 @@
       ctx.stroke();
       hasSignature = true;
       els.canvas.classList.add('has-signature');
-      if (els.sigHint) els.sigHint.textContent = '✅ Unterschrift erfasst';
+      if (els.sigHint) els.sigHint.textContent = 'Unterschrift erfasst';
       checkEnableSubmit();
     };
     const end = () => { isDrawing = false; };
@@ -355,7 +355,7 @@
     els.nameInput.addEventListener('input', () => {
       const val = els.nameInput.value.trim();
       if (val.length >= 2) {
-        els.nameHint.textContent = '✅ Name erfasst';
+        els.nameHint.textContent = 'Name erfasst';
         els.nameHint.style.color = '#22c55e';
       } else {
         els.nameHint.textContent = 'Mindestens 2 Zeichen';

@@ -1,4 +1,4 @@
-// myhistree Admin Dashboard JS v0.5.6
+// myhistree Admin Dashboard JS v0.6.5
 const API = '/api';
 let encounterFilter = 'all'; // 'all' | 'completed' | 'in-progress'
 const CURRENT_PRACTICE = 'demo-practice';
@@ -237,55 +237,86 @@ async function viewEncounter(encounterId) {
     let html = '<div class="print-view">';
     html += `<h2>Anamnese ${escapeHtml(enc.id.slice(0,8))} — ${escapeHtml(enc.pvs_patient_id ? enc.pvs_patient_id : '—')}</h2>`;
     html += `<p><strong>Erstellt:</strong> ${fmtDateTime(enc.created_at)}</p>`;
-    if (data.responses) {
+
+    if (data.responses && data.responses.length) {
       const items = [
-        { label:'Sprache/Herkunft', cat:'origin'},
-        { label:'Familienstand', cat:'family_status'},
-        { label:'Kinder', cat:'children'},
-        { label:'Beruf/Ausbildung', cat:'job'},
-        { label:'Versicherung', cat:'insurance'},
-        { label:'Beschwerden', cat:'symptoms'},
-        { label:'Dauer', cat:'duration'},
-        { label:'Vorerkrankungen', cat:'conditions'},
-        { label:'Operationen', cat:'operations'},
-        { label:'Blutverdünnung', cat:'meds_bloodthin'},
-        { label:'Blutdrucksenker', cat:'meds_bp'},
-        { label:'Asthma/COPD', cat:'meds_asthma'},
-        { label:'Diabetes', cat:'meds_diabetes'},
-        { label:'Neurologisch', cat:'meds_neuro'},
-        { label:'Schmerzmittel', cat:'meds_pain'},
-        { label:'Gyn/Uro', cat:'meds_gynuro'},
-        { label:'Cholesterinsenker', cat:'meds_chol'},
-        { label:'Sonstige Meds', cat:'meds_other'},
-        { label:'Allergien', cat:'allergies'},
-        { label:'Familienanamnese', cat:'family'},
-        { label:'Lebensstil', cat:'lifestyle'},
-        { label:'Lebensstil II', cat:'lifestyle2'},
-        { label:'Notfallkontakt', cat:'emergency'},
-        { label:'Körpermaße', cat:'bodymetrics'},
-        { label:'Kontakt', cat:'contact'},
-        { label:'Notizen', cat:'notes'}
+        { label:'Sprache', cat:'language' },
+        { label:'Herkunft', cat:'origin' },
+        { label:'Familienstand', cat:'family_status' },
+        { label:'Kinder', cat:'children' },
+        { label:'Beruf / Ausbildung', cat:'job' },
+        { label:'Versicherung', cat:'insurance' },
+        { label:'Beschwerden', cat:'symptoms' },
+        { label:'Dauer', cat:'duration' },
+        { label:'Vorerkrankungen', cat:'conditions' },
+        { label:'Operationen', cat:'operations' },
+        { label:'Blutverdünnung', cat:'meds_bloodthin' },
+        { label:'Blutdrucksenker', cat:'meds_bp' },
+        { label:'Asthma / COPD', cat:'meds_asthma' },
+        { label:'Diabetes', cat:'meds_diabetes' },
+        { label:'Neurologisch', cat:'meds_neuro' },
+        { label:'Schmerzmittel', cat:'meds_pain' },
+        { label:'Gyn / Uro', cat:'meds_gynuro' },
+        { label:'Cholesterinsenker', cat:'meds_chol' },
+        { label:'Sonstige Medikamente', cat:'meds_other' },
+        { label:'Allergien', cat:'allergies' },
+        { label:'Familienanamnese', cat:'family' },
+        { label:'Lebensstil', cat:'lifestyle' },
+        { label:'Lebensstil II', cat:'lifestyle2' },
+        { label:'Notfallkontakt', cat:'emergency' },
+        { label:'Körpermaße', cat:'bodymetrics' },
+        { label:'Kontakt', cat:'contact' },
+        { label:'Notizen', cat:'notes' }
       ];
+
+      const respByCat = {};
+      for (const r of data.responses) {
+        if (r.category === 'email_verified') continue;
+        respByCat[r.category] = r;
+      }
+
       for (const it of items) {
-        const r = data.responses.find((x) => x.category === it.cat);
-        if (r) {
-          html += `<div class="section"><h3>${it.label}</h3>`;
-          const obj = typeof r.data === 'string' ? JSON.parse(r.data) : r.data;
-          if (obj && Object.keys(obj).length > 0) {
+        const r = respByCat[it.cat];
+        if (!r) continue;
+        html += `<div class="section"><h3>${it.label}</h3>`;
+        const obj = (typeof r.data === 'string') ? JSON.parse(r.data) : r.data;
+        const keys = Object.keys(obj || {}).filter(k => !k.startsWith('__'));
+        if (keys.length > 0) {
+          if (it.cat === 'contact') {
+            const contactKeys = Object.keys(obj || {}).filter(k => !k.startsWith('__'));
+            if (contactKeys.length === 0) {
+              html += `<div class="field"><div class="field-label">Kontakt</div><div class="field-value">—</div></div>`;
+            } else {
+              for (const k of contactKeys) {
+                let label = k;
+                if (k === 'mobile') label = 'Mobilfunknummer';
+                else if (k === 'landline') label = 'Festnetznummer';
+                else if (k === 'email') label = 'E-Mail';
+                else if (k === 'email_verified') label = 'E-Mail verifiziert';
+                let val = obj[k];
+                if (k === 'email_verified') val = val ? 'Ja' : 'Nein';
+                html += `<div class="field"><div class="field-label">${escapeHtml(label)}</div><div class="field-value">${formatValue(val)}</div></div>`;
+              }
+            }
+          } else {
             for (const [k, v] of Object.entries(obj)) {
               if (k.startsWith('__')) continue;
               html += `<div class="field"><div class="field-label">${escapeHtml(k)}</div><div class="field-value">${formatValue(v)}</div></div>`;
             }
-          } else { html += '<p><em>Keine Angaben</em></p>'; }
-          html += '</div>';
+          }
+        } else {
+          html += '<p><em>Keine Angaben</em></p>';
         }
+        html += '</div>';
       }
     }
+
     html += '</div>';
     body.innerHTML = html;
     modal.classList.add('active');
   } catch (e) { alert('Fehler beim Laden'); }
 }
+
 
 function escapeHtml(str) {
   if (str === null || str === undefined) return '';
@@ -398,14 +429,14 @@ async function loadSettings() {
   if (currentAdmin.totp_enabled) {
     html += `
       <div style="padding:16px;background:#dcfce7;border-radius:10px;">
-        <p><strong>✅ Zwei-Faktor-Authentifizierung ist aktiviert.</strong></p>
+        <p><strong>Zwei-Faktor-Authentifizierung ist aktiviert.</strong></p>
         <p style="font-size:0.875rem;color:#166534;margin-top:8px;">Ihr Account ist durch TOTP (Authenticator-App) geschützt.</p>
       </div>
     `;
   } else {
     html += `
       <div style="padding:16px;background:#fef3c7;border-radius:10px;margin-bottom:16px;">
-        <p><strong>⚠️ Zwei-Faktor-Authentifizierung ist nicht aktiviert.</strong></p>
+        <p><strong>Zwei-Faktor-Authentifizierung ist nicht aktiviert.</strong></p>
         <p style="font-size:0.875rem;color:#92400e;margin-top:8px;">Empfohlen: Scannen Sie den QR-Code mit einer Authenticator-App.</p>
       </div>
       <button class="btn btn-primary" id="btn-setup-totp" onclick="setupTotp()">Authenticator einrichten</button>
@@ -490,7 +521,7 @@ async function changePassword() {
       btn.disabled = false;
       return;
     }
-    msg.textContent = '✅ Passwort geändert. Sie werden abgemeldet...';
+    msg.textContent = 'Passwort geändert. Sie werden abgemeldet...';
     msg.style.color = '#16a34a';
     setTimeout(() => { window.location.href = '/admin/login.html'; }, 2000);
   } catch (e) {
@@ -518,7 +549,7 @@ async function loadUsers() {
       const statusBadge = r.active === 0
         ? '<span class="badge badge-inactive">Inaktiv</span>'
         : '<span class="badge badge-completed">Aktiv</span>';
-      html += `<tr><td>${escapeHtml(r.email)}</td><td>${r.role}</td><td>${statusBadge}</td><td>${r.totp_enabled ? '✅' : '—'}</td><td>${fmtDate(r.created_at)}</td><td>`;
+      html += `<tr><td>${escapeHtml(r.email)}</td><td>${r.role}</td><td>${statusBadge}</td><td>${r.totp_enabled ? 'Ja' : '—'}</td><td>${fmtDate(r.created_at)}</td><td>`;
       if (currentAdmin && (currentAdmin.role === 'admin' || currentAdmin.role === 'superadmin') && r.email !== currentAdmin.email) {
         html += `<button class="btn btn-sm btn-secondary" onclick="resetUserPrompt('${r.id}')">PW reset</button> `;
         html += `<button class="btn btn-sm ${r.active === 0 ? 'btn-success' : 'btn-warning'}" onclick="toggleUserActive('${r.id}', ${r.active === 0 ? 1 : 0})">${r.active === 0 ? 'Aktivieren' : 'Deaktivieren'}</button> `;

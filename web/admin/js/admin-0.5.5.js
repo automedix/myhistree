@@ -103,7 +103,7 @@ function showQRModal(url, title) {
     <div class="qr-container qr-big">
       <div id="qr-modal-canvas"></div>
       <div class="qr-actions">
-        <button class="btn btn-primary" onclick="showQRFullscreen('${url}')">📷 Gross zeigen</button>
+        <button class="btn btn-primary" onclick="showQRFullscreen('${url}')">Gross zeigen</button>
       </div>
     </div>
   `);
@@ -126,7 +126,7 @@ function showLinkResult(pvsId, dob, usePin, pin, expiresAt, fullUrl) {
       <div style="display:flex;gap:8px;margin-top:8px;">
         <button class="btn btn-sm" onclick="copyLink()">Kopieren</button>
         <button class="btn btn-sm btn-success" onclick="window.open('${fullUrl}', '_blank')">Oeffnen</button>
-        <button class="btn btn-sm btn-primary" onclick="showQRFullscreen('${fullUrl}')">📷 QR anzeigen</button>
+        <button class="btn btn-sm btn-primary" onclick="showQRFullscreen('${fullUrl}')">QR anzeigen</button>
       </div>
     </div>
   `;
@@ -464,7 +464,7 @@ async function loadAuditLog() {
           ${rows.map(r => `
             <tr>
               <td>${new Date(r.created_at).toLocaleString('de-DE', { timeZone: 'Europe/Berlin' })}</td>
-              <td><span class="badge" style="background:#dbeafe;color:#1d4ed8;">${r.action}</span></td>
+              <td><span class="badge" style="background:#dbeafe;color:#3366AA;">${r.action}</span></td>
               <td>${r.target || '-'}</td>
               <td style="font-size:0.8rem;max-width:300px;overflow:hidden;text-overflow:ellipsis;">${r.details || '-'}</td>
               <td style="font-size:0.75rem;color:var(--text-light);">${r.ip || '-'}</td>
@@ -473,7 +473,7 @@ async function loadAuditLog() {
         </tbody>
       </table>
       <div style="margin-top:12px;text-align:center;">
-        <button class="btn btn-sm btn-primary" onclick="applyRetentionNow()">🧹 Loeschfristen jetzt anwenden</button>
+        <button class="btn btn-sm btn-primary" onclick="applyRetentionNow()">Loeschfristen jetzt anwenden</button>
       </div>`;
   } catch(e) {
     container.innerHTML = '<div class="empty">Fehler: ' + e.message + '</div>';
@@ -516,7 +516,7 @@ async function sendEmailForLink(linkToken, to, pvsId, dob, pin) {
 
   const fullUrl = window.location.origin.replace("/admin", "") + "/anamnese/" + linkToken;
   const btn = document.activeElement;
-  if (btn) btn.textContent = "⏳ Sende...";
+  if (btn) btn.textContent = "Sende...";
 
   try {
     const res = await fetch(`${API}/link/send-email`, {
@@ -524,11 +524,11 @@ async function sendEmailForLink(linkToken, to, pvsId, dob, pin) {
       body: JSON.stringify({ to, pvsPatientId: pvsId, linkUrl: fullUrl, patientDob: dob, pin })
     });
     const data = await res.json();
-    if (btn) btn.textContent = data.success ? "✅ Gesendet" : "❌ Fehler";
+    if (btn) btn.textContent = data.success ? "Gesendet" : "Fehler";
     if (!data.success) alert("Fehler: " + (data.error || "Unbekannter Fehler"));
-    else setTimeout(() => { if (btn) btn.textContent = "📧 Per E-Mail senden"; }, 3000);
+    else setTimeout(() => { if (btn) btn.textContent = "Per E-Mail senden"; }, 3000);
   } catch(e) {
-    if (btn) btn.textContent = "❌ Fehler";
+    if (btn) btn.textContent = "Fehler";
     alert("Fehler: " + e.message);
   }
 }

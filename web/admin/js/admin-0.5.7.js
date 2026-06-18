@@ -1,5 +1,21 @@
 // myhistree Admin Dashboard JS v0.6.7
 const API = '/api';
+function sanitizeConsentHtml(raw) {
+  if (!raw) return '';
+  const tpl = document.createElement('template');
+  tpl.innerHTML = raw;
+  ['script','iframe','object','embed','style','link','meta','base','form'].forEach(tag => {
+    tpl.content.querySelectorAll(tag).forEach(n => n.remove());
+  });
+  tpl.content.querySelectorAll('*').forEach(node => {
+    for (const attr of [...node.attributes]) {
+      if (attr.name.startsWith('on') || attr.value.includes('javascript:')) {
+        node.removeAttribute(attr.name);
+      }
+    }
+  });
+  return tpl.innerHTML;
+}
 let encounterFilter = 'all'; // 'all' | 'completed' | 'in-progress'
 const CURRENT_PRACTICE = 'demo-practice';
 let currentAdmin = null;
@@ -124,7 +140,7 @@ async function loadLinks() {
     let html = '<table><thead><tr><th>Token</th><th>PVS-ID</th><th>DOB</th><th>Typ</th><th>E-Mail</th><th>Status</th><th>Erstellt</th><th>Ablauf</th><th>PIN</th><th>Aktion</th></tr></thead><tbody>';
     for (const r of rows) {
       const statusClass = r.status === 'pending' ? 'badge-pending' : (r.status === 'used' ? 'badge-used' : 'badge-expired');
-      const typeLabel = r.document_type === 'consent_form' ? '📝' : '📋';
+      const typeLabel = r.document_type === 'consent_form' ? 'Einwilligung' : 'Anamnese';
       html += `<tr>
         <td><code>${r.token.slice(0,16)}...</code></td>
         <td>${escapeHtml(r.pvs_patient_id ? r.pvs_patient_id : '-')}</td>
@@ -221,7 +237,7 @@ function encountersTable(rows, showProcessBtn) {
   for (const r of rows) {
     const isConsent = r.document_type === 'consent_form';
     const statusClass = r.status === 'processed' ? 'badge-processed' : (r.status === 'submitted' ? 'badge-submitted' : 'badge-inprogress');
-    const typeLabel = isConsent ? '📝 Aufklärung' : '📋 Anamnese';
+    const typeLabel = isConsent ? 'Aufklärung' : 'Anamnese';
     let email = r.patient_email || '-';
     let phone = r.mobile_number || '-';
     if (r.contact_json) {
@@ -235,7 +251,7 @@ function encountersTable(rows, showProcessBtn) {
     html += `<tr>
       <td>${fmtDateTime(r.created_at)}</td>
       <td>${escapeHtml(r.pvs_patient_id ? r.pvs_patient_id : '-')}</td>
-      <td><span class="badge" style="background:#f0f9ff;color:#1e3a5f;border:1px solid #bae6fd;font-size:0.7rem;">${typeLabel}</span></td>
+      <td><span class="badge" style="background:#f0f9ff;color:#3366AA;border:1px solid #bae6fd;font-size:0.7rem;">${typeLabel}</span></td>
       <td>${escapeHtml(email)}</td>
       <td>${escapeHtml(phone)}</td>
       <td><span class="badge ${statusClass}">${r.status}</span></td>
@@ -293,7 +309,7 @@ async function viewEncounter(encounterId) {
 
       if (template?.content_html) {
         html += '<hr style="margin: 16px 0;"><h3>Dokumentinhalt</h3>';
-        html += `<div style="font-size:0.9rem;line-height:1.6;">${template.content_html}</div>`;
+        html += `\u003cdiv style="font-size:0.9rem;line-height:1.6;"\u003e${sanitizeConsentHtml(template.content_html)}\u003c/div\u003e`;
       }
 
       if (enc.signature_svg) {
@@ -427,7 +443,7 @@ async function copyEncounterText(encounterId) {
       text += `Unterschrieben am: ${fmtDateTime(cData.encounter?.signed_at || cData.encounter?.completed_at)}\n\n`;
       // Plain text aus HTML extrahieren (einfacher Approach)
       const temp = document.createElement('div');
-      temp.innerHTML = cData.template?.content_html || '';
+      temp.innerHTML = sanitizeConsentHtml(cData.template?.content_html || '');
       text += temp.textContent || temp.innerText || '';
       navigator.clipboard.writeText(text).then(() => alert('Kopiert!'));
       return;
@@ -460,13 +476,13 @@ async function printEncounter(encounterId) {
       if (!cRes.ok) return;
       const cData = await cRes.json();
       let html = '<div class="print-view">';
-      html += `<h1 style="font-size:16pt;color:#1e3a5f;border-bottom:2px solid #3b82f6;padding-bottom:8px;margin-bottom:16px;">${escapeHtml(cData.template?.title || 'Aufklärungsbogen')}</h1>`;
+      html += `\u003ch1 style="font-size:16pt;color:#3366AA;border-bottom:2px solid #4477BB;padding-bottom:8px;margin-bottom:16px;"\u003e${escapeHtml(cData.template?.title || 'Aufklärungsbogen')}\u003c/h1\u003e`;
       html += `<p><strong>PVS-ID:</strong> ${escapeHtml(enc.pvs_patient_id || '–')}</p>`;
       html += `<p><strong>Unterschrieben von:</strong> ${escapeHtml(cData.encounter?.patient_name || '–')}</p>`;
       html += `<p><strong>Unterschrieben am:</strong> ${fmtDateTime(cData.encounter?.signed_at || cData.encounter?.completed_at)}</p>`;
-      html += `<p><strong>IP-Adresse:</strong> ${escapeHtml(cData.encounter?.ip_address || '–')}</p>`;
-      html += '<hr style="margin:20px 0;border:none;border-top:1px solid #ccc;">';
-      html += `<div style="font-size:10pt;line-height:1.5;">${cData.template?.content_html || ''}</div>`;
+      html += `\u003cp\u003e\u003cstrong\u003eIP-Adresse:\u003c/strong\u003e ${escapeHtml(cData.encounter?.ip_address || '–')}\u003c/p\u003e`;
+      html += '\u003chr style="margin:20px 0;border:none;border-top:1px solid #ccc;"\u003e';
+      html += `\u003cdiv style="font-size:10pt;line-height:1.5;"\u003e${sanitizeConsentHtml(cData.template?.content_html || '')}\u003c/div\u003e`;
       if (cData.encounter?.signature_svg) {
         html += '<hr style="margin:20px 0;border:none;border-top:1px solid #ccc;"><h3 style="font-size:12pt;">Unterschrift</h3>';
         const svgUrl = 'data:image/svg+xml;base64,' + btoa(cData.encounter.signature_svg);
@@ -585,14 +601,14 @@ async function loadSettings() {
   if (currentAdmin.totp_enabled) {
     html += `
       <div style="padding:16px;background:#dcfce7;border-radius:10px;">
-        <p><strong>✅ Zwei-Faktor-Authentifizierung ist aktiviert.</strong></p>
+        <p><strong>Zwei-Faktor-Authentifizierung ist aktiviert.</strong></p>
         <p style="font-size:0.875rem;color:#166534;margin-top:8px;">Ihr Account ist durch TOTP (Authenticator-App) geschützt.</p>
       </div>
     `;
   } else {
     html += `
       <div style="padding:16px;background:#fef3c7;border-radius:10px;margin-bottom:16px;">
-        <p><strong>⚠️ Zwei-Faktor-Authentifizierung ist nicht aktiviert.</strong></p>
+        <p><strong>Zwei-Faktor-Authentifizierung ist nicht aktiviert.</strong></p>
         <p style="font-size:0.875rem;color:#92400e;margin-top:8px;">Empfohlen: Scannen Sie den QR-Code mit einer Authenticator-App.</p>
       </div>
       <button class="btn btn-primary" id="btn-setup-totp" onclick="setupTotp()">Authenticator einrichten</button>
@@ -677,7 +693,7 @@ async function changePassword() {
       btn.disabled = false;
       return;
     }
-    msg.textContent = '✅ Passwort geändert. Sie werden abgemeldet...';
+    msg.textContent = 'Passwort geändert. Sie werden abgemeldet...';
     msg.style.color = '#16a34a';
     setTimeout(() => { window.location.href = '/admin/login.html'; }, 2000);
   } catch (e) {
@@ -705,7 +721,7 @@ async function loadUsers() {
       const statusBadge = r.active === 0
         ? '<span class="badge badge-inactive">Inaktiv</span>'
         : '<span class="badge badge-completed">Aktiv</span>';
-      html += `<tr><td>${escapeHtml(r.email)}</td><td>${r.role}</td><td>${statusBadge}</td><td>${r.totp_enabled ? '✅' : '—'}</td><td>${fmtDate(r.created_at)}</td><td>`;
+      html += `<tr><td>${escapeHtml(r.email)}</td><td>${r.role}</td><td>${statusBadge}</td><td>${r.totp_enabled ? 'Ja' : '—'}</td><td>${fmtDate(r.created_at)}</td><td>`;
       if (currentAdmin && (currentAdmin.role === 'admin' || currentAdmin.role === 'superadmin') && r.email !== currentAdmin.email) {
         html += `<button class="btn btn-sm btn-secondary" onclick="resetUserPrompt('${r.id}')">PW reset</button> `;
         html += `<button class="btn btn-sm ${r.active === 0 ? 'btn-success' : 'btn-warning'}" onclick="toggleUserActive('${r.id}', ${r.active === 0 ? 1 : 0})">${r.active === 0 ? 'Aktivieren' : 'Deaktivieren'}</button> `;

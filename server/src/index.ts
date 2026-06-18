@@ -64,11 +64,19 @@ app.get("/anamnese/:token", async (request, reply) => {
   return reply.sendFile("index.html");
 });
 
+app.get("/aufklaerung/:token", async (request, reply) => {
+  return reply.sendFile("aufklaerung.html");
+});
+
+app.get("/auffklaerung/:token", async (request, reply) => {
+  return reply.redirect(`/aufklaerung/${(request.params as { token: string }).token}`);
+});
+
 app.get("/admin", async (request, reply) => {
   return reply.sendFile("admin/index.html");
 });
 
-app.get("/health", async () => ({ status: "ok", version: "0.5.6" }));
+app.get("/health", async () => ({ status: "ok", version: "0.6.7" }));
 
 // SPA fallback for client-side routing
 app.setNotFoundHandler(async (request, reply) => {

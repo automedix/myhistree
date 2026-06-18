@@ -12,7 +12,7 @@ COPY package*.json ./
 RUN npm ci --only=production
 COPY --from=builder /app/server/dist /app/server/dist
 COPY --from=builder /app/web /app/web
-COPY --from=builder /app/data /app/data
+COPY --from=builder /app/server/src/db/consent-seeds.json /app/server/dist/db/consent-seeds.json
 ENV NODE_ENV=production
 ENV PORT=3456
 ENV DB_PATH=/app/data/myhistoree.db

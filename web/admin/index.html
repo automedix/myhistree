@@ -108,17 +108,17 @@ pre.json { background:#1e293b; color:#e2e8f0; padding:16px; border-radius:8px; o
       <div class="form-row">
         <div>
           <label>PVS Patienten-ID *</label>
-          <input type="text" id="new-pvs-id" placeholder="z.B. 12345">
+          <input type="text" id="new-pvs-id" placeholder="z.B. 12345" autocomplete="off">
         </div>
         <div>
           <label>Geburtsdatum *</label>
-          <input type="date" id="new-patient-dob">
+          <input type="date" id="new-patient-dob" autocomplete="off">
         </div>
       </div>
       <div class="form-row">
         <div>
           <label>E-Mail (optional)</label>
-          <input type="email" id="new-patient-email" placeholder="patient@email.de">
+          <input type="email" id="new-patient-email" placeholder="patient@email.de" autocomplete="off">
         </div>
         <div>
           <label>Gültigkeit (Stunden)</label>
@@ -144,7 +144,7 @@ pre.json { background:#1e293b; color:#e2e8f0; padding:16px; border-radius:8px; o
       <div style="margin-bottom:12px;">
         <label><input type="checkbox" id="new-use-pin" onchange="document.getElementById('pin-row').style.display=this.checked?'block':'none'"> 🔒 PIN-Schutz aktivieren</label>
         <div id="pin-row" style="display:none;margin-top:8px;">
-          <input type="text" id="new-pin" placeholder="4-stellige PIN (leer = automatisch)" inputmode="numeric" pattern="[0-9]*" maxlength="6">
+          <input type="text" id="new-pin" placeholder="4-stellige PIN (leer = automatisch)" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off">
         </div>
       </div>
       <button class="btn btn-primary" id="btn-create" onclick="createLink()">Link erstellen</button>
@@ -233,7 +233,26 @@ pre.json { background:#1e293b; color:#e2e8f0; padding:16px; border-radius:8px; o
 </div>
 
 <script src="/admin/js/qrcode.min.js"></script>
-<script src="/admin/js/admin-0.5.7.js?v=4"></script>
+<script src="/admin/js/admin-0.5.7.js?v=6"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  var ids = ['new-pvs-id','new-patient-dob','new-patient-email','new-pin'];
+  ids.forEach(function(id) {
+    var el = document.getElementById(id);
+    if (el) { el.value = ''; }
+  });
+  var usePin = document.getElementById('new-use-pin');
+  if (usePin) { usePin.checked = false; }
+  var pinRow = document.getElementById('pin-row');
+  if (pinRow) { pinRow.style.display = 'none'; }
+  setTimeout(function() {
+    ids.forEach(function(id) {
+      var el = document.getElementById(id);
+      if (el) { el.value = ''; }
+    });
+  }, 800);
+});
+</script>
 </body>
 </html>
 

@@ -1,6 +1,6 @@
 {
   "name": "myhistree-server",
-  "version": "0.5.6",
+  "version": "0.6.6",
   "description": "myhistree backend",
   "main": "dist/index.js",
   "scripts": {

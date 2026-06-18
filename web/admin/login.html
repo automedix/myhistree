@@ -4,181 +4,232 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>myhistree — Admin Login</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
+    :root {
+      --brand: #4477BB;
+      --brand-dark: #3366AA;
+      --brand-bg: #4477BB;
+      --form-bg: #f3f4f6;
+      --card-bg: #ffffff;
+      --text-heading: #111827;
+      --text-body: #374151;
+      --text-muted: #6b7280;
+      --border: #d1d5db;
+      --radius-lg: 1rem;
+      --radius-md: 0.5rem;
+      --shadow: 0 10px 40px rgba(0,0,0,0.08);
+    }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      background: #0f172a;
-      color: #e2e8f0;
-      min-height: 100vh;
+    html, body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      height: 100%;
       display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      padding: 20px;
     }
-    .login-card {
-      background: #1e293b;
-      border-radius: 16px;
-      padding: 40px;
-      width: 100%;
-      max-width: 400px;
-      box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);
-    }
-    .logo {
-      text-align: center;
-      margin-bottom: 32px;
-    }
-    .logo h1 {
-      font-size: 1.75rem;
-      font-weight: 700;
-      color: #38bdf8;
-      letter-spacing: -0.5px;
-    }
-    .logo p {
-      color: #94a3b8;
-      font-size: 0.875rem;
-      margin-top: 4px;
-    }
-    .form-group { margin-bottom: 20px; }
-    label {
-      display: block;
-      font-size: 0.875rem;
-      font-weight: 500;
-      margin-bottom: 6px;
-      color: #cbd5e1;
-    }
-    input {
-      width: 100%;
-      padding: 12px 14px;
-      border: 1px solid #334155;
-      border-radius: 10px;
-      background: #0f172a;
-      color: #e2e8f0;
-      font-size: 1rem;
-      transition: border-color 0.2s;
-    }
-    input:focus {
-      outline: none;
-      border-color: #38bdf8;
-    }
-    .btn-primary {
-      width: 100%;
-      padding: 14px;
-      border: none;
-      border-radius: 10px;
-      background: #0ea5e9;
-      color: #fff;
-      font-size: 1rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: background 0.2s;
-    }
-    .btn-primary:hover { background: #0284c7; }
-    .btn-primary:disabled { opacity: 0.6; cursor: not-allowed; }
-    .error {
-      background: #7f1d1d;
-      color: #fecaca;
-      padding: 12px;
-      border-radius: 8px;
-      font-size: 0.875rem;
-      margin-bottom: 16px;
+
+    /* ─── Brand side (links) ─── */
+    .brand-side {
       display: none;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 3rem;
+      color: #fff;
+      background-color: var(--brand-bg);
+    }
+    @media (min-width: 1024px) {
+      .brand-side { display: flex; width: 50%; }
+    }
+    .brand-side .logo img {
+      max-width: 280px; width: 100%; height: auto; margin-bottom: 2rem;
+    }
+    .brand-side h1 {
+      font-size: 2.5rem; font-weight: 700; line-height: 1.2; margin-bottom: 1rem;
+    }
+    .brand-side .subtitle {
+      font-size: 1.125rem; color: rgba(255,255,255,0.85); max-width: 420px; line-height: 1.5;
+    }
+    .brand-side .features { margin-top: 3rem; }
+    .brand-side .feature-item {
+      display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1rem; color: rgba(255,255,255,0.9);
+    }
+    .brand-side .feature-item .circle {
+      width: 2rem; height: 2rem; border-radius: 50%; background: rgba(255,255,255,0.2);
+      display: flex; align-items: center; justify-content: center; font-size: 0.875rem; font-weight: 700; flex-shrink: 0;
+    }
+    .brand-footer {
+      font-size: 0.875rem; color: rgba(255,255,255,0.7); padding-top: 2rem;
+    }
+    .brand-footer a { color: rgba(255,255,255,0.9); text-decoration: underline; text-underline-offset: 2px; }
+    .brand-footer a:hover { color: #fff; }
+
+    /* ─── Form side (rechts) ─── */
+    .form-side {
+      width: 100%; display: flex; align-items: center; justify-content: center;
+      padding: 1.5rem; background: var(--form-bg);
+      min-height: 100vh;
+    }
+    @media (min-width: 1024px) {
+      .form-side { width: 50%; min-height: auto; }
+    }
+    .form-container { width: 100%; max-width: 420px; }
+    .mobile-logo {
+      display: flex; justify-content: center; margin-bottom: 2rem;
+    }
+    .mobile-logo img {
+      max-width: 220px; width: 100%; height: auto;
+    }
+    @media (min-width: 1024px) { .mobile-logo { display: none; } }
+
+    .login-card {
+      background: var(--card-bg); border-radius: var(--radius-lg);
+      box-shadow: var(--shadow); padding: 2.5rem;
+    }
+    .login-card h2 {
+      font-size: 1.5rem; font-weight: 700; color: var(--text-heading); margin-bottom: 0.25rem;
+    }
+    .login-card .lead {
+      color: var(--text-muted); font-size: 0.95rem; margin-bottom: 1.5rem;
+    }
+
+    .form-group {
+      margin-bottom: 1.25rem;
+    }
+    .form-group label {
+      display: block; font-size: 0.875rem; font-weight: 500; color: var(--text-body); margin-bottom: 0.375rem;
+    }
+    .form-group input {
+      width: 100%; padding: 0.625rem 0.875rem;
+      border: 1px solid var(--border); border-radius: var(--radius-md);
+      font-size: 0.95rem; color: var(--text-heading); background: var(--card-bg);
+      transition: border-color .15s, box-shadow .15s;
+    }
+    .form-group input:focus {
+      outline: none; border-color: var(--brand);
+      box-shadow: 0 0 0 3px rgba(68,119,187,0.15);
+    }
+
+    .btn-primary {
+      width: 100%; padding: 0.75rem 1rem;
+      background: var(--brand); color: #fff; border: none; border-radius: var(--radius-md);
+      font-size: 0.95rem; font-weight: 600; cursor: pointer;
+      transition: background .15s;
+      display: flex; align-items: center; justify-content: center; gap: 0.5rem;
+    }
+    .btn-primary:hover { background: var(--brand-dark); }
+    .btn-primary:disabled { opacity: .6; cursor: not-allowed; }
+
+    .error {
+      background: #fef2f2; border: 1px solid #fecaca; color: #dc2626;
+      padding: 0.75rem 1rem; border-radius: var(--radius-md); font-size: 0.875rem; margin-bottom: 1rem; display: none;
     }
     .error.show { display: block; }
+
     .totp-hint {
-      text-align: center;
-      color: #94a3b8;
-      font-size: 0.875rem;
-      margin-bottom: 16px;
+      text-align: center; color: var(--text-muted); font-size: 0.875rem; margin-bottom: 1rem;
     }
     .hidden { display: none !important; }
+
     .version {
-      text-align: center;
-      margin-top: 24px;
-      font-size: 0.75rem;
-      color: #475569;
+      text-align: center; margin-top: 1.5rem; font-size: 0.75rem; color: #9ca3af;
     }
+
     .login-footer {
-      text-align: center;
-      margin-top: 20px;
-      padding-top: 16px;
-      border-top: 1px solid #334155;
-      font-size: 0.75rem;
-      color: #64748b;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      flex-wrap: wrap;
+      text-align: center; margin-top: 1.25rem; padding-top: 1rem;
+      border-top: 1px solid #e5e7eb; font-size: 0.75rem; color: #9ca3af;
+      display: flex; justify-content: center; align-items: center; gap: 6px; flex-wrap: wrap;
     }
-    .login-footer a {
-      color: #94a3b8;
-      text-decoration: none;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-      transition: color 0.2s;
-    }
-    .login-footer a:hover {
-      color: #38bdf8;
-    }
-    .login-footer svg {
-      vertical-align: middle;
-      opacity: 0.8;
+    .login-footer a { color: #6b7280; text-decoration: none; }
+    .login-footer a:hover { color: var(--brand); }
+
+    .app-footer {
+      text-align: center; margin-top: 1.5rem; font-size: 0.75rem; color: #9ca3af;
     }
   </style>
 </head>
 <body>
-  <div class="login-card">
-    <div class="logo">
+
+  <!-- Linke Seite: Branding -->
+  <div class="brand-side">
+    <div>
+      <div class="logo">
+        <img src="/logo.png" alt="Hausärzte im Grillepark" onerror="this.style.display='none'">
+      </div>
       <h1>myhistree</h1>
-      <p>Admin Dashboard</p>
-    </div>
-
-    <div class="error" id="error-msg"></div>
-
-    <!-- Step 1: Email + Password -->
-    <div id="step-login">
-      <div class="form-group">
-        <label for="email">E-Mail</label>
-        <input type="email" id="email" placeholder="admin@praxis.de" autocomplete="email">
+      <p class="subtitle">
+        Online-Anamnese für Hausarztpraxen.
+        Patientenbefragung einfach, sicher und digital dokumentiert.
+      </p>
+      <div class="features">
+        <div class="feature-item">
+          <div class="circle">1</div>
+          Patienten-Link generieren
+        </div>
+        <div class="feature-item">
+          <div class="circle">2</div>
+          Digitale Anamnese ausfüllen
+        </div>
+        <div class="feature-item">
+          <div class="circle">3</div>
+          Übersichtlich verwaltet
+        </div>
       </div>
-      <div class="form-group">
-        <label for="password">Passwort</label>
-        <input type="password" id="password" placeholder="••••••••" autocomplete="current-password">
-      </div>
-      <button class="btn-primary" id="btn-login" onclick="doLogin()">Anmelden</button>
     </div>
-
-    <!-- Step 2: TOTP -->
-    <div id="step-totp" class="hidden">
-      <p class="totp-hint">Geben Sie den 6-stelligen Code aus Ihrer Authenticator-App ein.</p>
-      <div class="form-group">
-        <label for="totp-code">Authenticator-Code</label>
-        <input type="text" id="totp-code" placeholder="123456" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code">
-      </div>
-      <button class="btn-primary" id="btn-totp" onclick="doTotp()">Code prüfen</button>
+    <div class="brand-footer">
+      Dr. med. Ivo Schmid · Hausärzte im Grillepark · <a href="https://automedix.de" target="_blank" rel="noopener">automedix.de</a>
     </div>
+  </div>
 
-    <div class="version">v0.5.6</div>
+  <!-- Rechte Seite: Login -->
+  <div class="form-side">
+    <div class="form-container">
+      <div class="mobile-logo">
+        <img src="/logo.png" alt="Hausärzte im Grillepark" onerror="this.style.display='none'">
+      </div>
 
-    <div class="login-footer">
-      <span>Vibecoded mit</span>
-      <a href="https://clawi.ai" target="_blank" rel="noopener">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-          <path d="M2 10c2.5-3 5-3 7.5 0s5 3 7.5 0 5-3 7.5 0"/>
-          <path d="M2 16c2.5-3 5-3 7.5 0s5 3 7.5 0 5-3 7.5 0"/>
-        </svg>
-        Clawi.ai
-      </a>
-      <span>und</span>
-      <a href="https://hermes-agent.nousresearch.com" target="_blank" rel="noopener">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
-        </svg>
-        Hermes Agent
-      </a>
+      <div class="login-card">
+        <h2>Willkommen zurück</h2>
+        <p class="lead">Bitte melde dich an, um zum Admin-Dashboard zu gelangen.</p>
+
+        <div class="error" id="error-msg"></div>
+
+        <!-- Step 1: Email + Password -->
+        <div id="step-login">
+          <div class="form-group">
+            <label for="email">E-Mail</label>
+            <input type="email" id="email" placeholder="admin@praxis.de" autocomplete="email">
+          </div>
+          <div class="form-group">
+            <label for="password">Passwort</label>
+            <input type="password" id="password" placeholder="••••••••" autocomplete="current-password">
+          </div>
+          <button class="btn-primary" id="btn-login" onclick="doLogin()">Anmelden</button>
+        </div>
+
+        <!-- Step 2: TOTP -->
+        <div id="step-totp" class="hidden">
+          <p class="totp-hint">Gib den 6-stelligen Code aus deiner Authenticator-App ein.</p>
+          <div class="form-group">
+            <label for="totp-code">Authenticator-Code</label>
+            <input type="text" id="totp-code" placeholder="123456" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="one-time-code">
+          </div>
+          <button class="btn-primary" id="btn-totp" onclick="doTotp()">Code prüfen</button>
+        </div>
+
+        <div class="version">v0.5.6</div>
+
+        <div class="login-footer">
+          <span>Vibecoded mit</span>
+          <a href="https://clawi.ai" target="_blank" rel="noopener">Clawi.ai</a>
+          <span>und</span>
+          <a href="https://hermes-agent.nousresearch.com" target="_blank" rel="noopener">Hermes Agent</a>
+        </div>
+      </div>
+
+      <div class="app-footer">
+        © Automedix · myhistree
+      </div>
     </div>
   </div>
 
@@ -226,7 +277,6 @@
           return;
         }
 
-        // Success — redirect to dashboard
         window.location.href = "/admin";
       } catch (e) {
         err.textContent = "Netzwerkfehler. Bitte erneut versuchen.";
@@ -240,7 +290,7 @@
       const btn = document.getElementById("btn-totp");
       const err = document.getElementById("error-msg");
 
-      if (!token || token.length !== 6 || !/^\d{6}$/.test(token)) {
+      if (!token || token.length !== 6 || /^\d{6}$/.test(token) === false) {
         err.textContent = "Bitte einen gültigen 6-stelligen Code eingeben.";
         err.classList.add("show");
         return;

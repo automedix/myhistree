@@ -1,6 +1,63 @@
 import Database from "better-sqlite3";
 import { join } from "path";
 
+// Consent form template seeds (inline to ensure availability in Docker)
+const consentSeeds: { templates: Array<{ slug: string; title: string; content_html: string; version: string }> } = {
+  templates: [
+    {
+      slug: "email-kommunikation",
+      title: "Einwilligung zur E-Mail-Kommunikation",
+      version: "1.0",
+      content_html: `<h2>1. Allgemeines behandlungsbezogenes Anschreiben per E-Mail</h2>
+<p>Im Rahmen meiner medizinischen Behandlung kann es erforderlich sein, mich schriftlich zu kontaktieren. Sofern ich der Praxis eine E-Mail-Adresse hinterlegt habe, willige ich ein, dass die Praxis mich im aktuellen und zukünftigen Behandlungskontext per E-Mail anschreibt.</p>
+<div class="consent-check-wrap">
+  <label><input type="checkbox" class="consent-check" data-item="anschreiben"> <strong>Ich willige ein</strong>, dass die Praxis mich im Behandlungskontext per E-Mail anschreibt, sofern ich eine E-Mail-Adresse hinterlegt habe.</label>
+</div>
+
+<h2>2. Terminbenachrichtigung, Terminerinnerung und Terminabsage per E-Mail</h2>
+<p>Die Praxis kann mir E-Mails zur Organisation von Terminen senden. Dazu gehören:</p>
+<ul>
+<li>Benachrichtigungen über vereinbarte Termine</li>
+<li>Erinnerungen an anstehende Termine</li>
+<li>Mitteilungen über notwendige Terminverschiebungen oder -absagen</li>
+</ul>
+<div class="consent-check-wrap">
+  <label><input type="checkbox" class="consent-check" data-item="termin"> <strong>Ich willige ein</strong>, dass die Praxis mich per E-Mail über Termine benachrichtigt, erinnert oder mir Absagen mitteilt.</label>
+</div>
+
+<h2>3. Recalls (Vorsorge, Impfungen, Wiedervorstellungen)</h2>
+<p>Recalls dienen der Qualitätssicherung und der Erhaltung meiner Gesundheit. Sie umfassen Erinnerungen an:</p>
+<ul>
+<li>Anstehende Vorsorgeuntersuchungen</li>
+<li>Fällige Impfungen und Auffrischimpfungen</li>
+<li>Bereits vereinbarte oder nötig gewordene Wiedervorstellungen</li>
+<li>Aktuelle Behandlungshinweise im bestehenden Kontext</li>
+</ul>
+<div class="consent-check-wrap">
+  <label><input type="checkbox" class="consent-check" data-item="recall"> <strong>Ich willige ein</strong>, dass die Praxis mich per E-Mail an Vorsorgeuntersuchungen, Impfungen, Wiedervorstellungen oder Behandlungshinweise erinnert.</label>
+</div>
+
+<h2>4. Datenschutzhinweis und Übermittlungsrisiko</h2>
+<p>Die Verarbeitung meiner personenbezogenen Daten erfolgt auf Grundlage meiner freiwilligen Einwilligung gemäß <strong>Art. 6 Abs. 1 lit. a und Art. 9 Abs. 2 lit. a DSGVO</strong>. Mir ist bekannt, dass die Übertragung von E-Mails grundsätzlich unverschlüsselt erfolgen kann und dass eine absolute Vertraulichkeit im Internet nicht garantiert ist. Ich nehme dieses Risiko freiwillig in Kauf.</p>
+<p>Ich kann diese Einwilligung jederzeit mit Wirkung für die Zukunft widerrufen, ohne dass meine medizinische Versorgung beeinträchtigt wird. Ein Widerruf hat keine rückwirkende Kraft.</p>
+<p>Meine Rechte aus der DSGVO (Auskunft, Berichtigung, Löschung, Einschränkung, Beschwerde bei der Aufsichtsbehörde) bleiben unberührt.</p>
+
+<div class="consent-check-wrap">
+  <label><input type="checkbox" class="consent-check" data-item="datenschutz"> <strong>Ich habe die Datenschutzhinweise gelesen</strong> und nehme das Übermittlungsrisiko bei der E-Mail-Kommunikation zur Kenntnis.</label>
+</div>
+
+<h2>5. Einwilligungserklärung</h2>
+<p>Mit meiner Unterschrift bestätige ich:</p>
+<ul>
+<li>dass ich die vorstehenden Abschnitte gelesen und verstanden habe,</li>
+<li>dass ich alle erforderlichen Checkboxen zu den Themenbereichen gesetzt habe,</li>
+<li>dass ich diese Einwilligung freiwillig erteile und</li>
+<li>dass ich die Einwilligung jederzeit widerrufen kann.</li>
+</ul>`
+    }
+  ]
+};
+
 const DB_PATH = join(process.cwd(), "data", "myhistoree.db");
 export const db = new Database(DB_PATH);
 db.pragma("journal_mode = WAL");
@@ -19,7 +76,6 @@ const MIGRATIONS = [
   `CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_log(created_at);`,
   `ALTER TABLE encounters ADD COLUMN processed_at TEXT;`,
   `ALTER TABLE encounters ADD COLUMN current_screen TEXT;`,
-  `ALTER TABLE admin_users ADD COLUMN active INTEGER DEFAULT 1;`,
   `CREATE INDEX IF NOT EXISTS idx_encounters_status ON encounters(status);`,
   `CREATE TABLE IF NOT EXISTS admin_users (
     id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
@@ -32,8 +88,7 @@ const MIGRATIONS = [
     practice_id TEXT REFERENCES practices(id),
     last_login TEXT,
     created_at TEXT DEFAULT (datetime('now')),
-    updated_at TEXT DEFAULT (datetime('now')),
-    active INTEGER DEFAULT 1
+    updated_at TEXT DEFAULT (datetime('now'))
   );`,
   `CREATE TABLE IF NOT EXISTS admin_sessions (
     id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
@@ -46,6 +101,34 @@ const MIGRATIONS = [
   );`,
   `CREATE INDEX IF NOT EXISTS idx_admin_sessions_token ON admin_sessions(refresh_token_hash);`,
   `CREATE INDEX IF NOT EXISTS idx_admin_sessions_admin ON admin_sessions(admin_id);`,
+  `ALTER TABLE email_verifications ADD COLUMN magic_token TEXT;`,
+  `ALTER TABLE email_verifications ADD COLUMN link_token TEXT;`,
+  `CREATE INDEX IF NOT EXISTS idx_email_magic ON email_verifications(magic_token);`,
+  `ALTER TABLE patient_links ADD COLUMN document_type TEXT DEFAULT 'anamnese';`,
+  `ALTER TABLE patient_links ADD COLUMN consent_form_id TEXT;`,
+  `ALTER TABLE encounters ADD COLUMN document_type TEXT DEFAULT 'anamnese';`,
+  `ALTER TABLE encounters ADD COLUMN consent_form_id TEXT;`,
+  `CREATE TABLE IF NOT EXISTS consent_submissions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    encounter_id TEXT UNIQUE NOT NULL REFERENCES encounters(id) ON DELETE CASCADE,
+    patient_name TEXT NOT NULL,
+    signature_svg TEXT NOT NULL,
+    signed_at TEXT NOT NULL,
+    ip_address TEXT,
+    user_agent TEXT,
+    created_at TEXT DEFAULT (datetime('now'))
+  );`,
+  `CREATE INDEX IF NOT EXISTS idx_consent_encounter ON consent_submissions(encounter_id);`,
+  `CREATE TABLE IF NOT EXISTS consent_form_templates (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    slug TEXT UNIQUE NOT NULL,
+    title TEXT NOT NULL,
+    content_html TEXT NOT NULL,
+    version TEXT NOT NULL DEFAULT '1.0',
+    created_at TEXT DEFAULT (datetime('now')),
+    updated_at TEXT DEFAULT (datetime('now'))
+  );`,
+  `ALTER TABLE consent_submissions ADD COLUMN consent_items TEXT;`
 ];
 
 export function initSchema() {
@@ -149,6 +232,15 @@ export function ensurePracticeDefaults() {
                 VALUES ('demo-practice', 'Haus\u00e4rzte im Grillepark',
                         'Musterstraße 1', 'Musterstadt', '12345',
                         '01234 567890', 'praxis@example.com')`).run();
+  }
+  ensureConsentTemplates();
+}
+
+function ensureConsentTemplates() {
+  for (const tpl of (consentSeeds.templates || [])) {
+    db.prepare(`INSERT OR IGNORE INTO consent_form_templates (slug, title, content_html, version) VALUES (?, ?, ?, ?)`).run(
+      tpl.slug, tpl.title, tpl.content_html, tpl.version
+    );
   }
 }
 
