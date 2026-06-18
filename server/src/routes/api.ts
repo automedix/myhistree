@@ -99,8 +99,8 @@ export default async function apiRoutes(fastify: FastifyInstance) {
     db.prepare("INSERT INTO patients (id, pvs_patient_id, date_of_birth) VALUES (?, ?, ?)").run(patientId, link.pvs_patient_id, link.patient_dob);
 
     const encounterId = randomUUID();
-    db.prepare("INSERT INTO encounters (id, patient_id, practice_id, source_link_id, status, document_type, consent_form_id) VALUES (?, ?, ?, ?, ?, ?, ?)")
-      .run(encounterId, patientId, link.practice_id, link.token, "in-progress", link.document_type || "anamnese", link.consent_form_id || null);
+    db.prepare("INSERT INTO encounters (id, patient_id, practice_id, source_link_id, pvs_patient_id, status, document_type, consent_form_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+      .run(encounterId, patientId, link.practice_id, link.token, link.pvs_patient_id || null, "in-progress", link.document_type || "anamnese", link.consent_form_id || null);
     db.prepare("UPDATE patient_links SET status = 'used', linked_at = datetime('now') WHERE id = ?")
       .run(link.id);
 
@@ -147,7 +147,8 @@ export default async function apiRoutes(fastify: FastifyInstance) {
                 VALUES (?, ?, ?, ?, 0, 0, ?, ?, ?)`)
       .run(randomUUID(), encounterId, email, code, expiresAt.toISOString(), magicToken, encounter.source_link_id || null);
 
-    const magicUrl = `https://myhistree.automedix.de/anamnese/${encounter.source_link_id || ""}?verify=email&verifyToken=${magicToken}`;
+    const baseUrl = process.env.BASE_URL || `https://${request.hostname || request.headers.host || "myhistree.automedix.de"}`;
+    const magicUrl = `${baseUrl}/anamnese/${encounter.source_link_id || ""}?verify=email&verifyToken=${magicToken}`;
     const result = await sendVerificationEmail(email, magicUrl);
     if (!result.success) {
       return reply.status(500).send({ error: result.error || "Failed to send email" });
