@@ -108,7 +108,9 @@ pre.json { background:#1e293b; color:#e2e8f0; padding:16px; border-radius:8px; o
       <div class="form-row">
         <div>
           <label>PVS Patienten-ID *</label>
-          <input type="text" id="new-pvs-id" placeholder="z.B. 12345" autocomplete="off">
+          <!-- Honeypot: Chrome Autofill ablenken -->
+          <input type="email" name="email" autocomplete="email" id="admin-email-honeypot" style="position:absolute;opacity:0;height:0;width:0;pointer-events:none;z-index:-1" tabindex="-1">
+          <input type="text" id="new-pvs-id" placeholder="z.B. 12345" autocomplete="nope">
         </div>
         <div>
           <label>Geburtsdatum *</label>
@@ -118,7 +120,7 @@ pre.json { background:#1e293b; color:#e2e8f0; padding:16px; border-radius:8px; o
       <div class="form-row">
         <div>
           <label>E-Mail (optional)</label>
-          <input type="email" id="new-patient-email" placeholder="patient@email.de" autocomplete="off">
+          <input type="text" id="new-patient-email" placeholder="patient@email.de" inputmode="email" autocomplete="nope">
         </div>
         <div>
           <label>Gültigkeit (Stunden)</label>
