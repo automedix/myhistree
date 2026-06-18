@@ -3,21 +3,21 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta name="theme-color" content="#1E3A5F">
+  <meta name="theme-color" content="#4477BB">
   <title>myhistree – Online Anamnese</title>
   <link rel="stylesheet" href="/css/app.css">
   <style>
     .error-banner{background:#fee2e2;border-left:4px solid #ef4444;padding:12px 16px;border-radius:0 8px 8px 0;color:#991b1b;font-size:0.95rem;margin-bottom:16px;display:none}
     .chip-group { display: flex; flex-direction: column; gap: 8px; margin-top: 8px; }
     .chip { padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 10px; background: #fff; cursor: pointer; font-size: 0.95rem; transition: all 0.2s; text-align: left; width: 100%; }
-    .chip:hover { border-color: #1E3A5F; }
-    .chip.selected { background: #eff6ff; border-color: #1E3A5F; color: #1e40af; }
+    .chip:hover { border-color: #4477BB; }
+    .chip.selected { background: #eff6ff; border-color: #4477BB; color: #1e40af; }
     .radio-group { display: grid; gap: 10px; }
     .radio-card { display: flex; align-items: center; gap: 10px; padding: 12px 16px; border: 2px solid #e5e7eb; border-radius: 10px; cursor: pointer; transition: all 0.2s; font-size: 1rem; }
-    .radio-card:hover { border-color: #1E3A5F; background: #f8fafc; }
-    .radio-card input[type=radio] { width: 20px; height: 20px; accent-color: #1E3A5F; flex-shrink: 0; margin: 0; }
+    .radio-card:hover { border-color: #4477BB; background: #f8fafc; }
+    .radio-card input[type=radio] { width: 20px; height: 20px; accent-color: #4477BB; flex-shrink: 0; margin: 0; }
     .nav-btns { display: flex; gap: 12px; justify-content: space-between; margin-top: 24px; flex-wrap: wrap; }
-    .btn-primary { background: #1E3A5F; color: #fff; border: none; padding: 14px 24px; border-radius: 10px; font-size: 1rem; font-weight: 600; cursor: pointer; flex: 1; }
+    .btn-primary { background: #4477BB; color: #fff; border: none; padding: 14px 24px; border-radius: 10px; font-size: 1rem; font-weight: 600; cursor: pointer; flex: 1; }
     .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
     .btn-secondary { background: #f1f5f9; color: #334155; border: none; padding: 14px 24px; border-radius: 10px; font-size: 1rem; cursor: pointer; }
     .btn-ghost { background: #fff; color: #94a3b8; border: 2px solid #e2e8f0; padding: 14px 24px; border-radius: 10px; font-size: 0.9rem; cursor: pointer; margin-top: 12px; width: 100%; }
@@ -41,7 +41,7 @@
     .form-group { margin-bottom: 20px; }
     .form-group label { display: block; font-weight: 600; margin-bottom: 6px; font-size: 0.95rem; }
     .form-group input:not([type=radio]):not([type=checkbox]), .form-group select, .form-group textarea { width: 100%; padding: 12px 14px; border: 2px solid #e5e7eb; border-radius: 10px; font-size: 1rem; font-family: inherit; background: #fff; -webkit-appearance: none; }
-    .form-group input:not([type=radio]):not([type=checkbox]):focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: #1E3A5F; }
+    .form-group input:not([type=radio]):not([type=checkbox]):focus, .form-group select:focus, .form-group textarea:focus { outline: none; border-color: #4477BB; }
     .card { background: #fff; border-radius: 16px; padding: 24px; box-shadow: 0 1px 3px rgba(0,0,0,0.05); margin-bottom: 16px; }
     .card h2 { font-size: 1.35rem; margin: 0 0 16px 0; }
     .help { color: #64748b; font-size: 0.9rem; margin-bottom: 16px; }
@@ -49,14 +49,13 @@
     .screen { display: none; }
     .screen.active { display: block; }
     .app-header { display: flex; align-items: center; justify-content: space-between; padding: 16px 20px; background: #fff; border-bottom: 1px solid #f1f5f9; position: sticky; top: 0; z-index: 10; }
-    .logo { font-weight: 800; font-size: 1.3rem; color: #1E3A5F; }
+    .logo { font-weight: 800; font-size: 1.3rem; color: #4477BB; }
     .progress-bar { width: 100%; height: 4px; background: #e2e8f0; position: fixed; top: 0; left: 0; z-index: 20; }
-    .progress-bar > div { height: 100%; background: #1E3A5F; width: 0%; transition: width 0.3s; }
+    .progress-bar > div { height: 100%; background: #4477BB; width: 0%; transition: width 0.3s; }
     .hero { text-align: center; padding: 20px 0; }
     .hero h1 { font-size: 1.5rem; margin-bottom: 6px; }
     .hero .subtitle { color: #64748b; font-size: 1rem; }
     .review-item { padding: 10px 0; border-bottom: 1px solid #f1f5f9; font-size: 0.95rem; }
-    .success-icon { width: 60px; height: 60px; background: #22c55e; color: #fff; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 2rem; margin: 0 auto 20px; }
     .center { text-align: center; }
     body { font-family: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif; margin: 0; background: #f8fafc; color: #1e293b; line-height: 1.5; }
     #app { max-width: 720px; margin: 0 auto; padding: 0 16px; }
@@ -75,7 +74,7 @@
 <!-- ===== Screen: Verify ============================== -->
 <section id="screen-verify" class="screen active">
   <div class="hero">
-    <h1>🏥 Digitale Anamnese</h1>
+    <h1>Digitale Anamnese</h1>
     <p class="subtitle">Willkommen zur Online-Anamnese</p>
   </div>
   <div class="card">
@@ -431,10 +430,10 @@
         <button class="chip" data-value="atmung">Atembeschwerden</button>
         <button class="chip" data-value="herz">Herzrasen / Brustschmerz</button>
       </div>
-    <div class="form-group">
-      <label>Andere Beschwerden <span style="font-size:0.85rem;color:#64748b">(oder freie Eingabe)</span></label>
-      <textarea id="symptoms-text" rows="2" placeholder="Bitte beschreiben Sie Ihre Beschwerden..." style="resize:vertical"></textarea>
     </div>
+    <div class="form-group" style="margin-top:20px">
+      <label>Beschreiben Sie Ihre Beschwerden näher (optional)</label>
+      <textarea id="symptoms-notes" rows="3" placeholder="Beschreiben Sie Art, Stärke, Auslöser, Verlauf..." style="resize:vertical"></textarea>
     </div>
     <div class="nav-btns">
       <button class="btn-secondary" onclick="wizard.prev()">Zurück</button>
@@ -476,23 +475,35 @@
         <button class="chip" data-value="keine">Keine chronischen Erkrankungen</button>
         <button class="chip" data-value="bluthochdruck">Bluthochdruck</button>
         <button class="chip" data-value="diabetes">Diabetes (Zuckerkrankheit)</button>
-        <button class="chip" data-value="herz">Herzkrankheit</button>
         <button class="chip" data-value="asthma">Asthma / COPD</button>
         <button class="chip" data-value="schilddruese">Schilddrüsenerkrankung</button>
         <button class="chip" data-value="niere">Nierenkrankheit</button>
         <button class="chip" data-value="leber">Lebererkrankung</button>
         <button class="chip" data-value="epilepsie">Epilepsie</button>
         <button class="chip" data-value="depression">Depression / Angststörung</button>
-        <button class="chip" data-value="krebs">Krebs (in Behandlung / geheilt)</button>
+        <button class="chip" data-value="schlaganfall">Schlaganfall</button>
+        <button class="chip" data-value="parkinson">M. Parkinson</button>
         <button class="chip" data-value="rheuma">Rheumatische Erkrankung</button>
         <button class="chip" data-value="gicht">Gicht</button>
         <button class="chip" data-value="osteoporose">Osteoporose</button>
-        <button class="chip" data-value="thrombose">Thrombose / Embolie</option>
+        <button class="chip" data-value="thrombose">Thrombose / Embolie</button>
       </div>
     </div>
+    <div class="form-group" style="margin-top:20px">
+      <label>Herzkrankheit?</label>
+      <div class="radio-group">
+        <label class="radio-card"><input type="radio" name="cond_heart" value="nein" onclick="toggleCondition('heart', false)"> Nein</label>
+        <label class="radio-card"><input type="radio" name="cond_heart" value="ja" onclick="toggleCondition('heart', true)"> Ja</label>
+      </div>
+      <input type="text" id="condition-heart-text" class="hidden" placeholder="Welche Herzkrankheit?" style="margin-top:10px">
+    </div>
     <div class="form-group">
-      <label>Andere Vorerkankungen <span style="font-size:0.85rem;color:#64748b">(oder freie Eingabe)</span></label>
-      <textarea id="conditions-text" rows="2" placeholder="Bitte beschreiben Sie weitere Vorerkankungen..." style="resize:vertical"></textarea>
+      <label>Krebs (in Behandlung / geheilt)?</label>
+      <div class="radio-group">
+        <label class="radio-card"><input type="radio" name="cond_cancer" value="nein" onclick="toggleCondition('cancer', false)"> Nein</label>
+        <label class="radio-card"><input type="radio" name="cond_cancer" value="ja" onclick="toggleCondition('cancer', true)"> Ja</label>
+      </div>
+      <input type="text" id="condition-cancer-text" class="hidden" placeholder="Welche Krebserkrankung?" style="margin-top:10px">
     </div>
     <div class="nav-btns">
       <button class="btn-secondary" onclick="wizard.prev()">Zurück</button>
@@ -543,7 +554,7 @@
       </div>
     </div>
     <div class="form-group">
-      <label>Weitere / Details <span style="font-size:0.85rem;color:#64748b">(oder freie Eingabe)</span></label>
+      <label>Weitere / Details <span style="font-size:0.85rem;color:#64748b">(optional)</span></label>
       <textarea id="bloodthin-text" rows="2" placeholder="z.B. Dosierung, Änderungen..." style="resize:vertical"></textarea>
     </div>
     <div class="nav-btns">
@@ -574,7 +585,7 @@
       </div>
     </div>
     <div class="form-group">
-      <label>Weitere / Details <span style="font-size:0.85rem;color:#64748b">(oder freie Eingabe)</span></label>
+      <label>Weitere / Details <span style="font-size:0.85rem;color:#64748b">(optional)</span></label>
       <textarea id="bp-text" rows="2" placeholder="z.B. Dosierung..." style="resize:vertical"></textarea>
     </div>
     <div class="nav-btns">
@@ -624,7 +635,7 @@
       </div>
     </div>
     <div class="form-group">
-      <label>Weitere / Details <span style="font-size:0.85rem;color:#64748b">(oder freie Eingabe)</span></label>
+      <label>Weitere / Details <span style="font-size:0.85rem;color:#64748b">(optional)</span></label>
       <textarea id="diabetes-text" rows="2" placeholder="z.B. Dosierung..." style="resize:vertical"></textarea>
     </div>
     <div class="nav-btns">
@@ -649,7 +660,7 @@
       </div>
     </div>
     <div class="form-group">
-      <label>Weitere / Details <span style="font-size:0.85rem;color:#64748b">(oder freie Eingabe)</span></label>
+      <label>Weitere / Details <span style="font-size:0.85rem;color:#64748b">(optional)</span></label>
       <textarea id="neuro-text" rows="2" placeholder="z.B. Dosierung..." style="resize:vertical"></textarea>
     </div>
     <div class="nav-btns">
@@ -677,7 +688,7 @@
       </div>
     </div>
     <div class="form-group">
-      <label>Weitere / Details <span style="font-size:0.85rem;color:#64748b">(oder freie Eingabe)</span></label>
+      <label>Weitere / Details <span style="font-size:0.85rem;color:#64748b">(optional)</span></label>
       <textarea id="pain-text" rows="2" placeholder="z.B. Dosierung..." style="resize:vertical"></textarea>
     </div>
     <div class="nav-btns">
@@ -703,7 +714,7 @@
       </div>
     </div>
     <div class="form-group">
-      <label>Weitere / Details <span style="font-size:0.85rem;color:#64748b">(oder freie Eingabe)</span></label>
+      <label>Weitere / Details <span style="font-size:0.85rem;color:#64748b">(optional)</span></label>
       <textarea id="gynuro-text" rows="2" placeholder="z.B. Dosierung..." style="resize:vertical"></textarea>
     </div>
     <div class="nav-btns">
@@ -729,7 +740,7 @@
       </div>
     </div>
     <div class="form-group">
-      <label>Weitere / Details <span style="font-size:0.85rem;color:#64748b">(oder freie Eingabe)</span></label>
+      <label>Weitere / Details <span style="font-size:0.85rem;color:#64748b">(optional)</span></label>
       <textarea id="chol-text" rows="2" placeholder="z.B. Dosierung..." style="resize:vertical"></textarea>
     </div>
     <div class="nav-btns">
@@ -955,13 +966,13 @@
       <input type="email" id="contact-email" placeholder="name@beispiel.de">
       <input type="hidden" id="contact-email-verified" value="0">
       <div id="email-status" style="margin-top:8px;font-size:0.9rem;"></div>
-      <p style="font-size:0.85rem;color:#64748b;margin-top:8px">Wir senden Ihnen einen 6-stelligen Code an diese E-Mail-Adresse. Geben Sie den Code unten ein, um Ihre E-Mail-Adresse zu bestätigen.</p>
+      <p style="font-size:0.85rem;color:#64748b;margin-top:8px">Wir senden Ihnen einen Bestätigungslink per E-Mail. Tippen Sie auf den Link in der Nachricht, um Ihre E-Mail-Adresse zu bestätigen.</p>
       <div id="email-actions" style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
-        <button class="btn-ghost" id="btn-send-code" onclick="sendEmailCode()" style="margin:0;flex:1;min-width:120px">Code senden</button>
+        <button class="btn-ghost" id="btn-send-code" onclick="sendEmailCode()" style="margin:0;flex:1;min-width:120px">Bestätigungslink senden</button>
       </div>
       <div id="email-code-group" style="display:none;margin-top:12px">
         <div style="display:flex;gap:8px">
-          <input type="text" id="email-code" placeholder="6-stelliger Code" maxlength="6" inputmode="numeric" pattern="[0-9]*" style="flex:1">
+          <input type="text" id="email-code" placeholder="Code (Fallback)" maxlength="6" inputmode="numeric" pattern="[0-9]*" style="flex:1">
           <button class="btn-primary" id="btn-verify-code" onclick="verifyEmailCode()" style="margin-top:0">Prüfen</button>
         </div>
       </div>
@@ -969,11 +980,25 @@
     </div>
     <div class="nav-btns">
       <button class="btn-secondary" onclick="wizard.prev()">Zurück</button>
-      <button class="btn-primary" onclick="wizard.saveAndNext('contact', collectContact)">Weiter zur Zusammenfassung</button>
+      <button class="btn-primary" onclick="wizard.saveAndNext('contact', collectContact)">Weiter</button>
     </div>
   </div>
 </section>
 
+
+
+<!-- ===== Screen: Email Verified ==================== -->
+<section id="screen-email_verified" class="screen">
+  <div class="card" style="text-align:center">
+    <div style="font-size:64px;margin-bottom:16px">✅</div>
+    <h2>E-Mail verifiziert</h2>
+    <p style="color:#475569;line-height:1.6">Ihre E-Mail-Adresse wurde erfolgreich bestätigt.</p>
+    <p style="color:#64748b;font-size:0.9rem">Sie können jetzt mit Ihrer Anamnese fortfahren.</p>
+    <div class="nav-btns" style="margin-top:24px">
+      <button class="btn-primary" onclick="wizard.next()">Weiter zur Zusammenfassung</button>
+    </div>
+  </div>
+</section>
 <!-- ===== Screen: Notes =============================== -->
 <section id="screen-notes" class="screen">
   <div class="card">
@@ -1005,7 +1030,7 @@
         Sie haben jederzeit das Recht auf Auskunft, Berichtigung und Löschung Ihrer Daten.
       </p>
       <label style="display:flex;align-items:flex-start;gap:10px;font-size:0.9rem;cursor:pointer;">
-        <input type="checkbox" id="dsgvo-consent" style="width:18px;height:18px;margin-top:2px;flex-shrink:0;accent-color:#1E3A5F;">
+        <input type="checkbox" id="dsgvo-consent" style="width:18px;height:18px;margin-top:2px;flex-shrink:0;accent-color:#4477BB;">
         <span>Ich habe den Datenschutzhinweis gelesen und stimme der Speicherung meiner Daten zu.</span>
       </label>
     </div>
@@ -1022,7 +1047,6 @@
 <!-- ===== Screen: Done ================================ -->
 <section id="screen-done" class="screen">
   <div class="card center">
-    <div class="success-icon" id="done-icon">✓</div>
     <h2 id="done-title">Anamnese abgeschickt!</h2>
     <p id="done-message">Vielen Dank. Ihre Angaben wurden sicher an die Praxis übermittelt.</p>
     <p style="font-size:0.9rem;color:#64748b;margin-top:8px">Patienten-ID: <strong id="done-pvs-id">—</strong></p>
@@ -1033,6 +1057,7 @@
   </main>
 </div>
 
-<script src="/js/app.js?v=0.5.5"></script>
+<script src="/js/i18n.js?v=5"></script>
+<script src="/js/app.js?v=0.6.6f"></script>
 </body>
 </html>

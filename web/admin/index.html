@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>myhistree – Praxis Admin</title>
 <style>
-:root { --primary:#1E3A5F; --primary-dark:#1d4ed8; --bg:#f1f5f9; --card:#fff; --text:#1e293b; --text-light:#64748b; --border:#e2e8f0; --success:#22c55e; --warning:#f59e0b; --danger:#ef4444; --radius:12px; }
+:root { --primary:#4477BB; --primary-dark:#3366AA; --bg:#f1f5f9; --card:#fff; --text:#1e293b; --text-light:#64748b; --border:#e2e8f0; --success:#22c55e; --warning:#f59e0b; --danger:#ef4444; --radius:12px; }
 * { box-sizing:border-box; margin:0; padding:0; }
 body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif; background:var(--bg); color:var(--text); line-height:1.5; }
 .container { max-width:1100px; margin:0 auto; padding:20px; }
@@ -34,8 +34,9 @@ table { width:100%; border-collapse:collapse; font-size:0.9rem; }
 th, td { text-align:left; padding:10px; border-bottom:1px solid var(--border); }
 th { font-weight:600; color:var(--text-light); font-size:0.8rem; text-transform:uppercase; letter-spacing:0.5px; }
 tr:hover { background:#f8fafc; }
+#links-table-container { overflow-x:auto; }
 .badge { display:inline-block; padding:3px 8px; border-radius:4px; font-size:0.75rem; font-weight:600; }
-.badge-pending { background:#dbeafe; color:#1d4ed8; }
+.badge-pending { background:#dbeafe; color:#3366AA; }
 .badge-used { background:#dcfce7; color:#166534; }
 .badge-expired { background:#fee2e2; color:#991b1b; }
 .badge-completed { background:#dcfce7; color:#166534; }
@@ -87,17 +88,17 @@ pre.json { background:#1e293b; color:#e2e8f0; padding:16px; border-radius:8px; o
 <body>
 <div class="container">
   <header>
-    <h1>🏠 Praxis Dashboard</h1>
-    <div class="version">myhistree v0.5.6</div>
+    <h1>Praxis Dashboard</h1>
+    <div class="version">myhistree v0.6.7</div>
     <div class="user-info" id="user-info"></div>
   </header>
 
   <div class="tabs">
-    <button class="tab active" data-tab="links" onclick="switchTab('links')">📎 Einladungslinks</button>
-    <button class="tab" data-tab="encounters" onclick="switchTab('encounters')">📝 Anamnesen</button>
-    <button class="tab" data-tab="audit" onclick="switchTab('audit')">📋 Audit-Log</button>
-    <button class="tab" data-tab="users" onclick="switchTab('users')">👤 Nutzer</button>
-    <button class="tab" data-tab="settings" onclick="switchTab('settings')">⚙️ Einstellungen</button>
+    <button class="tab active" data-tab="links" onclick="switchTab('links')">Einladungslinks</button>
+    <button class="tab" data-tab="encounters" onclick="switchTab('encounters')">Anamnesen</button>
+    <button class="tab" data-tab="audit" onclick="switchTab('audit')">Audit-Log</button>
+    <button class="tab" data-tab="users" onclick="switchTab('users')">Nutzer</button>
+    <button class="tab" data-tab="settings" onclick="switchTab('settings')">Einstellungen</button>
   </div>
 
   <!-- TAB: Links -->
@@ -130,6 +131,17 @@ pre.json { background:#1e293b; color:#e2e8f0; padding:16px; border-radius:8px; o
         </div>
       </div>
       <div style="margin-bottom:12px;">
+        <label>Dokumententyp</label>
+        <select id="new-doc-type" onchange="document.getElementById('consent-select-row').style.display=this.value==='consent_form'?'block':'none'">
+          <option value="anamnese" selected>Anamnesebogen</option>
+          <option value="consent_form">Aufklärungsbogen</option>
+        </select>
+      </div>
+      <div id="consent-select-row" style="display:none;margin-bottom:12px;">
+        <label>Aufklärungsbogen</label>
+        <select id="new-consent-form"></select>
+      </div>
+      <div style="margin-bottom:12px;">
         <label><input type="checkbox" id="new-use-pin" onchange="document.getElementById('pin-row').style.display=this.checked?'block':'none'"> 🔒 PIN-Schutz aktivieren</label>
         <div id="pin-row" style="display:none;margin-top:8px;">
           <input type="text" id="new-pin" placeholder="4-stellige PIN (leer = automatisch)" inputmode="numeric" pattern="[0-9]*" maxlength="6">
@@ -144,7 +156,7 @@ pre.json { background:#1e293b; color:#e2e8f0; padding:16px; border-radius:8px; o
             <button class="btn btn-sm btn-secondary" onclick="copyResultLink()">Link kopieren</button>
             <button class="btn btn-sm btn-secondary" onclick="showQRFullscreen()">QR vergroessern</button>
           </div>
-          <div id="result-pin" style="margin-top:8px;font-weight:600;color:#1E3A5F;"></div>
+          <div id="result-pin" style="margin-top:8px;font-weight:600;color:#4477BB;"></div>
         </div>
       </div>
     </div>
@@ -221,7 +233,7 @@ pre.json { background:#1e293b; color:#e2e8f0; padding:16px; border-radius:8px; o
 </div>
 
 <script src="/admin/js/qrcode.min.js"></script>
-<script src="/admin/js/admin-0.5.6.js?v=tap"></script>
+<script src="/admin/js/admin-0.5.7.js?v=4"></script>
 </body>
 </html>
 

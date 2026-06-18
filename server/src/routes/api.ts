@@ -2,7 +2,8 @@ import { FastifyInstance } from "fastify";
 import { db, logAudit, getAuditLog, applyRetention } from "../db/index";
 import { randomUUID } from "crypto";
 import { z } from "zod";
-import { sendAnamneseLink, sendVerificationCodeEmail, validateEmail } from "../email/sender";
+import { sendAnamneseLink, sendConsentFormLink, sendVerificationCodeEmail, sendVerificationEmail, validateEmail } from "../email/sender";
+import { isValidEmailSyntax } from "../email/sender";
 
 const anamneseBody = z.record(z.any());
 const auditQuery = z.object({ limit: z.string().optional(), offset: z.string().optional() });
@@ -18,12 +19,12 @@ async function requireAuth(request: any, reply: any) {
 export default async function apiRoutes(fastify: FastifyInstance) {
   // ────────────────────────────────────────────────────────────────
   // Health
-  fastify.get("/health", async () => ({ status: "ok", version: "0.5.6" }));
+  fastify.get("/health", async () => ({ status: "ok", version: "0.6.7" }));
 
   // ─── Links ──────────────────────────────────────────────────────
   fastify.post("/link/create", { onRequest: requireAuth }, async (request, reply) => {
     const body = request.body as any;
-    const { practiceId, pvsPatientId, patientDob, patientEmail, mobileNumber, expiresHours = 24, pin } = body;
+    const { practiceId, pvsPatientId, patientDob, patientEmail, mobileNumber, expiresHours = 24, pin, documentType = "anamnese", consentFormId } = body;
 
     const practice = db.prepare("SELECT id FROM practices WHERE id = ?").get(practiceId) as { id: string } | undefined;
     if (!practice) return reply.status(404).send({ error: "Practice not found" });
@@ -33,18 +34,18 @@ export default async function apiRoutes(fastify: FastifyInstance) {
     expiresAt.setHours(expiresAt.getHours() + (parseInt(expiresHours) || 24));
     const pinHash = pin ? Buffer.from(pin).toString("base64") : null;
 
-    db.prepare(`INSERT INTO patient_links (id, token, practice_id, pvs_patient_id, patient_dob, patient_email, mobile_number, pin, status, expires_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .run(randomUUID(), token, practiceId, pvsPatientId || null, patientDob || null, patientEmail || null, mobileNumber || null, pinHash, "pending", expiresAt.toISOString());
+    db.prepare(`INSERT INTO patient_links (id, token, practice_id, pvs_patient_id, patient_dob, patient_email, mobile_number, pin, status, expires_at, document_type, consent_form_id)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run(randomUUID(), token, practiceId, pvsPatientId || null, patientDob || null, patientEmail || null, mobileNumber || null, pinHash, "pending", expiresAt.toISOString(), documentType, consentFormId || null);
 
-    logAudit("CREATE_LINK", token, `PVS-ID: ${pvsPatientId}, Email: ${patientEmail || "-"}`, undefined, request.ip);
+    logAudit("CREATE_LINK", token, `PVS-ID: ${pvsPatientId}, Typ: ${documentType}, Email: ${patientEmail || "-"}`, undefined, request.ip);
 
-    return { token, expiresAt: expiresAt.toISOString(), link: `/anamnese/${token}`, pin: pin || null };
+    return { token, expiresAt: expiresAt.toISOString(), link: `/${documentType === "consent_form" ? "aufklaerung" : "anamnese"}/${token}`, pin: pin || null };
   });
 
   fastify.get("/link/list/:practiceId", { onRequest: requireAuth }, async (request) => {
     const { practiceId } = request.params as { practiceId: string };
-    return db.prepare(`SELECT token, pvs_patient_id, patient_dob, patient_email, mobile_number, status, created_at, expires_at,
+    return db.prepare(`SELECT token, pvs_patient_id, patient_dob, patient_email, mobile_number, status, document_type, consent_form_id, created_at, expires_at,
              CASE WHEN pin IS NOT NULL AND pin != '' THEN 1 ELSE 0 END as has_pin
       FROM patient_links WHERE practice_id = ? ORDER BY created_at DESC`).all(practiceId);
   });
@@ -59,9 +60,9 @@ export default async function apiRoutes(fastify: FastifyInstance) {
       return reply.status(410).send({ error: "Link expired" });
     }
     if (link.status === "used") {
-      const encounter = db.prepare("SELECT id, current_screen FROM encounters WHERE source_link_id = ? AND status = 'in-progress'").get(token) as any;
+      const encounter = db.prepare("SELECT id, current_screen, document_type FROM encounters WHERE source_link_id = ? AND status = 'in-progress'").get(token) as any;
       if (encounter) {
-        return { ...link, resume: true, encounterId: encounter.id, currentScreen: encounter.current_screen };
+        return { ...link, resume: true, encounterId: encounter.id, currentScreen: encounter.current_screen, documentType: encounter.document_type };
       }
       return reply.status(410).send({ error: "Link already used" });
     }
@@ -98,21 +99,29 @@ export default async function apiRoutes(fastify: FastifyInstance) {
     db.prepare("INSERT INTO patients (id, pvs_patient_id, date_of_birth) VALUES (?, ?, ?)").run(patientId, link.pvs_patient_id, link.patient_dob);
 
     const encounterId = randomUUID();
-    db.prepare("INSERT INTO encounters (id, patient_id, practice_id, source_link_id, status) VALUES (?, ?, ?, ?, ?)")
-      .run(encounterId, patientId, link.practice_id, link.token, "in-progress");
+    db.prepare("INSERT INTO encounters (id, patient_id, practice_id, source_link_id, status, document_type, consent_form_id) VALUES (?, ?, ?, ?, ?, ?, ?)")
+      .run(encounterId, patientId, link.practice_id, link.token, "in-progress", link.document_type || "anamnese", link.consent_form_id || null);
     db.prepare("UPDATE patient_links SET status = 'used', linked_at = datetime('now') WHERE id = ?")
       .run(link.id);
 
-    logAudit("START_ANAMNESE", link.token, `Encounter: ${encounterId}`, undefined, request.ip);
-    return { encounterId, patientId, practiceId: link.practice_id };
+    logAudit("START_ANAMNESE", link.token, `Encounter: ${encounterId}, Typ: ${link.document_type || "anamnese"}`, undefined, request.ip);
+    return { encounterId, patientId, practiceId: link.practice_id, documentType: link.document_type || "anamnese" };
   });
 
   // ─── Email Send ─────────────────────────────────────────────────
   fastify.post("/link/send-email", { onRequest: requireAuth }, async (request) => {
-    const { to, pvsPatientId, linkUrl, patientDob, pin } = request.body as any;
-    const result = await sendAnamneseLink(to, pvsPatientId, linkUrl, patientDob, pin);
+    const { to, pvsPatientId, linkUrl, patientDob, pin, documentType, consentFormId } = request.body as any;
+    let result;
+    if (documentType === "consent_form") {
+      const template = consentFormId 
+        ? db.prepare("SELECT title FROM consent_form_templates WHERE slug = ?").get(consentFormId) as any
+        : null;
+      result = await sendConsentFormLink(to, pvsPatientId, linkUrl, pin, template?.title);
+    } else {
+      result = await sendAnamneseLink(to, pvsPatientId, linkUrl, pin);
+    }
     if (result.success) {
-      logAudit("SEND_EMAIL", pvsPatientId, `to: ${to}`, undefined, request.ip);
+      logAudit("SEND_EMAIL", pvsPatientId, `to: ${to}, typ: ${documentType || "anamnese"}`, undefined, request.ip);
     }
     return result;
   });
@@ -123,27 +132,29 @@ export default async function apiRoutes(fastify: FastifyInstance) {
     if (!encounterId || !email) return reply.status(400).send({ error: "encounterId and email required" });
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return reply.status(400).send({ error: "Invalid email format" });
 
-    const encounter = db.prepare("SELECT id FROM encounters WHERE id = ?").get(encounterId);
+    const encounter = db.prepare("SELECT id, source_link_id FROM encounters WHERE id = ?").get(encounterId) as any;
     if (!encounter) return reply.status(404).send({ error: "Encounter not found" });
 
     // Delete old unverified codes for this encounter+email
     db.prepare("DELETE FROM email_verifications WHERE encounter_id = ? AND email = ? AND verified = 0").run(encounterId, email);
 
     const code = Math.floor(100000 + Math.random() * 900000).toString();
+    const magicToken = randomUUID();
     const expiresAt = new Date();
     expiresAt.setMinutes(expiresAt.getMinutes() + 30);
 
-    db.prepare(`INSERT INTO email_verifications (id, encounter_id, email, code, verified, attempts, expires_at)
-                VALUES (?, ?, ?, ?, 0, 0, ?)`)
-      .run(randomUUID(), encounterId, email, code, expiresAt.toISOString());
+    db.prepare(`INSERT INTO email_verifications (id, encounter_id, email, code, verified, attempts, expires_at, magic_token, link_token)
+                VALUES (?, ?, ?, ?, 0, 0, ?, ?, ?)`)
+      .run(randomUUID(), encounterId, email, code, expiresAt.toISOString(), magicToken, encounter.source_link_id || null);
 
-    const result = await sendVerificationCodeEmail(email, code);
+    const magicUrl = `https://myhistree.automedix.de/anamnese/${encounter.source_link_id || ""}?verify=email&verifyToken=${magicToken}`;
+    const result = await sendVerificationEmail(email, magicUrl);
     if (!result.success) {
       return reply.status(500).send({ error: result.error || "Failed to send email" });
     }
 
     logAudit("SEND_CODE", encounterId, `to: ${email}`, undefined, request.ip);
-    return { success: true, message: "Code sent" };
+    return { success: true, message: "Verification link sent" };
   });
 
   fastify.post("/email/verify-code", async (request, reply) => {
@@ -165,6 +176,23 @@ export default async function apiRoutes(fastify: FastifyInstance) {
     db.prepare("UPDATE email_verifications SET verified = 1 WHERE id = ?").run(row.id);
     logAudit("VERIFY_EMAIL", encounterId, email, undefined, request.ip);
     return { success: true, message: "Email verified" };
+  });
+
+  fastify.get("/email/verify-magic", async (request, reply) => {
+    const { token } = request.query as any;
+    if (!token) return reply.status(400).send({ error: "Token required" });
+
+    const row = db.prepare("SELECT * FROM email_verifications WHERE magic_token = ?").get(token) as any;
+    if (!row) return reply.status(404).send({ error: "Invalid or expired token" });
+    if (row.verified) return reply.status(400).send({ error: "Already verified" });
+    if (new Date(row.expires_at) < new Date()) return reply.status(410).send({ error: "Token expired" });
+
+    db.prepare("UPDATE email_verifications SET verified = 1 WHERE id = ?").run(row.id);
+
+    const encounter = db.prepare("SELECT id, source_link_id FROM encounters WHERE id = ?").get(row.encounter_id) as any;
+
+    logAudit("VERIFY_EMAIL_MAGIC", row.encounter_id, row.email, undefined, request.ip);
+    return { verified: true, encounterId: row.encounter_id, linkToken: encounter?.source_link_id || null };
   });
 
   fastify.post("/email/validate", async (request) => {
@@ -229,14 +257,15 @@ export default async function apiRoutes(fastify: FastifyInstance) {
 
   fastify.get("/encounters/:practiceId", async (request) => {
     const { practiceId } = request.params as { practiceId: string };
-    return db.prepare(`SELECT id, status, source_link_id, pvs_patient_id, created_at, completed_at, processed_at
+    return db.prepare(`SELECT id, status, source_link_id, pvs_patient_id, document_type, consent_form_id, created_at, completed_at, processed_at
       FROM encounters WHERE practice_id = ? ORDER BY created_at DESC`).all(practiceId);
   });
 
   // ─── Admin ──────────────────────────────────────────────────────
   fastify.get("/admin/encounters/list/:practiceId", { onRequest: requireAuth }, async (request) => {
     const { practiceId } = request.params as { practiceId: string };
-    const rows = db.prepare(`SELECT e.id, e.status, e.source_link_id, e.created_at, e.updated_at, e.completed_at, e.processed_at, l.pvs_patient_id, l.patient_email
+    const rows = db.prepare(`SELECT e.id, e.status, e.document_type, e.consent_form_id, e.source_link_id, e.created_at, e.updated_at, e.completed_at, e.processed_at, l.pvs_patient_id, l.patient_email, l.mobile_number,
+      (SELECT data FROM questionnaire_responses WHERE encounter_id = e.id AND category = 'contact' LIMIT 1) as contact_json
       FROM encounters e LEFT JOIN patient_links l ON e.source_link_id = l.token
       WHERE e.practice_id = ? ORDER BY e.created_at DESC`).all(practiceId);
     return rows;
@@ -325,6 +354,92 @@ export default async function apiRoutes(fastify: FastifyInstance) {
     }
     db.prepare("UPDATE encounters SET current_screen = ? WHERE id = ?").run(currentScreen || null, encounterId);
     return { success: true };
+  });
+
+  // ─── Consent Forms ───────────────────────────────────────────────
+  fastify.get("/consent-forms", async () => {
+    const templates = db.prepare("SELECT id, slug, title, version FROM consent_form_templates ORDER BY title").all();
+    return { templates };
+  });
+
+  fastify.get("/encounter-by-token/:token", async (request, reply) => {
+    const { token } = request.params as { token: string };
+    const row = db.prepare(`
+      SELECT e.id, e.status, e.document_type, e.consent_form_id, l.pvs_patient_id,
+             t.title as consent_title, t.content_html as consent_html
+      FROM encounters e
+      JOIN patient_links l ON e.source_link_id = l.token
+      LEFT JOIN consent_form_templates t ON t.slug = COALESCE(e.consent_form_id, 'standard-datenschutz')
+      WHERE e.source_link_id = ?
+    `).get(token) as any;
+    if (!row) return reply.status(404).send({ error: "Not found" });
+    const existing = db.prepare("SELECT patient_name, signed_at FROM consent_submissions WHERE encounter_id = ?").get(row.id) as any;
+    return { ...row, alreadySubmitted: !!existing, submittedAt: existing?.signed_at || null };
+  });
+
+  fastify.post("/consent/:encounterId/submit", async (request, reply) => {
+    const { encounterId } = request.params as { encounterId: string };
+    const body = request.body as any;
+    const { patientName, signatureSvg, consentItems } = body;
+    if (!patientName || patientName.trim().length < 2) return reply.status(400).send({ error: "Name required" });
+    if (!signatureSvg || signatureSvg.length < 100) return reply.status(400).send({ error: "Signature required" });
+
+    // Validate SVG format to prevent stored XSS from manipulated client payloads
+    const trimmedSvg = signatureSvg.trim();
+    if (!trimmedSvg.startsWith("<svg") || !trimmedSvg.includes("</svg>")) {
+      return reply.status(400).send({ error: "Invalid SVG format" });
+    }
+    if (
+      /<script\b/i.test(trimmedSvg) ||
+      /\bon\w+\s*=/i.test(trimmedSvg) ||
+      /javascript:/i.test(trimmedSvg)
+    ) {
+      return reply.status(400).send({ error: "Invalid SVG content" });
+    }
+    const hrefMatch = trimmedSvg.match(/href="([^"]+)"/i);
+    if (!hrefMatch || !hrefMatch[1].startsWith("data:image/png;base64,")) {
+      return reply.status(400).send({ error: "Invalid image source in SVG" });
+    }
+
+    const encounter = db.prepare("SELECT id, status, document_type FROM encounters WHERE id = ?").get(encounterId) as any;
+    if (!encounter) return reply.status(404).send({ error: "Encounter not found" });
+    if (encounter.status === "completed") return reply.status(409).send({ error: "Already submitted" });
+    if (encounter.document_type !== "consent_form") return reply.status(400).send({ error: "Not a consent form encounter" });
+
+    const ip = request.ip;
+    const ua = request.headers["user-agent"] || "";
+    const now = new Date().toISOString();
+    const consentItemsJson = consentItems ? JSON.stringify(consentItems) : null;
+
+    db.prepare(`INSERT INTO consent_submissions (encounter_id, patient_name, signature_svg, signed_at, ip_address, user_agent, consent_items)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+                ON CONFLICT(encounter_id) DO UPDATE SET
+                  patient_name = excluded.patient_name,
+                  signature_svg = excluded.signature_svg,
+                  signed_at = excluded.signed_at,
+                  ip_address = excluded.ip_address,
+                  user_agent = excluded.user_agent,
+                  consent_items = excluded.consent_items`).run(encounterId, patientName.trim(), signatureSvg, now, ip, ua, consentItemsJson);
+
+    db.prepare("UPDATE encounters SET status = 'completed', completed_at = ? WHERE id = ?").run(now, encounterId);
+    logAudit("CONSENT_SUBMIT", encounterId, patientName.trim(), undefined, request.ip);
+    return { success: true, signedAt: now };
+  });
+
+  fastify.get("/consent/:encounterId", { onRequest: requireAuth }, async (request, reply) => {
+    const { encounterId } = request.params as { encounterId: string };
+    const encounter = db.prepare(`
+      SELECT e.*, l.pvs_patient_id, c.patient_name, c.signature_svg, c.signed_at, c.ip_address, c.user_agent
+      FROM encounters e
+      LEFT JOIN patient_links l ON e.source_link_id = l.token
+      LEFT JOIN consent_submissions c ON c.encounter_id = e.id
+      WHERE e.id = ? AND e.document_type = 'consent_form'
+    `).get(encounterId) as any;
+    if (!encounter) return reply.status(404).send({ error: "Not found" });
+
+    const template = db.prepare("SELECT * FROM consent_form_templates WHERE slug = ?")
+      .get(encounter.consent_form_id || "standard-datenschutz") as any;
+    return { encounter, template };
   });
 
   // ─── Admin: User Management ─────────────────────────────────────
