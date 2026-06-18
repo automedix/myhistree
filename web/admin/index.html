@@ -239,18 +239,14 @@ document.addEventListener('DOMContentLoaded', function() {
   var ids = ['new-pvs-id','new-patient-dob','new-patient-email','new-pin'];
   ids.forEach(function(id) {
     var el = document.getElementById(id);
-    if (el) { el.value = ''; }
+    if (!el) return;
+    el.setAttribute('readonly','');
+    el.addEventListener('focus', function(){ this.removeAttribute('readonly'); });
   });
   var usePin = document.getElementById('new-use-pin');
   if (usePin) { usePin.checked = false; }
   var pinRow = document.getElementById('pin-row');
   if (pinRow) { pinRow.style.display = 'none'; }
-  setTimeout(function() {
-    ids.forEach(function(id) {
-      var el = document.getElementById(id);
-      if (el) { el.value = ''; }
-    });
-  }, 800);
 });
 </script>
 </body>
