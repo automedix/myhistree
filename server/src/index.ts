@@ -45,7 +45,7 @@ app.register(jwt, {
     cookieName: "access_token",
     signed: false,
   },
-  sign: { expiresIn: "15m" },
+  sign: { expiresIn: "8h" },
 });
 
 app.register(staticPlugin, {
