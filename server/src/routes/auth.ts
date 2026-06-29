@@ -99,7 +99,7 @@ export async function registerAuthRoutes(fastify: FastifyInstance) {
       httpOnly: true,
       secure: true,
       sameSite: "strict",
-      maxAge: 15 * 60 * 1000,
+      maxAge: 8 * 60 * 60 * 1000,
     });
 
     return { success: true, admin: { id: admin.id, email: admin.email, role: admin.role } };
@@ -145,7 +145,7 @@ export async function registerAuthRoutes(fastify: FastifyInstance) {
       httpOnly: true,
       secure: true,
       sameSite: "strict",
-      maxAge: 15 * 60 * 1000,
+      maxAge: 8 * 60 * 60 * 1000,
     });
 
     return { success: true, admin: { id: admin.id, email: admin.email, role: admin.role } };
@@ -175,7 +175,7 @@ export async function registerAuthRoutes(fastify: FastifyInstance) {
       httpOnly: true,
       secure: true,
       sameSite: "strict",
-      maxAge: 15 * 60 * 1000,
+      maxAge: 8 * 60 * 60 * 1000,
     });
 
     return { success: true };
