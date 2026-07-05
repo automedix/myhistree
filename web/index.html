@@ -82,7 +82,7 @@
     <div id="verify-error" class="error-banner"></div>
     <div class="form-group" id="verify-dob-group">
       <label>Ihr Geburtsdatum <span style="color:#ef4444">*</span></label>
-      <input type="date" id="verify-dob" required style="font-size:1rem">
+      <input type="text" id="verify-dob" inputmode="numeric" required maxlength="10" placeholder="TT.MM.JJJJ" autocomplete="off" style="font-size:1rem">
     </div>
     <div class="form-group" id="verify-pin-group" style="display:none">
       <label>PIN <span style="color:#ef4444">*</span></label>
@@ -346,6 +346,9 @@
         <option value="meister">Meister / Techniker</option>
         <option value="bachelor">Bachelor</option>
         <option value="master">Master</option>
+        <option value="hochschuldiplom">Hochschuldiplom</option>
+        <option value="hochschulstudium">Hochschulstudium</option>
+        <option value="staatsexamen">Staatsexamen</option>
         <option value="promotion">Promotion</option>
         <option value="habilitation">Habilitation</option>
       </select>
@@ -371,6 +374,7 @@
         <option value="student">Student / Schüler / Auszubildender</option>
         <option value="in-elternzeit">In Elternzeit</option>
         <option value="erwerbsunfaehig">Erwerbsunfähig / Dauerkrank</option>
+        <option value="sonstige">Sonstige</option>
       </select>
     </div>
     <div class="nav-btns">
@@ -504,6 +508,10 @@
         <label class="radio-card"><input type="radio" name="cond_cancer" value="ja" onclick="toggleCondition('cancer', true)"> Ja</label>
       </div>
       <input type="text" id="condition-cancer-text" class="hidden" placeholder="Welche Krebserkrankung?" style="margin-top:10px">
+    </div>
+    <div class="form-group" style="margin-top:20px">
+      <label>Sonstige Vorerkrankungen <span style="font-size:0.85rem;color:#64748b">(falls nicht in der Liste)</span></label>
+      <textarea id="condition-detail-text" rows="3" placeholder="Beschreiben Sie weitere chronische Erkrankungen..." style="resize:vertical"></textarea>
     </div>
     <div class="nav-btns">
       <button class="btn-secondary" onclick="wizard.prev()">Zurück</button>
@@ -990,12 +998,12 @@
 <!-- ===== Screen: Email Verified ==================== -->
 <section id="screen-email_verified" class="screen">
   <div class="card" style="text-align:center">
-    <div style="font-size:64px;margin-bottom:16px"></div>
+    <div style="font-size:64px;margin-bottom:16px">✅</div>
     <h2>E-Mail verifiziert</h2>
     <p style="color:#475569;line-height:1.6">Ihre E-Mail-Adresse wurde erfolgreich bestätigt.</p>
     <p style="color:#64748b;font-size:0.9rem">Sie können jetzt mit Ihrer Anamnese fortfahren.</p>
     <div class="nav-btns" style="margin-top:24px">
-      <button class="btn-primary" onclick="wizard.next()">Weiter zur Zusammenfassung</button>
+      <button class="btn-primary" onclick="wizard.next()">Weiter</button>
     </div>
   </div>
 </section>
@@ -1008,19 +1016,6 @@
       <label>Freitext <span style="font-size:0.85rem;color:#64748b">(optional)</span></label>
       <textarea id="notes-text" rows="6" placeholder="z.B. aktuelle Medikamentenänderungen, Besonderheiten, Wünsche für den Termin..."></textarea>
     </div>
-    <div class="nav-btns">
-      <button class="btn-secondary" onclick="wizard.prev()">Zurück</button>
-      <button class="btn-primary" onclick="wizard.saveAndNext('notes', collectNotes)">Weiter zur Zusammenfassung</button>
-    </div>
-  </div>
-</section>
-
-<!-- ===== Screen: Review ============================== -->
-<section id="screen-review" class="screen">
-  <div class="card">
-    <h2>Zusammenfassung</h2>
-    <p class="help">Bitte prüfen Sie Ihre Angaben vor dem Absenden.</p>
-    <div id="review-content"></div>
     <div style="margin-top:20px;padding:16px;background:#f1f5f9;border-radius:10px;border:1px solid #e2e8f0;">
       <h3 style="margin:0 0 10px 0;font-size:1rem;">Datenschutzhinweis</h3>
       <p style="font-size:0.85rem;color:#475569;margin:0 0 12px 0;line-height:1.5;">
@@ -1038,7 +1033,7 @@
       <button class="btn-secondary" onclick="wizard.prev()">Zurück</button>
       <div style="display:flex;gap:10px;flex:1;justify-content:flex-end;flex-wrap:wrap;">
         <button class="btn-secondary" onclick="rejectAnamnese()" style="background:#fee2e2;color:#991b1b;">Ablehnen & Daten löschen</button>
-        <button class="btn-primary" onclick="submitFinal()">Anamnese absenden</button>
+        <button class="btn-primary" onclick="saveNotesAndSubmit()">Anamnese absenden</button>
       </div>
     </div>
   </div>
@@ -1058,6 +1053,7 @@
 </div>
 
 <script src="/js/i18n.js?v=5"></script>
-<script src="/js/app.js?v=0.6.7"></script>
+<script src="/js/app.js?v=0.6.15"></script>
+<script>function autoFormatDob(el){var v=el.value.replace(/\D/g,"").substring(0,8);if(v.length>=4)v=v.substring(0,2)+"."+v.substring(2,4)+"."+v.substring(4);else if(v.length>=2)v=v.substring(0,2)+"."+v.substring(2);el.value=v;}document.addEventListener("DOMContentLoaded",function(){var el=document.getElementById("verify-dob");if(el)el.addEventListener("input",function(){autoFormatDob(this);});});</script>
 </body>
 </html>

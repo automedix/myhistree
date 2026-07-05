@@ -95,7 +95,7 @@ pre.json { background:#1e293b; color:#e2e8f0; padding:16px; border-radius:8px; o
 
   <div class="tabs">
     <button class="tab active" data-tab="links" onclick="switchTab('links')">Einladungslinks</button>
-    <button class="tab" data-tab="encounters" onclick="switchTab('encounters')">Anamnesen</button>
+    <button class="tab" data-tab="encounters" onclick="switchTab('encounters')">Dokumente</button>
     <button class="tab" data-tab="audit" onclick="switchTab('audit')">Audit-Log</button>
     <button class="tab" data-tab="users" onclick="switchTab('users')">Nutzer</button>
     <button class="tab" data-tab="settings" onclick="switchTab('settings')">Einstellungen</button>
@@ -139,6 +139,8 @@ pre.json { background:#1e293b; color:#e2e8f0; padding:16px; border-radius:8px; o
         <select id="new-doc-type" onchange="document.getElementById('consent-select-row').style.display=this.value==='consent_form'?'block':'none'">
           <option value="anamnese" selected>Anamnesebogen</option>
           <option value="consent_form">Aufklärungsbogen</option>
+          <option value="bloodpressure">Blutdruckmessung</option>
+          <option value="behandlungsvertrag">Behandlungsvertrag</option>
         </select>
       </div>
       <div id="consent-select-row" style="display:none;margin-bottom:12px;">
@@ -210,11 +212,8 @@ pre.json { background:#1e293b; color:#e2e8f0; padding:16px; border-radius:8px; o
   </div>
   <!-- TAB: Settings -->
   <div id="tab-settings" class="tab-content">
-    <div class="card">
-      <h2>Sicherheitseinstellungen</h2>
-      <div id="settings-content">
-        <p class="empty">Lade Einstellungen...</p>
-      </div>
+    <div id="settings-content">
+      <p class="empty">Lade Einstellungen...</p>
     </div>
   </div>
 </div>
@@ -237,7 +236,7 @@ pre.json { background:#1e293b; color:#e2e8f0; padding:16px; border-radius:8px; o
 </div>
 
 <script src="/admin/js/qrcode.min.js"></script>
-<script src="/admin/js/admin-0.5.7.js?v=7"></script>
+<script src="/admin/js/admin-0.5.7.js?v=36"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
   var ids = ['new-pvs-id','new-patient-dob','new-patient-email','new-pin'];

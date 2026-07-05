@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Behandlungsvertrag | myhistree</title>
+  <link rel="stylesheet" href="/css/consent-form.css?v=0.6.7d">
+  <style>
+    .contract-section { background:#fff; border:1px solid var(--border); border-radius:10px; padding:1.5rem; margin-bottom:1rem; }
+    .contract-section h2 { margin-top:0; font-size:1.15rem; color:var(--primary); }
+    .tariff-group { display:flex; flex-direction:column; gap:0.6rem; margin:1rem 0; }
+    .tariff-option { display:flex; align-items:center; gap:0.5rem; cursor:pointer; padding:0.5rem; border:1px solid transparent; border-radius:8px; }
+    .tariff-option:hover { background:#f1f5f9; }
+    .tariff-option input { width:20px; height:20px; accent-color:var(--primary); cursor:pointer; }
+    .tariff-option label { cursor:pointer; flex:1; }
+    .multiplier-wrap { margin-left:2rem; margin-top:0.4rem; }
+    .multiplier-wrap select { padding:0.4rem 0.8rem; font-size:1rem; border:1px solid var(--border); border-radius:6px; }
+    .practice-block { margin-bottom:1.5rem; padding-bottom:1rem; border-bottom:1px solid var(--border); }
+    .practice-block strong { display:block; font-size:1.05rem; margin-bottom:0.3rem; }
+    .practice-block span { display:block; color:var(--text-light); font-size:0.95rem; }
+  </style>
+</head>
+<body>
+  <div id="loading">
+    <div class="spinner"></div>
+    <p class="loading-text">Vertrag wird geladen…</p>
+  </div>
+
+  <div id="error-screen" class="hidden">
+    <div class="error-icon">!</div>
+    <h2>Fehler</h2>
+    <p id="error-message">Dieser Link ist ungültig oder bereits abgelaufen.</p>
+  </div>
+
+  <div id="already-submitted" class="hidden">
+    <div class="success-icon"></div>
+    <h2>Bereits unterschrieben</h2>
+    <p>Dieser Behandlungsvertrag wurde bereits übermittelt.</p>
+    <p class="hint">Sie können dieses Fenster jetzt schließen.</p>
+  </div>
+
+  <div id="auth-screen" class="hidden">
+    <div class="auth-box">
+      <h2>Identität bestätigen</h2>
+      <p class="subtitle">Bitte geben Sie Ihre Daten ein, um den Behandlungsvertrag zu öffnen.</p>
+      <div class="form-group required">
+        <label for="auth-dob">Geburtsdatum</label>
+        <input type="text" id="auth-dob" inputmode="numeric" required maxlength="10" placeholder="TT.MM.JJJJ" autocomplete="off">
+      </div>
+      <div class="form-group hidden" id="auth-pin-group">
+        <label for="auth-pin">PIN (von der Praxis mitgeteilt)</label>
+        <input type="text" id="auth-pin" inputmode="numeric" pattern="[0-9]*" maxlength="6" placeholder="z. B. 1234" autocomplete="off">
+      </div>
+      <button id="auth-submit" class="btn-primary">Vertrag öffnen</button>
+      <p class="hint" id="auth-error" style="color:#ef4444;"></p>
+    </div>
+  </div>
+
+  <div id="contract-screen" class="hidden">
+    <header class="cf-header">
+      <h1>Behandlungsvertrag (Privatpatient)</h1>
+      <div class="patient-info">PVS-ID: <span id="pvs-id">–</span></div>
+    </header>
+
+    <main class="cf-content">
+      <section class="contract-section">
+        <div class="practice-block" id="practice-block">
+          <strong id="practice-name">Praxis</strong>
+          <span id="practice-address"></span>
+          <span id="practice-city"></span>
+          <span id="practice-contact"></span>
+
+
+                <h1>Behandlungsvertrag</h1>
+                <p style="text-align:center;color:#555;font-size:0.9rem;margin-bottom:1rem;">für privatärztlich versicherte Patientinnen und Patienten<br>gemäß §§ 630a ff. BGB | GOÄ | Datenschutz-Grundverordnung (DSGVO)</p>
+                <h2>§ 1  Vertragsparteien</h2>
+                <p>Dieser Behandlungsvertrag wird geschlossen zwischen der oben genannten Praxis (nachfolgend „Praxis“) und der oben genannten Patientin / dem oben genannten Patienten (nachfolgend „Patient“). Der Vertrag regelt die privatärztliche Behandlung gemäß §§ 630a ff. BGB.</p>
+                <h2>§ 2  Gegenstand und Umfang der Behandlung</h2>
+                <p>Die Praxis erbringt ärztliche Leistungen auf dem Gebiet der Allgemeinmedizin nach aktuellem medizinischen Standard. Der Umfang umfasst insbesondere:</p>
+                <ul>
+                  <li>allgemeinmedizinische Diagnostik, Beratung und Therapie</li>
+                  <li>Vorsorgeuntersuchungen und Präventionsleistungen</li>
+                  <li>Koordination und Überweisung zu Fachärzten und stationären Einrichtungen</li>
+                  <li>Ausstellung von Überweisungen, Rezepten und Attesten</li>
+                  <li>Leistungen außerhalb des allgemeinmedizinischen Fachgebietes werden auf Wunsch des Patienten durch geeignete Fachärzte erbracht. Die Praxis unterstützt dabei die Koordination.</li>
+                </ul>
+                <h2>§ 3  Abrechnung – Grundlagen (GOÄ)</h2>
+                <p>Die Abrechnung erfolgt nach der Gebührenordnung für Ärzte (GOÄ) in der jeweils gültigen Fassung. Maßgeblich sind die dort festgelegten Gebührentatbestände und Steigerungsfaktoren. Der Regelsatz beträgt 2,3-fach, bis maximal 3,5-fach bei besonderem Aufwand (§ 12 Abs. 3 GOÄ).</p>
+                <p>Bei Wahl des Standardtarifs handelt es sich um einen abweichenden Steigerungsfaktor, den der Patient mit seiner privaten Krankenversicherung vertraglich festgelegt hat. Maßgeblich ist der jeweilige individuelle Tarifvertrag des Versicherers.</p>
+                <p>Ein Überschreiten des Regelsatzes erfolgt nur bei medizinischer oder zeitlicher Besonderheit und wird auf der Rechnung begründet (§ 12 Abs. 3 GOÄ). Der Patient ist darüber informiert, dass seine PKV-Erstattung vom individuellen Tarif abhängt und etwaige Differenzbeträge vom Patienten selbst zu tragen sind.</p>
+                <h2>§ 3a  Mitteilungspflicht bei Standard- oder Basistarif</h2>
+                <p>Für die Mitteilung des abweichenden Tarifs ist das untenstehende Feld vorgesehen. Die Praxis empfiehlt, zur Erstvorstellung den aktuellen Versicherungsnachweis (Versicherungsausweis oder Tarifbestätigung) mitzubringen.</p>
+                <h2>§ 4 Fälligkeit und Zahlungsweise</h2>
+                <p>Ärztliche Rechnungen sind grundsätzlich an den Patienten gerichtet und werden nach GOÄ erstellt. Die Rechnung ist zahlbar innerhalb von 30 Tagen nach Rechnungsdatum. Bei Zahlungsverzug können Verzugszinsen nach § 288 BGB geltend gemacht werden.</p>
+                <h2>§ 5 Pflichten des Patienten</h2>
+                <p>Der Patient verpflichtet sich:</p>
+                <ul>
+                  <li>vollständige und wahrheitsgemäße Angaben über Vorerkrankungen, Medikamente, Allergien und Beschwerden zu machen</li>
+                  <li>vereinbarte Termine einzuhalten oder diese mindestens 24 Stunden vorab abzusagen</li>
+                  <li>ärztliche Empfehlungen und Therapiepläne im Rahmen des Zumutbaren zu befolgen</li>
+                  <li>die Praxis unverzüglich über Änderungen der Versicherungsverhältnisse zu informieren</li>
+                </ul>
+                <h2>§ 6 Aufklärung und Einwilligung (§§ 630d, 630e BGB)</h2>
+                <p>Vor jeder Maßnahme, die mit einem Risiko verbunden ist, erfolgt eine Aufklärung in verständlicher Form und in angemessenem zeitlichem Abstand. Der Patient willigt in die Behandlung nach vollständiger Aufklärung ein. Eine mündliche Aufklärung wird dokumentiert; bei invasiven Maßnahmen erfolgt eine schriftliche Einwilligung.</p>
+                <p>Die Aufklärungspflicht entfällt, wenn der Patient auf sie ausdrücklich verzichtet oder eine Notfallsituation besteht (§ 630e Abs. 3 BGB).</p>
+                <h2>§ 7 Dokumentation und Einsichtsrecht (§ 630f BGB)</h2>
+                <p>Die Praxis führt eine vollständige Patientenakte. Der Patient hat das Recht auf Einsichtnahme in seine Patientenakte und auf die Überlassung von Kopien gegen Erstattung der tatsächlichen Kosten. Die Aufbewahrungsfrist beträgt gemäß § 10 MBO-Ä und landesrechtlichen Regelungen mindestens 10 Jahre.</p>
+                <h2>§ 8 Datenschutz (DSGVO / BDSG)</h2>
+                <p>Die Verarbeitung personenbezogener und gesundheitsbezogener Daten erfolgt auf Grundlage von Art. 6 Abs. 1 lit. b sowie Art. 9 Abs. 2 lit. h DSGVO (Behandlungsvertrag / medizinische Versorgung) sowie § 22 Abs. 1 Nr. 1 lit. b BDSG.</p>
+                <p>Der Patient hat das Recht auf Auskunft (Art. 15 DSGVO), Berichtigung (Art. 16), Löschung (Art. 17), Einschränkung der Verarbeitung (Art. 18) sowie Datenübertragbarkeit (Art. 20 DSGVO). Eine gesonderte Datenschutzinformation gemäß Art. 13 DSGVO wird dem Patienten bei Erstvorstellung ausgehändigt.</p>
+                <p>Die Praxis gibt Daten nur weiter, soweit dies für die Behandlung erforderlich ist (z. B. Konsiliaränzte, Labor, Krankenhaus) oder eine gesetzliche Verpflichtung besteht.</p>
+                <h2>§ 9 Kündigung / Beendigung des Vertrages</h2>
+                <p>Das Behandlungsverhältnis kann von beiden Seiten beendet werden. Die Praxis kann die Behandlung aus wichtigem Grund beenden (z. B. anhaltend fehlende Mitwirkung, grobe Verstöße gegen die Pflichten aus § 6), sofern dies dem Patienten zumutbar ist und keine medizinische Notfallsituation vorliegt. Im Notfall werden lebensrettende Maßnahmen stets erbracht.</p>
+                <h2>§ 10 Haftung</h2>
+                <p>Die Haftung der Praxis richtet sich nach den gesetzlichen Vorschriften. Eine Haftung wird nur für Schäden übernommen, die auf einer schuldhaften Verletzung der Behandlungspflicht beruhen. Die Beweislastregeln des § 630h BGB bleiben unberührt.</p>
+                <h2>§ 11 Salvatorische Klausel / Anwendbares Recht</h2>
+                <p>Sollte eine Bestimmung dieses Vertrages unwirksam sein, bleibt der Vertrag im Übrigen wirksam. Die unwirksame Bestimmung ist durch eine wirksame zu ersetzen, die dem wirtschaftlichen Zweck am nächsten kommt. Es gilt das Recht der Bundesrepublik Deutschland.</p>
+                <p>Ich habe den Behandlungsvertrag vollständig gelesen und verstanden. Ich erkläre mich mit den vorstehenden Bedingungen einverstanden. Die Datenschutzinformation nach Art. 13 DSGVO habe ich erhalten.</p>
+                <p>– Für Praxisinternen Gebrauch – Bitte Original in Patientenakte ablegen –</p>
+
+<div class="tariff-group" id="tariff-group">
+          <div class="tariff-option">
+            <input type="radio" name="tariff" id="tariff-regelsatz" value="regelsatz" checked>
+            <label for="tariff-regelsatz"><strong>Regelsatz</strong> – GOÄ § 5 Abs. 1 (2,3-facher Satz, bis max. 3,5-fach bei besonderem Aufwand)</label>
+          </div>
+          <div class="tariff-option">
+            <input type="radio" name="tariff" id="tariff-standardtarif" value="standardtarif">
+            <label for="tariff-standardtarif"><strong>Standardtarif</strong> – Anlage zu § 7 GOÄ (abweichender Steigerungsfaktor möglich)</label>
+          </div>
+          <div class="multiplier-wrap hidden" id="multiplier-wrap">
+            <label for="multiplier">Mit der PKV vereinbarter Steigerungsfaktor:</label>
+            <select id="multiplier">
+              <!-- 1.0 bis 2.3 in 0,1 Schritten -->
+            </select>
+          </div>
+          <div class="tariff-option">
+            <input type="radio" name="tariff" id="tariff-basistarif" value="basistarif">
+            <label for="tariff-basistarif"><strong>Basistarif</strong> – Anlage zu § 8 GOÄ (1,0-facher Satz, keine Steigerungsfaktoren)</label>
+          </div>
+        </div>
+
+        <h2>2. Hinweis Standardtarif</h2>
+        <p>Bei Wahl des Standardtarifs wählen Sie bitte den mit Ihrer privaten Krankenversicherung vertraglich festgelegten Steigerungsfaktor aus. Dieser richtet sich nach Ihrem individuellen Tarif.</p>
+
+        <h2>3. Kenntnisnahme</h2>
+        <p>Ich bestätige, dass ich über die Abrechnungsgrundlage informiert wurde und die Bedeutung der gewählten Tarifoption verstehe.</p>
+      </section>
+    </main>
+
+    <div class="scroll-indicator" id="scroll-indicator">
+      <span>Bitte lesen Sie den Text vollständig durch</span>
+    </div>
+
+    <section class="cf-sign-section" id="sign-section">
+      <p class="legal-hint">
+        <strong>Rechtlicher Hinweis:</strong> Mit Ihrer Unterschrift bestätigen Sie, dass Sie den oben stehenden Text vollständig gelesen und verstanden haben und die gewählte Abrechnungsgrundlage vereinbaren. Die Unterschrift erfolgt als dokumentarische elektronische Signatur gemäß § 126a BGB.
+      </p>
+
+      <div class="form-group required">
+        <label for="patient-name">Vor- und Nachname des Patienten / der Patientin</label>
+        <input type="text" id="patient-name" placeholder="z. B. Max Mustermann" autocomplete="name" required>
+        <span class="hint" id="name-hint">Mindestens 2 Zeichen</span>
+      </div>
+
+      <div class="form-group required">
+        <label>Unterschrift <span class="hint-inline">(Finger oder Stift auf dem Touchscreen)</span></label>
+        <canvas id="signature-pad" width="600" height="200"></canvas>
+        <div class="canvas-actions">
+          <button type="button" id="clear-sig" class="btn-secondary">Unterschrift löschen</button>
+          <span class="hint" id="sig-hint">Bitte unten im Feld unterschreiben</span>
+        </div>
+      </div>
+
+      <div class="meta-info">
+        <p>IP: <span id="ip-hint">wird erfasst</span> | Zeit: <span id="time-hint">–</span></p>
+      </div>
+
+      <button id="submit-contract" class="btn-primary" disabled>
+        Vertrag unterschreiben &amp; absenden
+      </button>
+      <p class="hint submit-hint" id="submit-hint">Scrollen Sie bis zum Ende, geben Ihren Namen ein und unterschreiben Sie, um den Knopf zu aktivieren.</p>
+    </section>
+  </div>
+
+  <div id="success-screen" class="hidden">
+    <div class="success-icon"></div>
+    <h2>Vielen Dank!</h2>
+    <p>Ihr Behandlungsvertrag wurde erfolgreich übermittelt.</p>
+    <p class="subtitle">Sie können dieses Fenster jetzt schließen.</p>
+    <p class="hint">Bei Fragen wenden Sie sich bitte an das Praxis-Team.</p>
+  </div>
+
+  <script>
+  (async function() {
+    'use strict';
+    const API = '';
+    const m = window.location.pathname.match(/\/behandlungsvertrag\/([a-f0-9-]{32,})/);
+    const token = m ? m[1] : null;
+    if (!token) { showError('Ungültiger Link'); return; }
+
+    const els = {
+      loading: document.getElementById('loading'),
+      error: document.getElementById('error-screen'),
+      already: document.getElementById('already-submitted'),
+      auth: document.getElementById('auth-screen'),
+      authDob: document.getElementById('auth-dob'),
+      authPin: document.getElementById('auth-pin'),
+      authPinGroup: document.getElementById('auth-pin-group'),
+      authSubmit: document.getElementById('auth-submit'),
+      authError: document.getElementById('auth-error'),
+      contract: document.getElementById('contract-screen'),
+      success: document.getElementById('success-screen'),
+      pvsId: document.getElementById('pvs-id'),
+      practiceName: document.getElementById('practice-name'),
+      practiceAddress: document.getElementById('practice-address'),
+      practiceCity: document.getElementById('practice-city'),
+      practiceContact: document.getElementById('practice-contact'),
+      nameInput: document.getElementById('patient-name'),
+      canvas: document.getElementById('signature-pad'),
+      clearBtn: document.getElementById('clear-sig'),
+      submitBtn: document.getElementById('submit-contract'),
+      timeHint: document.getElementById('time-hint'),
+      scrollInd: document.getElementById('scroll-indicator'),
+      submitHint: document.getElementById('submit-hint'),
+      nameHint: document.getElementById('name-hint'),
+      sigHint: document.getElementById('sig-hint'),
+      ipHint: document.getElementById('ip-hint'),
+    };
+
+    let encounterId = null;
+    let hasScrolledToBottom = false;
+    let isDrawing = false;
+    let hasSignature = false;
+    let currentLinkData = null;
+
+    const multiplierSelect = document.getElementById('multiplier');
+    for (let v = 1.0; v <= 2.3; v += 0.1) {
+      const opt = document.createElement('option');
+      opt.value = v.toFixed(1);
+      opt.textContent = v.toFixed(1).replace('.', ',');
+      if (v === 1.5) opt.selected = true;
+      multiplierSelect.appendChild(opt);
+    }
+
+    document.querySelectorAll('input[name="tariff"]').forEach(radio => {
+      radio.addEventListener('change', () => {
+        const showMult = document.getElementById('tariff-standardtarif').checked;
+        document.getElementById('multiplier-wrap').classList.toggle('hidden', !showMult);
+      });
+    });
+
+    function parseGermanDate(dobStr) {
+      const m = dobStr.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+      if (!m) return null;
+      const [, dd, mm, yyyy] = m;
+      const d = new Date(`${yyyy}-${mm}-${dd}T00:00:00`);
+      if (d.getFullYear() !== parseInt(yyyy) || d.getMonth() + 1 !== parseInt(mm) || d.getDate() !== parseInt(dd)) return null;
+      return `${yyyy}-${mm}-${dd}`;
+    }
+
+    // Canvas to SVG export
+    function canvasToSvg(canvas) {
+      const w = canvas.width / (window.devicePixelRatio || 1);
+      const h = canvas.height / (window.devicePixelRatio || 1);
+      const png = canvas.toDataURL('image/png');
+      return `<svg xmlns="http://www.w3.org/2000/svg" width="${Math.round(w)}" height="${Math.round(h)}" viewBox="0 0 ${Math.round(w)} ${Math.round(h)}"><image href="${png}" width="${Math.round(w)}" height="${Math.round(h)}"/></svg>`;
+    }
+
+    function showError(msg) { if(els.error){ els.error.classList.remove('hidden'); document.getElementById('error-message').textContent = msg; } }
+    function hide(s) { if(s) s.classList.add('hidden'); }
+
+    async function init() {
+      try {
+        const res = await fetch(`${API}/api/link/validate/${token}`);
+        if (!res.ok) throw new Error('Ungültiger Link');
+        const data = await res.json();
+        currentLinkData = data;
+        if (data.alreadySubmitted) {
+          hide(els.loading); hide(els.auth);
+          els.already.classList.remove('hidden');
+          return;
+        }
+        if (data.resume && data.encounterId) {
+          encounterId = data.encounterId;
+          enterContract(data);
+        } else {
+          hide(els.loading);
+          els.auth.classList.remove('hidden');
+          if (data.requiresPin || data.pin) els.authPinGroup.classList.remove('hidden');
+        }
+      } catch (e) { hide(els.loading); showError(e.message || 'Fehler beim Laden'); }
+    }
+
+    els.authSubmit.addEventListener('click', async () => {
+      const dobRaw = els.authDob.value.trim();
+      const dob = parseGermanDate(dobRaw);
+      if (!dob) { els.authError.textContent = 'Bitte geben Sie das Geburtsdatum im Format TT.MM.JJJJ ein.'; return; }
+      const pin = els.authPin.value || undefined;
+      els.authSubmit.disabled = true;
+      els.authSubmit.textContent = 'Wird geprüft…';
+      els.authError.textContent = '';
+      try {
+        const res = await fetch(`${API}/api/link/start`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ token, patientDob: dob, pin })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Authentifizierung fehlgeschlagen');
+        encounterId = data.encounterId;
+        enterContract(currentLinkData);
+      } catch (e) {
+        els.authError.textContent = (e && e.message) ? e.message : String(e);
+      } finally {
+        els.authSubmit.disabled = false;
+        els.authSubmit.textContent = 'Vertrag öffnen';
+      }
+    });
+
+    function enterContract(data) {
+      hide(els.loading); hide(els.auth);
+      els.contract.classList.remove('hidden');
+      if (data.pvs_patient_id) els.pvsId.textContent = data.pvs_patient_id;
+
+      if (data.practice_name) els.practiceName.textContent = data.practice_name;
+      if (data.address) els.practiceAddress.textContent = data.address;
+      if (data.city && data.postal_code) els.practiceCity.textContent = `${data.postal_code} ${data.city}`;
+      else if (data.city) els.practiceCity.textContent = data.city;
+      const contactParts = [];
+      if (data.phone) contactParts.push('Tel: ' + data.phone);
+      if (data.practice_email) contactParts.push('E-Mail: ' + data.practice_email);
+      if (contactParts.length) els.practiceContact.textContent = contactParts.join(' | ');
+
+      const now = new Date();
+      els.timeHint.textContent = now.toLocaleString('de-DE');
+      updateSubmitState();
+    }
+
+    // Canvas
+    const ctx = els.canvas.getContext('2d');
+    ctx.lineWidth = 2; ctx.lineCap = 'round'; ctx.strokeStyle = '#334155';
+    function getPos(e) { const rect = els.canvas.getBoundingClientRect(); const clientX = e.touches ? e.touches[0].clientX : e.clientX; const clientY = e.touches ? e.touches[0].clientY : e.clientY; return { x: clientX - rect.left, y: clientY - rect.top }; }
+    function start(e) { isDrawing = true; hasSignature = true; updateSubmitState(); const pos = getPos(e); ctx.beginPath(); ctx.moveTo(pos.x, pos.y); e.preventDefault(); }
+    function draw(e) { if (!isDrawing) return; const pos = getPos(e); ctx.lineTo(pos.x, pos.y); ctx.stroke(); e.preventDefault(); }
+    function stop() { isDrawing = false; }
+    els.canvas.addEventListener('mousedown', start);
+    els.canvas.addEventListener('mousemove', draw);
+    window.addEventListener('mouseup', stop);
+    els.canvas.addEventListener('touchstart', start, {passive:false});
+    els.canvas.addEventListener('touchmove', draw, {passive:false});
+    window.addEventListener('touchend', stop);
+    els.clearBtn.addEventListener('click', () => { ctx.clearRect(0,0,els.canvas.width,els.canvas.height); hasSignature=false; updateSubmitState(); });
+
+    function updateSubmitState() {
+      const nameOk = els.nameInput.value.trim().length >= 2;
+      const tariffOk = document.querySelector('input[name="tariff"]:checked');
+      const ok = nameOk && hasSignature && tariffOk;
+      els.submitBtn.disabled = !ok;
+      els.submitHint.style.display = ok ? 'none' : 'block';
+    }
+    els.nameInput.addEventListener('input', () => { els.nameHint.style.color = els.nameInput.value.trim().length < 2 ? '#ef4444' : '#22c55e'; updateSubmitState(); });
+
+    els.submitBtn.addEventListener('click', async () => {
+      const name = els.nameInput.value.trim();
+      const svg = canvasToSvg(els.canvas);
+      const tariff = document.querySelector('input[name="tariff"]:checked')?.value;
+      let multiplier = null;
+      if (tariff === 'standardtarif') multiplier = document.getElementById('multiplier').value;
+      try {
+        const res = await fetch(`${API}/api/behandlungsvertrag/${encounterId}/submit`, {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ patientName: name, signatureSvg: svg, tariff, multiplier, contractHtml: document.querySelector('.contract-section').innerHTML })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || 'Absenden fehlgeschlagen');
+        hide(els.contract);
+        els.success.classList.remove('hidden');
+      } catch (e) { alert(e.message); }
+    });
+
+    await init();
+  })();
+  </script>
+
+<script>
+function setupDobAutoFormat(inputId) {
+  var el = document.getElementById(inputId);
+  if (!el) return;
+  el.addEventListener("input", function(e) {
+    var digits = el.value.replace(/[^0-9]/g, "");
+    var val = digits;
+    if (digits.length >= 2) val = digits.substring(0, 2) + "." + digits.substring(2);
+    if (digits.length >= 4) val = val.substring(0, 5) + "." + digits.substring(4, 8);
+    el.value = val;
+  });
+}
+if (document.getElementById("auth-dob")) setupDobAutoFormat("auth-dob");
+</script>
+</body>
+</html>

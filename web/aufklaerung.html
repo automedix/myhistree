@@ -3,11 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <meta http-equiv="Cache-Control" content="no-store, no-cache, must-revalidate">
-  <meta http-equiv="Pragma" content="no-cache">
-  <meta http-equiv="Expires" content="0">
   <title>Aufklärungsbogen | myhistree</title>
-  <link rel="stylesheet" href="/css/consent-form.css?v=0.7.1">
+  <link rel="stylesheet" href="/css/consent-form.css?v=0.6.7d">
 </head>
 <body>
   <div id="loading">
@@ -15,10 +12,12 @@
     <p class="loading-text">Dokument wird geladen…</p>
   </div>
   <div id="error-screen" class="hidden">
+    <div class="error-icon">⚠️</div>
     <h2>Fehler</h2>
     <p id="error-message">Dieser Link ist ungültig oder bereits abgelaufen.</p>
   </div>
   <div id="already-submitted" class="hidden">
+    <div class="success-icon">✅</div>
     <h2>Bereits unterschrieben</h2>
     <p>Dieser Aufklärungsbogen wurde bereits unterschrieben.</p>
     <p id="already-submitted-at" class="subtitle"></p>
@@ -33,8 +32,8 @@
 
       <div class="form-group required">
         <label for="auth-dob">Geburtsdatum</label>
-        <input type="date" id="auth-dob" required>
-        <span class="hint" id="auth-dob-hint">Bitte wählen Sie Ihr Geburtsdatum</span>
+        <input type="text" id="auth-dob" inputmode="numeric" maxlength="10" placeholder="TT.MM.JJJJ" autocomplete="off" required>
+        <span class="hint" id="auth-dob-hint">Format: TT.MM.JJJJ</span>
       </div>
 
       <div class="form-group hidden" id="auth-pin-group">
@@ -59,7 +58,7 @@
     </main>
 
     <div class="scroll-indicator" id="scroll-indicator">
-      <span>Bitte lesen Sie den Text vollständig durch</span>
+      <span>⬇️ Bitte lesen Sie den Text vollständig durch</span>
     </div>
 
     <section class="cf-sign-section" id="sign-section">
@@ -94,12 +93,28 @@
   </div>
 
   <div id="success-screen" class="hidden">
+    <div class="success-icon">✅</div>
     <h2>Vielen Dank!</h2>
     <p>Ihr Aufklärungsbogen wurde erfolgreich übermittelt.</p>
     <p class="subtitle">Sie können dieses Fenster jetzt schließen.</p>
     <p class="hint">Bei Fragen wenden Sie sich bitte an das Praxis-Team.</p>
   </div>
 
-  <script src="/js/consent-form.js?v=0.7.1"></script>
+  <script src="/js/consent-form.js?v=0.7.0"></script>
+
+<script>
+function setupDobAutoFormat(inputId) {
+  var el = document.getElementById(inputId);
+  if (!el) return;
+  el.addEventListener("input", function(e) {
+    var digits = el.value.replace(/[^0-9]/g, "");
+    var val = digits;
+    if (digits.length >= 2) val = digits.substring(0, 2) + "." + digits.substring(2);
+    if (digits.length >= 4) val = val.substring(0, 5) + "." + digits.substring(4, 8);
+    el.value = val;
+  });
+}
+if (document.getElementById("auth-dob")) setupDobAutoFormat("auth-dob");
+</script>
 </body>
 </html>

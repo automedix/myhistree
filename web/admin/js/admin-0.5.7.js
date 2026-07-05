@@ -1,5 +1,6 @@
 // myhistree Admin Dashboard JS v0.6.7
 const API = '/api';
+
 function sanitizeConsentHtml(raw) {
   if (!raw) return '';
   const tpl = document.createElement('template');
@@ -12,12 +13,54 @@ function sanitizeConsentHtml(raw) {
       if (attr.name.startsWith('on') || attr.value.includes('javascript:')) {
         node.removeAttribute(attr.name);
       }
+      if ((attr.name === 'href' || attr.name === 'src') && attr.value.startsWith('data:')) {
+        node.removeAttribute(attr.name);
+      }
     }
   });
   return tpl.innerHTML;
 }
+
+function prepareConsentHtmlForAdmin(raw, consentItemsJson) {
+  const html = sanitizeConsentHtml(raw);
+  if (!html) return '';
+  const tpl = document.createElement('template');
+  tpl.innerHTML = html;
+  if (consentItemsJson) {
+    try {
+      const items = JSON.parse(consentItemsJson);
+      const itemMap = new Map();
+      items.forEach(item => itemMap.set(item.item, item.checked));
+      tpl.content.querySelectorAll('input.consent-check[type="checkbox"]').forEach(cb => {
+        const key = cb.dataset.item || cb.name;
+        if (itemMap.has(key)) cb.checked = itemMap.get(key);
+      });
+    } catch(e) {}
+  }
+  // Disable all interactive elements
+  tpl.content.querySelectorAll('input, button, select, textarea').forEach(el => {
+    el.disabled = true;
+    el.style.pointerEvents = 'none';
+    el.style.opacity = '0.85';
+  });
+  return tpl.innerHTML;
+}
 let encounterFilter = 'all'; // 'all' | 'completed' | 'in-progress'
-const CURRENT_PRACTICE = 'demo-practice';
+let CURRENT_PRACTICE = null;
+
+async function initCurrentPractice() {
+  try {
+    const res = await fetch(`${API}/practices/list`, { credentials: 'include' });
+    if (res.ok) {
+      const list = await res.json();
+      if (list && list.length > 0) CURRENT_PRACTICE = list[0].id;
+    }
+  } catch(e) {
+    console.error('initCurrentPractice failed', e);
+  }
+  if (!CURRENT_PRACTICE) CURRENT_PRACTICE = 'demo-practice';
+}
+
 let currentAdmin = null;
 
 // ─── Auth Check on Load ─────────────────────────────────────────
@@ -29,6 +72,7 @@ async function initAuth() {
       return;
     }
     currentAdmin = await res.json();
+    await initCurrentPractice();
     // Show user info in header
     const header = document.querySelector('header');
     if (header && currentAdmin) {
@@ -125,7 +169,7 @@ async function createLink() {
 async function sendLinkEmail(to, pvsPatientId, linkUrl, patientDob, pin, documentType, consentFormId) {
   await fetch(`${API}/link/send-email`, {
     method: 'POST', headers: {'Content-Type':'application/json'}, credentials: 'include',
-    body: JSON.stringify({ to, pvsPatientId, linkUrl, patientDob, pin, documentType, consentFormId })
+    body: JSON.stringify({ to, pvsPatientId, linkUrl, patientDob, pin, documentType, consentFormId, practiceId: CURRENT_PRACTICE })
   });
 }
 
@@ -140,12 +184,13 @@ async function loadLinks() {
     let html = '<table><thead><tr><th>Token</th><th>PVS-ID</th><th>DOB</th><th>Typ</th><th>E-Mail</th><th>Status</th><th>Erstellt</th><th>Ablauf</th><th>PIN</th><th>Aktion</th></tr></thead><tbody>';
     for (const r of rows) {
       const statusClass = r.status === 'pending' ? 'badge-pending' : (r.status === 'used' ? 'badge-used' : 'badge-expired');
-      const typeLabel = r.document_type === 'consent_form' ? 'Einwilligung' : 'Anamnese';
+      const typeLabel = r.document_type === 'consent_form' ? 'Aufklärung' : (r.document_type === 'bloodpressure' ? 'Blutdruck' : (r.document_type === 'behandlungsvertrag' ? 'Behandlungsvertrag' : 'Anamnese'));
+      const typeTitle = r.document_type === 'consent_form' ? (r.consent_form_title || 'Aufklärung') : 'Patienten-Anamnese';
       html += `<tr>
         <td><code>${r.token.slice(0,16)}...</code></td>
         <td>${escapeHtml(r.pvs_patient_id ? r.pvs_patient_id : '-')}</td>
         <td>${escapeHtml(r.patient_dob ? r.patient_dob : '-')}</td>
-        <td>${typeLabel}</td>
+        <td><span class="badge" title="${escapeHtml(typeTitle)}">${typeLabel}</span></td>
         <td>${escapeHtml(r.patient_email ? r.patient_email : '-')}</td>
         <td><span class="badge ${statusClass}">${r.status}</span></td>
         <td>${fmtDate(r.created_at)}</td>
@@ -160,7 +205,7 @@ async function loadLinks() {
 }
 
 function copyLink(token, docType) {
-  const path = docType === 'consent_form' ? 'aufklaerung' : 'anamnese';
+  const path = docType === 'consent_form' ? 'aufklaerung' : (docType === 'bloodpressure' ? 'blutdruck' : (docType === 'behandlungsvertrag' ? 'behandlungsvertrag' : 'anamnese'));
   const url = `${window.location.origin}/${path}/${token}`;
   navigator.clipboard.writeText(url).then(() => alert('Link kopiert!'));
 }
@@ -198,19 +243,19 @@ async function loadEncountersDashboard() {
     let html = '';
     // OFFEN
     html += '<div class="card"><h3>Offen</h3>';
-    if (!pending.length) html += '<p class="empty">Keine offenen Anamnesen.</p>';
+    if (!pending.length) html += '<p class="empty">Keine offenen Dokumente.</p>';
     else html += encountersTable(pending, true);
     html += '</div>';
 
     // IN BEARBEITUNG
     html += '<div class="card"><h3>In Bearbeitung</h3>';
-    if (!inProgress.length) html += '<p class="empty">Keine Anamnesen in Bearbeitung.</p>';
+    if (!inProgress.length) html += '<p class="empty">Keine Dokumente in Bearbeitung.</p>';
     else html += encountersTable(inProgress, true);
     html += '</div>';
 
     // ABGESCHLOSSEN (7 Tage)
     html += '<div class="card"><h3>Abgeschlossen (letzte 7 Tage)</h3>';
-    const recentCompleted = [].filter(r => {
+    const recentCompleted = inProgress.filter(r => {
       const ts = r.completed_at || r.updated_at || r.created_at;
       const d = ts ? new Date(ts) : null;
       return d && (Date.now() - d.getTime()) < 7 * 24 * 60 * 60 * 1000;
@@ -224,7 +269,7 @@ async function loadEncountersDashboard() {
       const getTs = r => new Date(r.completed_at || r.processed_at || r.updated_at || r.created_at).getTime();
       return getTs(b) - getTs(a);
     });
-    if (!recentAll.length) html += '<p class="empty">Keine abgeschlossenen Anamnesen in den letzten 7 Tagen.</p>';
+    if (!recentAll.length) html += '<p class="empty">Keine abgeschlossenen Dokumente in den letzten 7 Tagen.</p>';
     else html += encountersTable(recentAll, false);
     html += '</div>';
 
@@ -236,8 +281,9 @@ function encountersTable(rows, showProcessBtn) {
   let html = '<table><thead><tr><th>Datum</th><th>PVS-ID</th><th>Typ</th><th>Email</th><th>Telefon</th><th>Status</th><th>Aktionen</th></tr></thead><tbody>';
   for (const r of rows) {
     const isConsent = r.document_type === 'consent_form';
-    const statusClass = r.status === 'processed' ? 'badge-processed' : (r.status === 'submitted' ? 'badge-submitted' : 'badge-inprogress');
-    const typeLabel = isConsent ? 'Aufklärung' : 'Anamnese';
+    const statusClass = r.status === 'processed' ? 'badge-processed' : ((r.status === 'completed' || r.status === 'submitted') ? 'badge-completed' : 'badge-inprogress');
+    const typeLabel = isConsent ? 'Aufklärung' : (r.document_type === 'bloodpressure' ? 'Blutdruck' : (r.document_type === 'behandlungsvertrag' ? 'Behandlungsvertrag' : 'Anamnese'));
+    const typeTitle = isConsent ? (r.consent_title || 'Aufklärung') : 'Patienten-Anamnese';
     let email = r.patient_email || '-';
     let phone = r.mobile_number || '-';
     if (r.contact_json) {
@@ -251,7 +297,7 @@ function encountersTable(rows, showProcessBtn) {
     html += `<tr>
       <td>${fmtDateTime(r.created_at)}</td>
       <td>${escapeHtml(r.pvs_patient_id ? r.pvs_patient_id : '-')}</td>
-      <td><span class="badge" style="background:#f0f9ff;color:#3366AA;border:1px solid #bae6fd;font-size:0.7rem;">${typeLabel}</span></td>
+      <td><span class="badge" style="background:#f0f9ff;color:#3366AA;border:1px solid #bae6fd;font-size:0.7rem;" title="${escapeHtml(typeTitle)}">${typeLabel}</span></td>
       <td>${escapeHtml(email)}</td>
       <td>${escapeHtml(phone)}</td>
       <td><span class="badge ${statusClass}">${r.status}</span></td>
@@ -297,7 +343,24 @@ async function viewEncounter(encounterId) {
       const data = await res.json();
       const enc = data.encounter;
       const template = data.template;
+      if (enc.document_type === 'bloodpressure') {
+      const bpRes = await fetch(`${API}/admin/bloodpressure/${encounterId}`, { credentials: 'include' });
+      if (!bpRes.ok) return;
+      const bp = await bpRes.json();
       let html = '<div class="print-view">';
+      html += `<h2>Blutdruckmessung ${escapeHtml(enc.id.slice(0,8))}</h2>`;
+      html += `<p><strong>Erstellt:</strong> ${fmtDateTime(enc.created_at)}</p>`;
+      html += '<table style="width:100%;border-collapse:collapse;font-size:14px"><thead><tr><th style="border:1px solid #ccc;padding:6px;background:#f5f5f5">Zeit</th><th style="border:1px solid #ccc;padding:6px;background:#f5f5f5">Systolisch</th><th style="border:1px solid #ccc;padding:6px;background:#f5f5f5">Diastolisch</th><th style="border:1px solid #ccc;padding:6px;background:#f5f5f5">Puls</th><th style="border:1px solid #ccc;padding:6px;background:#f5f5f5">Gewicht</th></tr></thead><tbody>';
+      for (const r of bp.readings || []) {
+        html += `<tr><td style="border:1px solid #ccc;padding:6px">${fmtDateTime(r.recorded_at)}</td><td style="border:1px solid #ccc;padding:6px">${r.systolic}</td><td style="border:1px solid #ccc;padding:6px">${r.diastolic}</td><td style="border:1px solid #ccc;padding:6px">${r.pulse}</td><td style="border:1px solid #ccc;padding:6px">${r.weight != null ? r.weight : '-'}</td></tr>`;
+      }
+      html += '</tbody></table></div>';
+      const w = window.open('', '_blank');
+      if (w) { w.document.write('<html><head><title>Blutdruckmessung</title><style>body{font-family:Arial;margin:20px}h2{margin-bottom:8px}table{width:100%;border-collapse:collapse;font-size:14px}th,td{border:1px solid #ccc;padding:6px}th{background:#f5f5f5}</style></head><body>' + html + '</body></html>'); w.document.close(); w.focus(); setTimeout(() => w.print(), 300); }
+      return;
+    }
+
+    let html = '<div class="print-view">';
       html += `<h2>${escapeHtml(template?.title || 'Aufklärungsbogen')} — ${escapeHtml(enc.pvs_patient_id || '–')}</h2>`;
       html += `<div class="field"><div class="field-label">Status</div><div class="field-value"><span class="badge badge-completed">${escapeHtml(enc.status)}</span></div></div>`;
       html += `<div class="field"><div class="field-label">PVS-ID</div><div class="field-value">${escapeHtml(enc.pvs_patient_id || '–')}</div></div>`;
@@ -309,13 +372,24 @@ async function viewEncounter(encounterId) {
 
       if (template?.content_html) {
         html += '<hr style="margin: 16px 0;"><h3>Dokumentinhalt</h3>';
-        html += `\u003cdiv style="font-size:0.9rem;line-height:1.6;"\u003e${sanitizeConsentHtml(template.content_html)}\u003c/div\u003e`;
+        html += `\u003cdiv style="font-size:0.9rem;line-height:1.6;"\u003e${prepareConsentHtmlForAdmin(template.content_html, enc.consent_items)}\u003c/div\u003e`;
       }
 
       if (enc.signature_svg) {
         html += '<hr style="margin: 16px 0;"><h3>Unterschrift</h3>';
         const svgUrl = 'data:image/svg+xml;base64,' + btoa(enc.signature_svg);
         html += `<div style="border:1px solid var(--border);border-radius:8px;padding:12px;background:#fafafa;"><img src="${svgUrl}" style="max-width:100%;"></div>`;
+      }
+
+      if (enc.consent_items) {
+        html += '<hr style="margin: 16px 0;"><h3>Gewählte Optionen</h3>';
+        const items = JSON.parse(enc.consent_items);
+        html += '<ul style="list-style:none;padding:0;">';
+        for (const item of items) {
+          const checked = item.checked ? '✅' : '❌';
+          html += `<li style="margin:4px 0">${checked} ${escapeHtml(item.label || item.item)}</li>`;
+        }
+        html += '</ul>';
       }
 
       if (enc.ip_address) {
@@ -325,6 +399,86 @@ async function viewEncounter(encounterId) {
       html += '</div>';
       body.innerHTML = html;
       document.getElementById('modal-title').textContent = 'Aufklärungsbogen';
+      return;
+    }
+
+    if (encData.encounter && encData.encounter.document_type === 'bloodpressure') {
+      const bpRes = await fetch(`${API}/admin/bloodpressure/${encounterId}`, { credentials: 'include' });
+      if (!bpRes.ok) { body.innerHTML = '<p class="empty">Fehler beim Laden.</p>'; return; }
+      const bp = await bpRes.json();
+      let html = '<div class="print-view">';
+      html += `<h2>Blutdruckmessung ${escapeHtml(encounterId.slice(0,8))} — ${escapeHtml(bp.encounter?.pvs_patient_id || '–')}</h2>`;
+      html += `<p><strong>PVS-ID:</strong> ${escapeHtml(bp.encounter?.pvs_patient_id || '–')}</p>`;
+      html += `<p><strong>Erstellt:</strong> ${fmtDateTime(bp.encounter?.created_at)}</p>`;
+      html += '<table class="detail-table"><thead><tr><th>Zeit</th><th>Sys</th><th>Dia</th><th>Puls</th><th>Gewicht</th></tr></thead><tbody>';
+      for (const r of bp.readings || []) {
+        html += `<tr><td>${fmtDateTime(r.recorded_at)}</td><td>${r.systolic}</td><td>${r.diastolic}</td><td>${r.pulse}</td><td>${r.weight != null ? r.weight : '-'}</td></tr>`;
+      }
+      html += '</tbody></table>';
+      if ((bp.readings || []).length) {
+        html += '<canvas id="bp-chart" width="600" height="220" style="width:100%;height:220px;margin-top:12px;background:#fff;border:1px solid #e2e8f0;border-radius:10px;"></canvas>';
+      }
+      html += '</div>';
+      body.innerHTML = html;
+      document.getElementById('modal-title').textContent = 'Blutdruckmessung';
+      if ((bp.readings || []).length) {
+        setTimeout(() => {
+          const cvs = document.getElementById('bp-chart');
+          if (!cvs) return;
+          const ctx = cvs.getContext('2d');
+          const w = 600, h = 220, pad = { l: 36, t: 10, r: 10, b: 24 };
+          const pts = (bp.readings || []).map(r => ({ t: new Date(r.recorded_at).getTime(), rec: r.recorded_at, sys: r.systolic, dia: r.diastolic, pul: r.pulse }));
+          const times = pts.map(p => p.t), minT = Math.min(...times), maxT = Math.max(...times);
+          const allY = pts.flatMap(p => [p.sys, p.dia, p.pul]);
+          let minY = Math.min(...allY) - 10, maxY = Math.max(...allY) + 10;
+          if (minY < 30) minY = 30; if (maxY > 250) maxY = 250;
+          const sx = (t) => pad.l + (maxT === minT ? 0.5 : (t - minT) / (maxT - minT)) * (w - pad.l - pad.r);
+          const sy = (y) => pad.t + (maxY - y) / (maxY - minY) * (h - pad.t - pad.b);
+          ctx.clearRect(0, 0, w, h); ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 1;
+          for (let i = 0; i <= 5; i++) { const y = pad.t + (h - pad.t - pad.b) * (i / 5); ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(w - pad.r, y); ctx.stroke(); }
+          function drawLine(key, color) { ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.beginPath(); pts.forEach((p, i) => { const x = sx(p.t), y = sy(p[key]); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); }); ctx.stroke(); ctx.fillStyle = color; pts.forEach(p => { const x = sx(p.t), y = sy(p[key]); ctx.beginPath(); ctx.arc(x, y, 3, 0, Math.PI * 2); ctx.fill(); }); }
+          drawLine('sys', '#ef4444'); drawLine('dia', '#3366AA'); drawLine('pul', '#16a34a');
+          ctx.fillStyle = '#475569'; ctx.font = '10px sans-serif'; ctx.textAlign = 'center';
+          pts.forEach(p => { const x = sx(p.t); const dt = _parseAsUTC(p.rec); const lbl = dt ? dt.toLocaleString('de-DE', { timeZone: 'Europe/Berlin', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''; ctx.fillText(lbl, x, h - 6); });
+          ctx.textAlign = 'right'; for (let i = 0; i <= 5; i++) { const v = maxY - (maxY - minY) * (i / 5); ctx.fillText(Math.round(v), pad.l - 4, pad.t + (h - pad.t - pad.b) * (i / 5) + 4); }
+          ctx.textAlign = 'left'; let lx = pad.l + 8, ly = pad.t + 14;
+          [{ c: '#ef4444', t: 'Systolisch' }, { c: '#3366AA', t: 'Diastolisch' }, { c: '#16a34a', t: 'Puls' }].forEach(item => { ctx.fillStyle = item.c; ctx.fillRect(lx, ly - 6, 8, 8); ctx.fillStyle = '#334155'; ctx.fillText(item.t, lx + 12, ly); lx += ctx.measureText(item.t).width + 28; });
+        }, 100);
+      }
+      return;
+    }
+
+    if (encData.encounter && encData.encounter.document_type === 'behandlungsvertrag') {
+      const res = await fetch(`${API}/behandlungsvertrag/${encounterId}`, { credentials: 'include' });
+      if (!res.ok) throw new Error('Fehler beim Laden');
+      const data = await res.json();
+      const enc = data.encounter;
+      const sub = enc;
+      let html = '<div class="print-view">';
+      html += '<h2>Behandlungsvertrag — ' + escapeHtml(enc.pvs_patient_id || '–') + '</h2>';
+      html += '<div class="field"><div class="field-label">Status</div><div class="field-value"><span class="badge badge-completed">' + escapeHtml(enc.status) + '</span></div></div>';
+      html += '<div class="field"><div class="field-label">PVS-ID</div><div class="field-value">' + escapeHtml(enc.pvs_patient_id || '–') + '</div></div>';
+      html += '<div class="field"><div class="field-label">Erstellt</div><div class="field-value">' + fmtDateTime(enc.created_at) + '</div></div>';
+      if (sub) {
+        html += '<div class="field"><div class="field-label">Patient</div><div class="field-value"><strong>' + escapeHtml(sub.patient_name || '–') + '</strong></div></div>';
+        html += '<div class="field"><div class="field-label">Tarif</div><div class="field-value">' + escapeHtml(sub.tariff || '–') + '</div></div>';
+        html += '<div class="field"><div class="field-label">Steigerungsfaktor</div><div class="field-value">' + escapeHtml(sub.multiplier || '–') + '</div></div>';
+        html += '<div class="field"><div class="field-label">Unterschrieben am</div><div class="field-value">' + fmtDateTime(sub.signed_at) + '</div></div>';
+        if (enc.contract_html) {
+          html += '<hr style="margin: 16px 0;"><h3>Vertragstext</h3>';
+          html += '<div style="border:1px solid var(--border);border-radius:8px;padding:12px;background:#fafafa;max-height:60vh;overflow:auto;font-size:0.85rem;line-height:1.5;">' + enc.contract_html + '</div>';
+        } else {
+          html += '<hr style="margin: 16px 0;"><p style="color:#888;font-style:italic;">Vertragstext nicht gespeichert (ältere Einreichung)</p>';
+        }
+        if (sub.signature_svg) {
+          const svgUrl = 'data:image/svg+xml;base64,' + btoa(sub.signature_svg);
+          html += '<hr style="margin: 16px 0;"><h3>Unterschrift</h3>';
+          html += '<div style="border:1px solid var(--border);border-radius:8px;padding:12px;background:#fafafa;"><img src="' + svgUrl + '" style="max-width:100%;"></div>';
+        }
+      }
+      html += '</div>';
+      body.innerHTML = html;
+      document.getElementById('modal-title').textContent = 'Behandlungsvertrag';
       return;
     }
 
@@ -363,7 +517,7 @@ async function viewEncounter(encounterId) {
         { label:'Notfallkontakt', cat:'emergency' },
         { label:'Körpermaße', cat:'bodymetrics' },
         { label:'Kontakt', cat:'contact' },
-        { label:'Notizen', cat:'notes' }
+        { label:'Zusätzliche Informationen', cat:'notes' }
       ];
 
       const respByCat = {};
@@ -423,7 +577,22 @@ function escapeHtml(str) {
 function formatValue(v) {
   if (v === null || v === undefined) return '—';
   if (typeof v === 'boolean') return v ? 'Ja' : 'Nein';
-  if (Array.isArray(v)) return v.map(escapeHtml).join(', ');
+  if (Array.isArray(v)) {
+    // Array of objects (e.g. children: [{index:1, year:2005}])
+    if (v.length > 0 && typeof v[0] === 'object') {
+      return v.map(item => {
+        const pairs = Object.entries(item).filter(([k]) => !k.startsWith('__'));
+        return pairs.map(([k, val]) => `${escapeHtml(k)}: ${formatValue(val)}`).join(', ');
+      }).join('; ');
+    }
+    return v.map(escapeHtml).join(', ');
+  }
+  if (typeof v === 'object') {
+    // Single object with consent items
+    const pairs = Object.entries(v).filter(([k]) => !k.startsWith('__'));
+    if (pairs.length === 0) return '—';
+    return pairs.map(([k, val]) => `${escapeHtml(k)}: ${formatValue(val)}`).join(', ');
+  }
   return escapeHtml(v);
 }
 
@@ -445,6 +614,21 @@ async function copyEncounterText(encounterId) {
       const temp = document.createElement('div');
       temp.innerHTML = sanitizeConsentHtml(cData.template?.content_html || '');
       text += temp.textContent || temp.innerText || '';
+      navigator.clipboard.writeText(text).then(() => alert('Kopiert!'));
+      return;
+    }
+    if (enc.document_type === 'bloodpressure') {
+      const bpRes = await fetch(`${API}/admin/bloodpressure/${encounterId}`, { credentials: 'include' });
+      if (!bpRes.ok) return;
+      const bp = await bpRes.json();
+      let text = `Blutdruckmessung ${enc.id.slice(0,8)}
+Erstellt: ${fmtDateTime(enc.created_at)}
+
+`;
+      for (const r of bp.readings || []) {
+        text += `${fmtDateTime(r.recorded_at)}  Sys ${r.systolic}  Dia ${r.diastolic}  Puls ${r.pulse}  Gewicht ${r.weight != null ? r.weight : '-'}
+`;
+      }
       navigator.clipboard.writeText(text).then(() => alert('Kopiert!'));
       return;
     }
@@ -495,6 +679,87 @@ async function printEncounter(encounterId) {
         w.document.close();
         w.focus();
         setTimeout(() => w.print(), 300);
+      }
+      return;
+    }
+
+    if (enc.document_type === 'bloodpressure') {
+      const bpRes = await fetch(`${API}/admin/bloodpressure/${encounterId}`, { credentials: 'include' });
+      if (!bpRes.ok) return;
+      const bpData = await bpRes.json();
+      const readings = bpData.readings || [];
+      let chartImgUrl = '';
+      if (readings.length >= 1) {
+        const cvs = document.createElement('canvas');
+        cvs.width = 700; cvs.height = 260;
+        const cx = cvs.getContext('2d');
+        const pts = readings.map(r => ({ t: new Date(r.recorded_at).getTime(), rec: r.recorded_at, sys: r.systolic, dia: r.diastolic, pul: r.pulse }));
+        const times = pts.map(p => p.t), minT = Math.min(...times), maxT = Math.max(...times);
+        const allY = pts.flatMap(p => [p.sys, p.dia, p.pul]);
+        let minY = Math.min(...allY) - 10, maxY = Math.max(...allY) + 10;
+        if (minY < 30) minY = 30; if (maxY > 250) maxY = 250;
+        const W = 700, H = 260, pad = { l: 50, r: 20, t: 20, b: 40 };
+        const sx = (t) => pad.l + (maxT === minT ? 0.5 : (t - minT) / (maxT - minT)) * (W - pad.l - pad.r);
+        const sy = (y) => pad.t + (maxY - y) / (maxY - minY) * (H - pad.t - pad.b);
+        cx.clearRect(0, 0, W, H); cx.strokeStyle = '#e2e8f0'; cx.lineWidth = 1;
+        for (let i = 0; i <= 5; i++) { const y = pad.t + (H - pad.t - pad.b) * (i / 5); cx.beginPath(); cx.moveTo(pad.l, y); cx.lineTo(W - pad.r, y); cx.stroke(); }
+        function drawLine(key, color) { cx.strokeStyle = color; cx.lineWidth = 2; cx.beginPath(); pts.forEach((p, i) => { const x = sx(p.t), y = sy(p[key]); if (i === 0) cx.moveTo(x, y); else cx.lineTo(x, y); }); cx.stroke(); cx.fillStyle = color; pts.forEach(p => { cx.beginPath(); cx.arc(sx(p.t), sy(p[key]), 3, 0, Math.PI * 2); cx.fill(); }); }
+        drawLine('sys', '#ef4444'); drawLine('dia', '#3366AA'); drawLine('pul', '#16a34a');
+        cx.fillStyle = '#475569'; cx.font = '10px sans-serif'; cx.textAlign = 'right';
+        for (let i = 0; i <= 5; i++) { const v = maxY - (maxY - minY) * (i / 5); const y = pad.t + (H - pad.t - pad.b) * (i / 5); cx.fillText(Math.round(v), pad.l - 4, y + 4); }
+        cx.textAlign = 'center';
+        pts.forEach(p => { const dt = _parseAsUTC(p.rec); const lbl = dt ? dt.toLocaleString('de-DE', { timeZone: 'Europe/Berlin', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : ''; cx.fillText(lbl, sx(p.t), H - 6); });
+        chartImgUrl = cvs.toDataURL('image/png');
+      }
+      let html = '<div class="print-view">';
+      html += '<h2>Blutdruckmessung ' + escapeHtml(enc.id.slice(0,8)) + ' — ' + escapeHtml(enc.pvs_patient_id ? enc.pvs_patient_id : '—') + '</h2>';
+      html += '<p><strong>Erstellt:</strong> ' + fmtDateTime(enc.created_at) + '</p>';
+      if (chartImgUrl) { html += '<img src="' + chartImgUrl + '" style="max-width:100%;margin-top:12px;display:block;">'; }
+      html += '<h4 style="margin-top:16px;margin-bottom:4px;text-transform:uppercase;font-size:12px;color:#666">Messwerte</h4>';
+      html += '<table class="detail-table" style="width:100%;border-collapse:collapse;font-size:14px"><thead><tr><th style="border:1px solid #ddd;padding:6px 8px;background:#f5f5f5;text-align:left">Zeit</th><th style="border:1px solid #ddd;padding:6px 8px;background:#f5f5f5;text-align:left">Sys</th><th style="border:1px solid #ddd;padding:6px 8px;background:#f5f5f5;text-align:left">Dia</th><th style="border:1px solid #ddd;padding:6px 8px;background:#f5f5f5;text-align:left">Puls</th><th style="border:1px solid #ddd;padding:6px 8px;background:#f5f5f5;text-align:left">Gew.</th></tr></thead><tbody>';
+      for (const r of readings) {
+        html += '<tr><td style="border:1px solid #ddd;padding:6px 8px">' + fmtDateTime(r.recorded_at) + '</td><td style="border:1px solid #ddd;padding:6px 8px">' + r.systolic + '</td><td style="border:1px solid #ddd;padding:6px 8px">' + r.diastolic + '</td><td style="border:1px solid #ddd;padding:6px 8px">' + r.pulse + '</td><td style="border:1px solid #ddd;padding:6px 8px">' + (r.weight != null ? r.weight : '—') + '</td></tr>';
+      }
+      html += '</tbody></table></div>';
+      const w = window.open('', '_blank');
+      if (w) {
+        w.document.write('<html><head><title>Blutdruckmessung</title><style>body{font-family:Arial;margin:20px}h2{margin-bottom:8px}h4{margin-top:16px;margin-bottom:4px;text-transform:uppercase;font-size:12px;color:#666}table{width:100%;border-collapse:collapse;font-size:14px}th,td{border:1px solid #ddd;padding:6px 8px}th{background:#f5f5f5;text-align:left}</style></head><body>' + html + '</body></html>');
+        w.document.close(); w.focus(); setTimeout(() => w.print(), 300);
+      }
+      return;
+    }
+
+    if (enc.document_type === 'behandlungsvertrag') {
+      const bvRes = await fetch(`${API}/behandlungsvertrag/${encounterId}`, { credentials: 'include' });
+      if (!bvRes.ok) return;
+      const bvData = await bvRes.json();
+      const enc = bvData.encounter;
+      const sub = enc;
+      let html = '<div class="print-view">';
+      html += '<h2>Behandlungsvertrag — ' + escapeHtml(enc.pvs_patient_id || '—') + '</h2>';
+      html += '<p><strong>Erstellt:</strong> ' + fmtDateTime(enc.created_at) + '</p>';
+      if (sub) {
+        html += '<p><strong>Patient:</strong> ' + escapeHtml(sub.patient_name || '—') + '</p>';
+        html += '<p><strong>Tarif:</strong> ' + escapeHtml(sub.tariff || '—') + '</p>';
+        html += '<p><strong>Steigerungsfaktor:</strong> ' + escapeHtml(sub.multiplier || '—') + '</p>';
+        html += '<p><strong>Unterschrieben am:</strong> ' + fmtDateTime(sub.signed_at) + '</p>';
+        if (enc.contract_html) {
+          html += '<hr style="margin: 16px 0;"><h3>Vertragstext</h3>';
+          html += '<div style="border:1px solid #ddd;border-radius:8px;padding:12px;background:#fafafa;font-size:0.85rem;line-height:1.5;">' + enc.contract_html + '</div>';
+        } else {
+          html += '<hr style="margin: 16px 0;"><p style="color:#888;font-style:italic;">Vertragstext nicht gespeichert (ältere Einreichung)</p>';
+        }
+        if (sub.signature_svg) {
+          const svgUrl = 'data:image/svg+xml;base64,' + btoa(sub.signature_svg);
+          html += '<h3 style="margin-top:16px">Unterschrift</h3>';
+          html += '<div style="border:1px solid #ddd;border-radius:8px;padding:12px;background:#fafafa;"><img src="' + svgUrl + '" style="max-width:100%;"></div>';
+        }
+      }
+      html += '</div>';
+      const w = window.open('', '_blank');
+      if (w) {
+        w.document.write('<html><head><title>Behandlungsvertrag</title><style>body{font-family:Arial;margin:20px}h2{margin-bottom:8px}h3{margin-top:16px;margin-bottom:4px;text-transform:uppercase;font-size:12px;color:#666}p{margin:4px 0}</style></head><body>' + html + '</body></html>');
+        w.document.close(); w.focus(); setTimeout(() => w.print(), 300);
       }
       return;
     }
@@ -574,53 +839,159 @@ async function loadSettings() {
     container.innerHTML = '<p class="empty">Lade...</p>';
     return;
   }
+
+  let settings = {};
+  let loadError = '';
+  try {
+    const res = await fetch(`${API}/practice/${CURRENT_PRACTICE}/settings`, { credentials: 'include' });
+    if (res.ok) {
+      settings = await res.json();
+    } else {
+      const err = await res.json();
+      loadError = err.error || 'Fehler beim Laden der Einstellungen';
+    }
+  } catch (e) {
+    loadError = 'Netzwerkfehler beim Laden der Einstellungen';
+  }
+
   let html = '';
 
-  // Passwort ändern
-  html += `
-    <div class="card" style="margin-bottom:20px;">
-      <h3>🔐 Passwort ändern</h3>
-      <div class="form-group" style="margin-top:12px;">
-        <label>Aktuelles Passwort</label>
-        <input type="password" id="pw-current" placeholder="••••••••">
-      </div>
-      <div class="form-group">
-        <label>Neues Passwort</label>
-        <input type="password" id="pw-new" placeholder="Mindestens 8 Zeichen">
-      </div>
-      <div class="form-group">
-        <label>Neues Passwort wiederholen</label>
-        <input type="password" id="pw-confirm" placeholder="••••••••">
-      </div>
-      <button class="btn btn-primary" id="btn-change-pw" onclick="changePassword()">Passwort ändern</button>
-      <div id="pw-msg" style="margin-top:10px;font-size:0.875rem;"></div>
-    </div>
-  `;
+  // --- Praxis-Stammdaten ---
+  html += `<div class="card" style="margin-bottom:20px;">`;
+  html += `<h2>Praxis-Stammdaten</h2>`;
+  if (loadError) html += `<p style="color:#ef4444;font-size:0.9rem;margin-bottom:12px;">${escapeHtml(loadError)}</p>`;
+  html += `<div class="form-row"><div><label>Praxisname</label><input type="text" id="s-name" value="${escapeHtml(settings.name || '')}" placeholder="z.B. Praxis Dr. Mustermann"></div><div><label>Für myhistree verwendete E-Mail Adresse</label><input type="email" id="s-email" value="${escapeHtml(settings.email || '')}" placeholder="praxis@example.de"></div></div>`;
+  html += `<div class="form-row"><div><label>Adresse</label><input type="text" id="s-address" value="${escapeHtml(settings.address || '')}" placeholder="Musterstraße 123"></div><div><label>Telefon</label><input type="text" id="s-phone" value="${escapeHtml(settings.phone || '')}" placeholder="+49 30 1234567"></div></div>`;
+  html += `<div class="form-row"><div><label>PLZ</label><input type="text" id="s-postal" value="${escapeHtml(settings.postal_code || '')}" placeholder="10115"></div><div><label>Ort</label><input type="text" id="s-city" value="${escapeHtml(settings.city || '')}" placeholder="Berlin"></div></div>`;
+  html += `<div style="margin-top:12px;"><button class="btn btn-primary" onclick="saveSettings()">Speichern</button><span id="settings-msg-stammdaten" style="margin-left:10px;font-size:0.9rem;"></span></div>`;
+  html += `</div>`;
 
-  // TOTP Status
+  // --- SMTP-Konfiguration ---
+  html += `<div class="card" style="margin-bottom:20px;">`;
+  html += `<h2>SMTP-Konfiguration</h2>`;
+  html += `<div class="form-row"><div><label>SMTP-Host</label><input type="text" id="s-smtp-host" value="${escapeHtml(settings.smtp_host || '')}" placeholder="z.B. smtp.ionos.de"></div><div><label>SMTP-Port</label><input type="number" id="s-smtp-port" value="${escapeHtml(settings.smtp_port || '')}" placeholder="587"></div></div>`;
+  html += `<div class="form-row"><div><label>SMTP-Benutzer</label><input type="text" id="s-smtp-user" value="${escapeHtml(settings.smtp_user || '')}" placeholder="mail@praxis.de"></div><div><label>SMTP-Passwort</label><input type="password" id="s-smtp-pass" value="${escapeHtml(settings.smtp_pass || '')}"></div></div>`;
+  html += `<div class="form-row"><div><label>Absendername</label><input type="text" id="s-from-name" value="${escapeHtml(settings.email_from_name || '')}" placeholder="z.B. Praxis Dr. Mustermann"></div><div><label>Reply-To</label><input type="email" id="s-reply-to" value="${escapeHtml(settings.email_reply_to || '')}" placeholder="antwort@praxis.de"></div></div>`;
+  html += `<div style="margin-top:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">`;
+  html += `<button class="btn btn-primary" id="btn-save-settings" onclick="saveSettings()">Speichern</button>`;
+  html += `<button class="btn btn-secondary" id="btn-test-email" onclick="sendTestEmail()">Test-E-Mail senden</button>`;
+  html += `<span id="settings-msg" style="font-size:0.9rem;"></span>`;
+  html += `</div>`;
+  html += `</div>`;
+
+  // --- KI-Anbieter (Info) ---
+  html += `<div class="card" style="margin-bottom:20px;">`;
+  html += `<h2>KI-Anbieter (Anzeige im Consent-Bogen)</h2>`;
+  html += `<p style="font-size:0.85rem;color:#64748b;margin-bottom:12px;">Wird rein informativ auf dem Aufklaerungsbogen angezeigt. Keine API-Anbindung.</p>`;
+  html += `<div class="form-row"><div><label>Name des KI-Anbieters</label><input type="text" id="s-ki-provider" value="${escapeHtml(settings.ki_provider_name || '')}" placeholder="z.B. Transkriptor"></div><div><label>KI-Produkt / Software</label><input type="text" id="s-ki-product" value="${escapeHtml(settings.ki_product_name || '')}" placeholder="z.B. Kassenaerztl. Notdienst-Shield"></div></div>`;
+  html += `<div class="form-row"><div><label>Hersteller</label><input type="text" id="s-ki-manufacturer" value="${escapeHtml(settings.ki_manufacturer || '')}" placeholder="z.B. Acme Health GmbH"></div><div><label>KI-Modellanbieter</label><input type="text" id="s-ki-model" value="${escapeHtml(settings.ki_model_provider || '')}" placeholder="z.B. OpenAI Ireland Ltd."></div></div>`;
+  html += `<div class="form-row"><div><label>Verarbeitungsort</label><input type="text" id="s-ki-location" value="${escapeHtml(settings.ki_processing_location || '')}" placeholder="z.B. EU-Datenzentren (Irland, Deutschland)"></div><div><label>Drittstaaten-Transfer</label><select id="s-ki-third-country"><option value="">-- Bitte waehlen --</option><option value="no" ${settings.ki_third_country_transfer === 'no' ? 'selected' : ''}>Ausserhalb EU Nein</option><option value="yes" ${settings.ki_third_country_transfer === 'yes' ? 'selected' : ''}>Ausserhalb EU Ja</option></select></div></div>`;
+  html += `<div style="margin-top:12px;"><button class="btn btn-primary" onclick="saveSettings()">Speichern</button><span id="settings-msg-ki" style="margin-left:10px;font-size:0.9rem;"></span></div>`;
+  html += `</div>`;
+
+  // --- Passwort / TOTP ---
+  html += `<div class="card" style="margin-bottom:20px;">`;
+  html += `<h2>Sicherheit</h2>`;
+  html += `<h3 style="margin-top:16px;">Passwort aendern</h3>`;
+  html += `<div class="form-row"><div><label>Aktuelles Passwort</label><input type="password" id="pw-current" placeholder="••••••••"></div><div></div></div>`;
+  html += `<div class="form-row"><div><label>Neues Passwort</label><input type="password" id="pw-new" placeholder="Mindestens 8 Zeichen"></div><div><label>Neues Passwort wiederholen</label><input type="password" id="pw-confirm" placeholder="••••••••"></div></div>`;
+  html += `<button class="btn btn-primary" id="btn-change-pw" onclick="changePassword()">Passwort aendern</button>`;
+  html += `<div id="pw-msg" style="margin-top:10px;font-size:0.875rem;"></div>`;
+
   if (currentAdmin.totp_enabled) {
-    html += `
-      <div style="padding:16px;background:#dcfce7;border-radius:10px;">
-        <p><strong>Zwei-Faktor-Authentifizierung ist aktiviert.</strong></p>
-        <p style="font-size:0.875rem;color:#166534;margin-top:8px;">Ihr Account ist durch TOTP (Authenticator-App) geschützt.</p>
-      </div>
-    `;
+    html += `<div style="padding:16px;background:#dcfce7;border-radius:10px;margin-top:16px;"><p><strong>Zwei-Faktor-Authentifizierung ist aktiviert.</strong></p><p style="font-size:0.875rem;color:#166534;margin-top:8px;">Ihr Account ist durch TOTP (Authenticator-App) geschuetzt.</p></div>`;
   } else {
-    html += `
-      <div style="padding:16px;background:#fef3c7;border-radius:10px;margin-bottom:16px;">
-        <p><strong>Zwei-Faktor-Authentifizierung ist nicht aktiviert.</strong></p>
-        <p style="font-size:0.875rem;color:#92400e;margin-top:8px;">Empfohlen: Scannen Sie den QR-Code mit einer Authenticator-App.</p>
-      </div>
-      <button class="btn btn-primary" id="btn-setup-totp" onclick="setupTotp()">Authenticator einrichten</button>
-      <div id="totp-qr" style="margin-top:16px;display:none;"></div>
-      <div id="totp-confirm" style="margin-top:16px;display:none;">
-        <label>6-stelliger Code aus der App</label>
-        <input type="text" id="totp-confirm-code" placeholder="123456" maxlength="6" inputmode="numeric">
-        <button class="btn btn-primary" style="margin-top:8px;" onclick="confirmTotp()">Aktivieren</button>
-      </div>
-    `;
+    html += `<div style="padding:16px;background:#fef3c7;border-radius:10px;margin-top:16px;"><p><strong>Zwei-Faktor-Authentifizierung ist nicht aktiviert.</strong></p><p style="font-size:0.875rem;color:#92400e;margin-top:8px;">Empfohlen: Scannen Sie den QR-Code mit einer Authenticator-App.</p></div>`;
+    html += `<button class="btn btn-primary" id="btn-setup-totp" onclick="setupTotp()">Authenticator einrichten</button>`;
+    html += `<div id="totp-qr" style="margin-top:16px;display:none;"></div>`;
+    html += `<div id="totp-confirm" style="margin-top:16px;display:none;"><label>6-stelliger Code aus der App</label><input type="text" id="totp-confirm-code" placeholder="123456" maxlength="6" inputmode="numeric"><button class="btn btn-primary" style="margin-top:8px;" onclick="confirmTotp()">Aktivieren</button></div>`;
   }
+  html += `</div>`;
+
   container.innerHTML = html;
+}
+
+async function saveSettings() {
+  const btn = document.getElementById('btn-save-settings');
+  const msg = document.getElementById('settings-msg');
+  btn.disabled = true;
+  msg.textContent = 'Speichere...';
+  msg.style.color = 'var(--text-light)';
+
+  const payload = {
+    name: document.getElementById('s-name').value.trim(),
+    email: document.getElementById('s-email').value.trim(),
+    address: document.getElementById('s-address').value.trim(),
+    phone: document.getElementById('s-phone').value.trim(),
+    postalCode: document.getElementById('s-postal').value.trim(),
+    city: document.getElementById('s-city').value.trim(),
+    smtpHost: document.getElementById('s-smtp-host').value.trim(),
+    smtpPort: document.getElementById('s-smtp-port').value.trim(),
+    smtpUser: document.getElementById('s-smtp-user').value.trim(),
+    smtpPass: document.getElementById('s-smtp-pass').value,
+    fromName: document.getElementById('s-from-name').value.trim(),
+    replyTo: document.getElementById('s-reply-to').value.trim(),
+    kiProviderName: document.getElementById('s-ki-provider').value.trim(),
+    kiProductName: document.getElementById('s-ki-product').value.trim(),
+    kiManufacturer: document.getElementById('s-ki-manufacturer').value.trim(),
+    kiModelProvider: document.getElementById('s-ki-model').value.trim(),
+    kiProcessingLocation: document.getElementById('s-ki-location').value.trim(),
+    kiThirdCountryTransfer: document.getElementById('s-ki-third-country').value.trim()
+  };
+
+  try {
+    const res = await fetch(`${API}/practice/${CURRENT_PRACTICE}/settings`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify(payload)
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      msg.textContent = data.error || 'Fehler beim Speichern';
+      msg.style.color = '#ef4444';
+    } else {
+      msg.textContent = 'Gespeichert.';
+      msg.style.color = '#16a34a';
+      setTimeout(() => { msg.textContent = ''; }, 3000);
+    }
+  } catch (e) {
+    msg.textContent = 'Netzwerkfehler.';
+    msg.style.color = '#ef4444';
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function sendTestEmail() {
+  const btn = document.getElementById('btn-test-email');
+  const msg = document.getElementById('settings-msg');
+  btn.disabled = true;
+  msg.textContent = 'Sende Test-E-Mail...';
+  msg.style.color = 'var(--text-light)';
+
+  try {
+    const res = await fetch(`${API}/practice/${CURRENT_PRACTICE}/test-email`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'include',
+      body: JSON.stringify({ to: document.getElementById('s-email').value.trim() })
+    });
+    const data = await res.json();
+    if (!res.ok) {
+      msg.textContent = data.error || 'Fehler beim Versand';
+      msg.style.color = '#ef4444';
+    } else {
+      msg.textContent = 'Test-E-Mail versandt.';
+      msg.style.color = '#16a34a';
+      setTimeout(() => { msg.textContent = ''; }, 3000);
+    }
+  } catch (e) {
+    msg.textContent = 'Netzwerkfehler.';
+    msg.style.color = '#ef4444';
+  } finally {
+    btn.disabled = false;
+  }
 }
 
 async function setupTotp() {
@@ -640,7 +1011,7 @@ async function setupTotp() {
 
 async function confirmTotp() {
   const code = document.getElementById('totp-confirm-code').value.trim();
-  if (!/^\d{6}$/.test(code)) { alert('Bitte einen gültigen 6-stelligen Code eingeben.'); return; }
+  if (!/^\d{6}$/.test(code)) { alert('Bitte einen gueltigen 6-stelligen Code eingeben.'); return; }
   try {
     const res = await fetch(`${API}/auth/confirm-totp`, {
       method: 'POST', headers: {'Content-Type':'application/json'}, credentials: 'include',
@@ -662,7 +1033,7 @@ async function changePassword() {
   const msg = document.getElementById('pw-msg');
 
   if (!current || !newPw || !confirmPw) {
-    msg.textContent = 'Bitte alle Felder ausfüllen.';
+    msg.textContent = 'Bitte alle Felder ausfuellen.';
     msg.style.color = '#ef4444';
     return;
   }
@@ -672,13 +1043,13 @@ async function changePassword() {
     return;
   }
   if (newPw !== confirmPw) {
-    msg.textContent = 'Passwörter stimmen nicht überein.';
+    msg.textContent = 'Passwoerter stimmen nicht ueberein.';
     msg.style.color = '#ef4444';
     return;
   }
 
   btn.disabled = true;
-  msg.textContent = 'Ändere...';
+  msg.textContent = 'Aendere...';
   msg.style.color = 'var(--text-light)';
 
   try {
@@ -693,7 +1064,7 @@ async function changePassword() {
       btn.disabled = false;
       return;
     }
-    msg.textContent = 'Passwort geändert. Sie werden abgemeldet...';
+    msg.textContent = 'Passwort geaendert. Sie werden abgemeldet...';
     msg.style.color = '#16a34a';
     setTimeout(() => { window.location.href = '/admin/login.html'; }, 2000);
   } catch (e) {
@@ -793,4 +1164,3 @@ document.addEventListener('DOMContentLoaded', () => {
   // Init auth
   initAuth();
 });
-

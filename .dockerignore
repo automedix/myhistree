@@ -4,4 +4,3 @@ node_modules
 *.md
 Dockerfile
 data/myhistoree.db*
-server/dist

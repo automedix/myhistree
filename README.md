@@ -1,4 +1,4 @@
-# 🏥 myhistree
+# myhistree
 
 > Digitale Patientenanamnese für Arztpraxen – sicher, barrierefrei, DSGVO-konform.
 
@@ -8,7 +8,7 @@
 
 ---
 
-## ✨ Was ist myhistree?
+## Was ist myhistree?
 
 **myhistree** ist eine webbasierte Anwendung zur digitalen Erfassung von Patientenanamnesen. Arztpraxen können Patienten vor dem Termin einen personalisierten Link per E-Mail oder QR-Code zusenden. Der Patient füllt die Anamnese bequem auf Smartphone, Tablet oder Desktop aus – die Praxis erhält die Daten strukturiert und kann sie in den Praxis-Workflow integrieren.
 
@@ -21,7 +21,7 @@
 
 ---
 
-## 🏗️ Architektur
+## Architektur
 
 ```
 myhistree/
@@ -56,7 +56,7 @@ myhistree/
 
 ---
 
-## 🚀 Quickstart
+## Quickstart
 
 ### Voraussetzungen
 
@@ -75,7 +75,7 @@ cd myhistree
 ```bash
 cp .env.example .env
 # .env anpassen:
-#   JWT_SECRET=<stark...>
+#   JWT_SECRET=***
 #   SMTP_HOST=smtp.example.com
 #   SMTP_USER=mail@example.com
 #   SMTP_PASS=password
@@ -98,36 +98,59 @@ Die Anwendung ist dann unter `http://localhost:3456` erreichbar.
 
 ---
 
-## 📋 Workflow
+## Features
+
+### Anamnese
+
+Die digitale Anamnese erfasst medizinische Vorgeschichte, Symptome, Medikamente, Allergien und weitere gesundheitsrelevante Informationen strukturiert und übersichtlich.
+
+**Patienten-Workflow:**
+
+1. **E-Mail erhalten** mit personalisiertem Link
+2. **Anamnese ausfüllen** – medizinische Vorgeschichte, Symptome, Medikamente etc.
+3. **E-Mail-Verifizierung** im Verlauf des Ausfüllens via Verifizierungscode (30 min gültig)
+4. **Absenden** – Daten werden verschlüsselt an die Praxis übermittelt
+
+### Aufklärungsbögen
+
+Praxen können digitale Aufklärungsbögen für verschiedene Behandlungen und Eingriffe erstellen, personalisieren und an Patienten versenden. Der Patient liest den Bögen auf seinem Endgerät durch, bestätigt das Verständnis und sendet die digitale Einwilligung zurück – papierlos, nachvollziehbar und DSGVO-konform archiviert.
+
+- **Praxis-seitig:** Erstellung und Verwaltung von Aufklärungsbögen im Admin-Panel
+- **Patienten-seitig:** Digitales Lesen und rechtskonformes Abgeben der Einwilligung
+- **Archivierung:** Automatische Zuordnung zum Patienten mit Zeitstempel
+
+---
+
+## Workflow
 
 ### Für die Praxis (Admin)
 
 1. **Anmelden** im Admin-Panel
 2. **Patient anlegen** (PVS-Patienten-ID, Geburtsdatum, E-Mail, optional PIN)
-3. **Link versenden** per E-Mail oder QR-Code generieren
-4. **Anamnese einsehen** sobald der Patient sie abgeschickt hat
+3. **Link versenden** per E-Mail oder QR-Code generieren (Anamnese oder Aufklärungsbogen)
+4. **Daten einsehen** sobald der Patient die Anamnese abgeschickt oder den Aufklärungsbogen bestätigt hat
 
 ### Für den Patienten
 
 1. **E-Mail erhalten** mit personalisiertem Link
-2. **E-Mail bestätigen** via Verifizierungscode (30 min gültig)
-3. **Anamnese ausfüllen** – medizinische Vorgeschichte, Symptome, Medikamente etc.
+2. **Anamnese ausfüllen** – medizinische Vorgeschichte, Symptome, Medikamente etc.
+3. **E-Mail-Verifizierung** im Verlauf des Ausfüllens via Verifizierungscode (30 min gültig)
 4. **Absenden** – Daten werden verschlüsselt an die Praxis übermittelt
 
 ---
 
-## 🔒 Sicherheit & Datenschutz
+## Sicherheit & Datenschutz
 
 - **Security Headers** (CSP, HSTS, X-Frame-Options, …)
 - **Rate-Limiting** auf API-Endpunkten
 - **JWT-Cookies** mit httpOnly-fähigem Setup
-- **E-Mail-Verifizierung** vor Anamnese-Start
+- **E-Mail-Verifizierung** im Verlauf des Anamnese-Prozesses
 - **SQLite** bleibt im Container/Volume – keine externe Datenbank nötig
 - **DSGVO-konform:** Daten bleiben unter Kontrolle der Praxis
 
 ---
 
-## 🛠️ Entwicklung
+## Entwicklung
 
 ### Lokale Entwicklung (ohne Docker)
 
@@ -150,7 +173,7 @@ SQLite-Datenbank liegt standardmäßig unter `./data/myhistree.db`. Das Schema w
 
 ---
 
-## 🐳 Docker-Deployment
+## Docker-Deployment
 
 ### Produktion
 
@@ -167,7 +190,7 @@ docker compose -f docker-compose.yml -f docker-compose.staging.yml up -d --build
 
 ---
 
-## 📄 Lizenz
+## Lizenz
 
 Dieses Projekt steht unter der **GPL-3.0** Lizenz.
 
@@ -175,12 +198,12 @@ Siehe [LICENSE](LICENSE) für Details.
 
 ---
 
-## 🤝 Mitwirken
+## Mitwirken
 
 Bug Reports und Feature Requests gerne als [GitHub Issue](https://github.com/automedix/myhistree/issues). Pull Requests sind willkommen!
 
 ---
 
 <p align="center">
-  <sub>Built with ❤️ for better healthcare workflows.</sub>
+  <sub>Built with care for better healthcare workflows.</sub>
 </p>

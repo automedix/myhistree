@@ -1,0 +1,96 @@
+#!/usr/bin/env python3
+import os, sys
+OUT = '/opt/myhistoree/web/blutdruck.html'
+HTML = b'''<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blutdruckmessung</title>
+<style>
+body{font-family:system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;background:#f8fafc;color:#0f172a;margin:0;padding:24px;line-height:1.45;}
+.container{max-width:640px;margin:0 auto;}
+.card{background:#fff;border-radius:16px;box-shadow:0 4px 20px rgba(0,0,0,0.06);padding:24px;margin-bottom:20px;}
+.brand-bar{height:4px;background:linear-gradient(90deg,#3366AA,#4477BB);border-radius:2px;margin-bottom:16px;}
+h1{color:#3366AA;font-size:1.35rem;margin:0 0 12px;}
+h2{font-size:1.05rem;margin:18px 0 8px;color:#0f172a;}
+label{display:block;font-weight:600;margin:12px 0 4px;font-size:.92rem;}
+input{width:100%;padding:10px 12px;border:1px solid #cbd5e1;border-radius:10px;font-size:1rem;box-sizing:border-box;}
+.stepper{display:flex;align-items:center;gap:8px;}
+.stepper button{width:40px;height:40px;border:1px solid #cbd5e1;border-radius:10px;background:#f1f5f9;font-size:1.15rem;cursor:pointer;}
+.stepper button:active{background:#e2e8f0;}
+.stepper input{flex:1;text-align:center;font-weight:700;}
+.actions{margin-top:20px;display:flex;gap:12px;align-items:center;}
+.btn-primary{background:#3366AA;color:#fff;border:none;padding:12px 20px;border-radius:12px;font-size:1rem;font-weight:600;cursor:pointer;width:100%;}
+.btn-primary:disabled{opacity:.7;}
+.goal-box{background:#eff6ff;border-left:4px solid #4477BB;padding:14px;border-radius:10px;margin:16px 0;}
+.goal-box.good{background:#f0fdf4;border-left-color:#16a34a;}
+.readings-table{width:100%;border-collapse:collapse;font-size:.9rem;margin-top:10px;}
+.readings-table th,.readings-table td{border:1px solid #e2e8f0;padding:8px;text-align:center;}
+.readings-table th{background:#f8fafc;}
+canvas.chart{width:100%;height:220px;background:#fff;border:1px solid #e2e8f0;border-radius:10px;margin-top:10px;}
+.msg{color:#ef4444;font-size:.9rem;margin-top:8px;min-height:1.2em;}
+.unit{color:#64748b;font-weight:500;}
+</style>
+</head>
+<body>
+<div class="container">
+<div id="auth-screen" class="card">
+<div class="brand-bar"></div>
+<h1>Blutdruckmessung</h1>
+<p style="color:#64748b;margin-top:4px;">Bitte geben Sie Ihr Geburtsdatum ein. Falls vergeben, auch die PIN.</p>
+<label>Geburtsdatum (TT.MM.JJJJ)</label>
+<input type="text" id="auth-dob" placeholder="TT.MM.JJJJ" autocomplete="off" maxlength="10">
+<label>PIN (falls vergeben)</label>
+<input type="password" id="auth-pin" placeholder="000000" maxlength="20">
+<div class="actions"><button class="btn-primary" id="btn-auth" onclick="handleAuth()">Weiter</button></div>
+<p class="msg" id="auth-msg"></p>
+</div>
+<div id="form-screen" class="card" style="display:none;">
+<div class="brand-bar"></div>
+<h1 id="practice-name"></h1>
+<p id="practice-info" style="color:#64748b;margin-top:-8px;margin-bottom:12px;font-size:.92rem;"></p>
+<h2>Neue Messung</h2>
+<label>Systolisch <span class="unit">mmHg</span></label>
+<div class="stepper"><button onclick="adj('sys',-1)">-</button><input type="number" id="sys" value="125" min="60" max="220"><button onclick="adj('sys',1)">+</button></div>
+<label>Diastolisch <span class="unit">mmHg</span></label>
+<div class="stepper"><button onclick="adj('dia',-1)">-</button><input type="number" id="dia" value="80" min="40" max="140"><button onclick="adj('dia',1)">+</button></div>
+<label>Puls <span class="unit">Schlaege/Min.</span></label>
+<div class="stepper"><button onclick="adj('pul',-1)">-</button><input type="number" id="pul" value="75" min="30" max="200"><button onclick="adj('pul',1)">+</button></div>
+<label>Gewicht (optional) <span class="unit">kg</span></label>
+<div class="stepper"><button onclick="adj('kg',-1)">-</button><input type="number" id="kg" value="" min="30" max="250" step="0.1"><button onclick="adj('kg',1)">+</button></div>
+<div class="actions"><button class="btn-primary" id="btn-submit" onclick="submitReading()">Absenden</button></div>
+<p class="msg" id="submit-msg"></p>
+<div id="goal-box" class="goal-box"></div>
+<h2>Ihre Messungen</h2>
+<table class="readings-table"><thead><tr><th>Zeit</th><th>Sys</th><th>Dia</th><th>Puls</th><th>Gew.</th></tr></thead><tbody id="readings-body"></tbody></table>
+<canvas id="chart" class="chart" width="600" height="220"></canvas>
+</div>
+</div>
+<script>
+var TOKEN=*** p=window.location.pathname.split('/');return p.pop()||null;})();
+var ENCOUNTER_ID=null;var ALL_READINGS=[];
+function adj(id,delta){var el=document.getElementById(id);var step=parseFloat(el.step||1);var v=parseFloat(el.value||0)+delta*step;if(v<parseFloat(el.min))v=parseFloat(el.min);if(v>parseFloat(el.max))v=parseFloat(el.max);el.value=step<1?v.toFixed(1):String(Math.round(v));}
+function parseGermanDate(s){if(s.length!==10||s.charAt(2)!=='.'||s.charAt(5)!=='.')return null;var dd=s.substring(0,2),mm=s.substring(3,5),yyyy=s.substring(6,10);var d=new Date(yyyy+'-'+mm+'-'+dd+'T00:00:00');if(d.getFullYear()!==parseInt(yyyy)||d.getMonth()+1!==parseInt(mm)||d.getDate()!==parseInt(dd))return null;return yyyy+'-'+mm+'-'+dd;}
+async function handleAuth(){var btn=document.getElementById('btn-auth');var msg=document.getElementById('auth-msg');var dobStr=document.getElementById('auth-dob').value.trim();var pin=document.getElementById('auth-pin').value.trim()||undefined;var dob=parseGermanDate(dobStr);if(!dob){msg.textContent='Bitte Geburtsdatum als TT.MM.JJJJ eingeben.';msg.style.color='#ef4444';return;}btn.disabled=true;btn.textContent='Wird geprueft...';try{var res=await fetch('/api/link/start',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token:TOKEN,patientDob:dob,pin:pin})});var data=await res.json();if(!res.ok||data.error){msg.textContent=data.error||'Pruefung fehlgeschlagen.';msg.style.color='#ef4444';btn.disabled=false;btn.textContent='Weiter';return;}ENCOUNTER_ID=data.encounterId;document.getElementById('practice-name').textContent='';document.getElementById('practice-info').textContent='';document.getElementById('auth-screen').style.display='none';document.getElementById('form-screen').style.display='block';await loadReadings();}catch(e){msg.textContent='Netzwerkfehler.';msg.style.color='#ef4444';}finally{btn.disabled=false;btn.textContent='Weiter';}}
+async function loadReadings(){if(!ENCOUNTER_ID)return;try{var res=await fetch('/api/bloodpressure/'+ENCOUNTER_ID);var data=await res.json();ALL_READINGS=data.readings||[];renderTable();renderChart();updateGoal();}catch(e){console.error(e);}}
+function fmtDT(iso){if(!iso)return'-';var d=new Date(iso);if(isNaN(d.getTime()))return iso;return d.toLocaleString('de-DE',{timeZone:'Europe/Berlin',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});}
+function isTodayBerlin(iso){if(!iso)return false;var d=new Date(iso);if(isNaN(d.getTime()))return false;var now=new Date();var bnow=new Date(now.toLocaleString('en-US',{timeZone:'Europe/Berlin'}));var bd=new Date(d.toLocaleString('en-US',{timeZone:'Europe/Berlin'}));return bd.getFullYear()===bnow.getFullYear()&&bd.getMonth()===bnow.getMonth()&&bd.getDate()===bnow.getDate();}
+function updateGoal(){var box=document.getElementById('goal-box');var todayCount=ALL_READINGS.filter(function(r){return isTodayBerlin(r.recorded_at);}).length;var goal=3;if(todayCount>=goal){box.innerHTML='<strong>Tagesziel erreicht!</strong> Sie haben heute bereits '+todayCount+' Messung(en) erfasst. Gut gemacht.';box.className='goal-box good';}else{box.innerHTML='Heute <strong>'+todayCount+'/'+goal+'</strong> Messungen. Noch <strong>'+(goal-todayCount)+'</strong> bis zum Tagesziel.';box.className='goal-box';}}
+function renderTable(){var tbody=document.getElementById('readings-body');tbody.innerHTML='';var rows=ALL_READINGS.slice().reverse();for(var i=0;i<rows.length;i++){var r=rows[i];var tr=document.createElement('tr');tr.innerHTML='<td>'+fmtDT(r.recorded_at)+'</td><td>'+r.systolic+'</td><td>'+r.diastolic+'</td><td>'+r.pulse+'</td><td>'+(r.weight!=null?r.weight:'-')+'</td>';tbody.appendChild(tr);}}
+function renderChart(){var cvs=document.getElementById('chart');var ctx=cvs.getContext('2d');var w=cvs.width,h=cvs.height;ctx.clearRect(0,0,w,h);if(!ALL_READINGS.length)return;var pts=ALL_READINGS.map(function(r){return{t:new Date(r.recorded_at).getTime(),sys:r.systolic,dia:r.diastolic,pul:r.pulse};});var times=pts.map(function(p){return p.t;});var minT=Math.min.apply(null,times);var maxT=Math.max.apply(null,times);var allY=[];pts.forEach(function(p){allY.push(p.sys,p.dia,p.pul);});var minY=Math.min.apply(null,allY)-10;var maxY=Math.max.apply(null,allY)+10;if(minY<30)minY=30;var pad={l:36,t:10,r:10,b:24};var plotH=h-pad.t-pad.b;var plotW=w-pad.l-pad.r;function sx(t){return pad.l+(maxT===minT?0.5:(t-minT)/(maxT-minT))*plotW;}function sy(y){return pad.t+(maxY-y)/(maxY-minY)*plotH;}ctx.strokeStyle='#e2e8f0';ctx.lineWidth=1;for(var i=0;i<=5;i++){var y=pad.t+(plotH*(i/5));ctx.beginPath();ctx.moveTo(pad.l,y);ctx.lineTo(w-pad.r,y);ctx.stroke();}function drawLine(key,color){ctx.strokeStyle=color;ctx.lineWidth=2;ctx.beginPath();for(var i=0;i<pts.length;i++){var p=pts[i];var x=sx(p.t),y=sy(p[key]);if(i===0)ctx.moveTo(x,y);else ctx.lineTo(x,y);}ctx.stroke();ctx.fillStyle=color;for(var i=0;i<pts.length;i++){var p=pts[i];var x=sx(p.t),y=sy(p[key]);ctx.beginPath();ctx.arc(x,y,3,0,Math.PI*2);ctx.fill();}}drawLine('sys','#ef4444');drawLine('dia','#3366AA');drawLine('pul','#16a34a');ctx.fillStyle='#475569';ctx.font='10px sans-serif';ctx.textAlign='center';for(var i=0;i<pts.length;i++){var p=pts[i];var x=sx(p.t);var d=new Date(p.t);var lbl=d.toLocaleString('de-DE',{timeZone:'Europe/Berlin',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});ctx.fillText(lbl,x,h-pad.b+14);}ctx.textAlign='right';for(var i=0;i<=5;i++){var v=minY+(maxY-minY)*(i/5);var y=pad.t+plotH*(i/5);ctx.fillText(Math.round(v),pad.l-4,y+4);}ctx.textAlign='left';var lx=pad.l+8,ly=pad.t+14;[{c:'#ef4444',t:'Systolisch'},{c:'#3366AA',t:'Diastolisch'},{c:'#16a34a',t:'Puls'}].forEach(function(item){ctx.fillStyle=item.c;ctx.fillRect(lx,ly-6,8,8);ctx.fillStyle='#334155';ctx.fillText(item.t,lx+12,ly);lx+=ctx.measureText(item.t).width+28;});}
+async function submitReading(){var btn=document.getElementById('btn-submit');var msg=document.getElementById('submit-msg');var sys=parseInt(document.getElementById('sys').value,10);var dia=parseInt(document.getElementById('dia').value,10);var pul=parseInt(document.getElementById('pul').value,10);var kgVal=document.getElementById('kg').value;var kg=kgVal?parseFloat(kgVal):null;if(Number.isNaN(sys)||sys<60||sys>220){msg.textContent='Bitte systolischen Wert pruefen.';msg.style.color='#ef4444';return;}if(Number.isNaN(dia)||dia<40||dia>140){msg.textContent='Bitte diastolischen Wert pruefen.';msg.style.color='#ef4444';return;}if(Number.isNaN(pul)||pul<30||pul>200){msg.textContent='Bitte Puls pruefen.';msg.style.color='#ef4444';return;}btn.disabled=true;btn.textContent='Speichere...';try{var res=await fetch('/api/bloodpressure/'+ENCOUNTER_ID+'/submit',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({systolic:sys,diastolic:dia,pulse:pul,weight:kg})});var data=await res.json();if(!res.ok){msg.textContent=data.error||'Fehler beim Speichern.';msg.style.color='#ef4444';return;}msg.textContent='Gespeichert.';msg.style.color='#16a34a';document.getElementById('sys').value=125;document.getElementById('dia').value=80;document.getElementById('pul').value=75;await loadReadings();}catch(e){msg.textContent='Netzwerkfehler.';msg.style.color='#ef4444';}finally{btn.disabled=false;btn.textContent='Absenden';}}
+</script>
+</body></html>'''
+
+with open(OUT, 'wb') as f:
+    f.write(HTML)
+print('Written', OUT, len(HTML), 'bytes')
+# Verify
+content = open(OUT, 'rb').read()
+assert b'function handleAuth()' in content
+assert b'function renderChart()' in content
+assert b'p.pop()' in content
+assert b'value=""' in content and b'id="kg"' in content
+assert b'maxY-y)/(maxY-minY)' in content
+print('VERIFIED')

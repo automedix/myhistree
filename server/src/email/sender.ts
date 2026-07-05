@@ -9,7 +9,7 @@ const SMTP_PORT = parseInt(process.env.SMTP_PORT || "587");
 const SMTP_USER = process.env.SMTP_USER || "";
 const SMTP_PASS = process.env.SMTP_PASS || "";
 const FROM_NAME = process.env.EMAIL_FROM_NAME || "";
-const REPLY_TO = process.env.EMAIL_REPLY_TO || "";
+const REPLY_TO = process.env.EMAIL_REPLY_TO || "";  const PRACTICE_NAME = process.env.BRAND_PRACTICE_NAME?.trim() || "Ihre Praxis";
 
 if (!SMTP_HOST || !SMTP_USER || !SMTP_PASS) {
   console.warn("[EMAIL] SMTP credentials not configured. Email sending will fail.");
@@ -59,17 +59,19 @@ export async function sendConsentFormLink(
   to: string,
   pvsPatientId: string,
   linkUrl: string,
+  patientDob?: string,
   pin?: string | null,
   formTitle?: string,
+  practiceName?: string,
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
   if (!isValidEmailSyntax(to)) {
     return { success: false, error: "Invalid email" };
   }
-
+  const brand = practiceName || PRACTICE_NAME;
   const title = formTitle || "Aufklärungs- und Einwilligungsbogen";
-  const pinBlock = pin ? `\n🔐 Sicherheit: Bitte geben Sie zusätzlich die folgende PIN ein: ${pin}\n` : "";
+  const pinBlock = pin ? `\nSicherheit: Bitte geben Sie zusätzlich die folgende PIN ein: ${pin}\n` : "";
 
-  const textBody = `Guten Tag,\n\nvor Ihrem Termin bitten wir Sie, den folgenden ${title} zur Kenntnis zu nehmen und digital zu unterschreiben.\n\nIhre Praxis-Patienten-ID: ${pvsPatientId}\n\nLink zum Aufklärungsbogen:\n${linkUrl}\n${pinBlock}\nDer Link ist für Sie persönlich bestimmt und kann nur mit Ihrem Geburtsdatum${pin ? " und der PIN" : ""} geöffnet werden.\n\nSie können den Bogen bequem auf Ihrem Smartphone lesen und unterschreiben.\n\nMit freundlichen Grüßen\nIhr Praxis-Team\nHausärzte im Grillepark\n\n--\nDiese Nachricht wurde automatisch erstellt.\nAntworten bitte an: ${REPLY_TO}`;
+  const textBody = `Guten Tag,\n\nvor Ihrem Termin bitten wir Sie, den folgenden ${title} zur Kenntnis zu nehmen und digital zu unterschreiben.\n\n🔗 Link zum Aufklärungsbogen:\n${linkUrl}\n${pinBlock}\nDer Link ist für Sie persönlich bestimmt und kann nur mit Ihrem Geburtsdatum${pin ? " und der PIN" : ""} geöffnet werden.\n\nSie können den Bogen bequem auf Ihrem Smartphone lesen und unterschreiben.\n\nMit freundlichen Grüßen\nIhr Praxis-Team\n${brand}\n\n--\nDiese Nachricht wurde automatisch erstellt.\nAntworten bitte an: ${REPLY_TO}`;
 
   const htmlBody = `<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;background:#f8fafc;margin:0;padding:20px;color:#1e293b}
@@ -82,14 +84,13 @@ p{font-size:.95rem;line-height:1.6;color:#475569;margin:8px 0}
 .meta{background:#f1f5f9;padding:12px 16px;border-radius:8px;margin:12px 0;font-size:.9rem}
 .meta strong{color:#1e293b}
 .footer{margin-top:24px;padding-top:16px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#94a3b8}</style></head>
-<body><div class="container"><div class="logo">Hausärzte im Grillepark</div><h1>${title}</h1>
+<body><div class="container"><div class="logo">${brand}</div><h1>${title}</h1>
 <p>Guten Tag,</p><p>vor Ihrem Termin bitten wir Sie, den folgenden Aufklärungsbogen zur Kenntnis zu nehmen und digital zu unterschreiben.</p>
-<div class="meta"><div><strong>Praxis-Patienten-ID:</strong> ${pvsPatientId}</div></div>
 <div class="link-box"><a href="${linkUrl}">${linkUrl}</a></div>
-${pin ? `<p>🔐 Bitte geben Sie zusätzlich folgende PIN ein: <strong>${pin}</strong></p>` : ""}
+${pin ? `<p>Bitte geben: Sie zusätzlich folgende PIN ein: <strong>${pin}</strong></p>` : ""}
 <p>Der Link ist für Sie persönlich bestimmt und kann nur mit Ihrem Geburtsdatum${pin ? " und der PIN" : ""} geöffnet werden.</p>
 <p>Sie können den Bogen bequem auf Ihrem Smartphone lesen und unterschreiben.</p>
-<div class="footer"><p>Mit freundlichen Grüßen<br>Ihr Praxis-Team<br><strong>Hausärzte im Grillepark</strong></p>
+<div class="footer"><p>Mit freundlichen Grüßen<br>Ihr Praxis-Team<br><strong>${brand}</strong></p>
 <p style="font-size:.75rem;color:#94a3b8">Diese Nachricht wurde automatisch erstellt.<br>Antworten bitte an: ${REPLY_TO}</p></div></div></body></html>`;
 
   try {
@@ -97,7 +98,7 @@ ${pin ? `<p>🔐 Bitte geben Sie zusätzlich folgende PIN ein: <strong>${pin}</s
       from: `${FROM_NAME} <${SMTP_USER}>`,
       to,
       replyTo: REPLY_TO,
-      subject: `${title} – Hausärzte im Grillepark`,
+      subject: `${title} – ${brand}`,
       text: textBody,
       html: htmlBody,
     });
@@ -112,18 +113,24 @@ export async function sendAnamneseLink(
   to: string,
   pvsPatientId: string,
   linkUrl: string,
-  pin?: string | null
+  patientDob: string,
+  pin?: string | null,
+  practiceName?: string,
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
   const validate = await validateEmail(to);
   if (!validate.valid) {
     return { success: false, error: validate.error };
   }
+  const brand = practiceName || PRACTICE_NAME;
+  const dobFormatted = patientDob
+    ? new Date(patientDob).toLocaleDateString("de-DE", { timeZone: "Europe/Berlin" })
+    : "nicht angegeben";
 
   const pinBlock = pin
-    ? `\n🔐 Sicherheit: Bitte geben Sie zusätzlich die folgende PIN ein: ${pin}\n`
+    ? `\nSicherheit: Bitte geben Sie zusätzlich die folgende PIN ein: ${pin}\n`
     : "";
 
-  const textBody = `Guten Tag,\n\nSie haben bei uns einen Termin vereinbart. Um Ihren Arztbesuch effizienter zu gestalten, bitten wir Sie, vorab unsere digitale Anamnese auszufüllen.\n\nIhre Praxis-Patienten-ID: ${pvsPatientId}\n\nLink zur digitalen Anamnese:\n${linkUrl}\n${pinBlock}\nDer Link ist für Sie persönlich bestimmt und kann nur mit Ihrem Geburtsdatum${pin ? " und der PIN" : ""} geöffnet werden.\n\nDie Anamnese können Sie bequem auf Ihrem Smartphone, Tablet oder Computer ausfüllen. Ihre Daten werden verschlüsselt übertragen und ausschließlich für Ihre Behandlung verwendet.\n\nBei Fragen erreichen Sie uns telefonisch oder per E-Mail.\n\nMit freundlichen Grüßen\nIhr Praxis-Team\nHausärzte im Grillepark\n\n--\nDiese Nachricht wurde automatisch erstellt.\nAntworten bitte an: ${REPLY_TO}`;
+  const textBody = `Guten Tag,\n\nSie haben bei uns einen Termin vereinbart. Um Ihren Arztbesuch effizienter zu gestalten, bitten wir Sie, vorab unsere digitale Anamnese auszufüllen.\n\n🔗 Link zur digitalen Anamnese:\n${linkUrl}\n${pinBlock}\nDer Link ist für Sie persönlich bestimmt und kann nur mit Ihrem Geburtsdatum${pin ? " und der PIN" : ""} geöffnet werden.\n\nDie Anamnese können Sie bequem auf Ihrem Smartphone, Tablet oder Computer ausfüllen. Ihre Daten werden verschlüsselt übertragen und ausschließlich für Ihre Behandlung verwendet.\n\nBei Fragen erreichen Sie uns telefonisch oder per E-Mail.\n\nMit freundlichen Grüßen\nIhr Praxis-Team\n${brand}\n\n--\nDiese Nachricht wurde automatisch erstellt.\nAntworten bitte an: ${REPLY_TO}`;
 
   const htmlBody = `<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;background:#f8fafc;margin:0;padding:20px;color:#1e293b}
@@ -136,14 +143,13 @@ p{font-size:.95rem;line-height:1.6;color:#475569;margin:8px 0}
 .meta{background:#f1f5f9;padding:12px 16px;border-radius:8px;margin:12px 0;font-size:.9rem}
 .meta strong{color:#1e293b}
 .footer{margin-top:24px;padding-top:16px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#94a3b8}</style></head>
-<body><div class="container"><div class="logo">Hausärzte im Grillepark</div><h1>Digitale Anamnese – Vor Ihrem Termin</h1>
+<body><div class="container"><div class="logo">${brand}</div><h1>Digitale Anamnese – Vor Ihrem Termin</h1>
 <p>Guten Tag,</p><p>Sie haben bei uns einen Termin vereinbart. Um Ihren Arztbesuch effizienter zu gestalten, bitten wir Sie, vorab unsere digitale Anamnese auszufüllen.</p>
-<div class="meta"><div><strong>Praxis-Patienten-ID:</strong> ${pvsPatientId}</div></div>
 <div class="link-box"><a href="${linkUrl}">${linkUrl}</a></div>
-${pin ? `<p>🔐 Bitte geben Sie zusätzlich folgende PIN ein: <strong>${pin}</strong></p>` : ""}
+${pin ? `<p>Bitte geben: Sie zusätzlich folgende PIN ein: <strong>${pin}</strong></p>` : ""}
 <p>Der Link ist für Sie persönlich bestimmt und kann nur mit Ihrem Geburtsdatum${pin ? " und der PIN" : ""} geöffnet werden.</p>
 <p>Die Anamnese können Sie bequem auf Ihrem Smartphone, Tablet oder Computer ausfüllen. Ihre Daten werden verschlüsselt übertragen und ausschließlich für Ihre Behandlung verwendet.</p>
-<div class="footer"><p>Mit freundlichen Grüßen<br>Ihr Praxis-Team<br><strong>Hausärzte im Grillepark</strong></p>
+<div class="footer"><p>Mit freundlichen Grüßen<br>Ihr Praxis-Team<br><strong>${brand}</strong></p>
 <p style="font-size:.75rem;color:#94a3b8">Diese Nachricht wurde automatisch erstellt.<br>Antworten bitte an: ${REPLY_TO}</p></div></div></body></html>`;
 
   try {
@@ -151,7 +157,59 @@ ${pin ? `<p>🔐 Bitte geben Sie zusätzlich folgende PIN ein: <strong>${pin}</s
       from: `${FROM_NAME} <${SMTP_USER}>`,
       to,
       replyTo: REPLY_TO,
-      subject: "Vorab-Anamnese für Ihren Termin – Hausärzte im Grillepark",
+      subject: `Vorab-Anamnese für Ihren Termin – ${brand}`,
+      text: textBody,
+      html: htmlBody,
+    });
+    return { success: true, messageId: info.messageId };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}
+
+// ─── Send Bloodpressure Link ────────────────────────────────────
+export async function sendBloodpressureLink(
+  to: string,
+  pvsPatientId: string,
+  linkUrl: string,
+  patientDob: string,
+  pin?: string | null,
+  practiceName?: string,
+): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  const validate = await validateEmail(to);
+  if (!validate.valid) {
+    return { success: false, error: validate.error };
+  }
+  const brand = practiceName || PRACTICE_NAME;
+
+  const textBody = `Guten Tag,\n\nDokumentieren Sie bitte Ihren Blutdruck!\n\nerhöhter Blutdruck ist ein bedeutender Risikofaktor für die Entstehung einer ganzen Reihe von Erkrankungen. Arterienverkalkung (Kann zu Herzinfarkt und Schlaganfall führen), Nierenerkrankungen, Augenerkrankungen und einiges mehr können Folgen eines dauerhaft hohen Blutdrucks sein.\n\nDamit wir gemeinsam Ihren Blutdruck optimieren können, in dem wir ggf. eine Therapie beginnen oder anpassen, müssen wir zunächst eine Bestandsaufnahme machen. Am aussagekräftigsten sind Werte, die Sie zuhause in Ihrer gewohnten Umgebung und, ganz wichtig, in Ruhe messen.\n\nJe mehr Messwerte Sie dabei erheben, um so genauer wird das Bild, das wir von Ihrem Blutdruck erhalten. Nutzen Sie unsere Online-Blutdruckdokumentation, um Ihre Messwerte komfortabel zu dokumentieren und direkt an uns zu übertragen.\n\nLink zur Blutdruckdokumentation:\n${linkUrl}\n\nLöschen Sie diese Mail während des vereinbarten Dokumentationsintervalles nicht. Sie können über den Link immer wieder zu Ihrer Dokumentation gelangen. Alternativ können Sie den Link als Lesezeichen in Ihrem Browser, oder als Web-App auf dem Homescreen Ihres Smartphones ablegen. (Die Eingabe des Körpergewichtes ist optional)\n\nLegen Sie gleich los!\n\nMit freundlichen Grüssen\nIhr Praxis-Team\n${brand}\n\n--\nDiese Nachricht wurde automatisch erstellt.\nAntworten bitte an: ${REPLY_TO}`;
+
+  const htmlBody = `<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;background:#f8fafc;margin:0;padding:20px;color:#1e293b}
+.container{max-width:480px;margin:0 auto;background:#fff;border-radius:16px;padding:32px;box-shadow:0 4px 20px rgba(0,0,0,0.08)}
+.logo{font-size:1.3rem;font-weight:700;color:#4477BB;margin-bottom:24px}
+h1{font-size:1.1rem;color:#1e293b;margin-bottom:12px}
+p{font-size:.95rem;line-height:1.6;color:#475569;margin:8px 0}
+.link-box{background:#eff6ff;border-left:4px solid #4477BB;padding:16px;border-radius:0 8px 8px 0;margin:16px 0;word-break:break-all}
+.link-box a{color:#4477BB;font-weight:600;text-decoration:none}
+.footer{margin-top:24px;padding-top:16px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#94a3b8}</style></head>
+<body><div class="container"><div class="logo">${brand}</div><h1>Dokumentieren Sie bitte Ihren Blutdruck!</h1>
+<p>Liebe Patientin, lieber Patient,</p>
+<p>erhöhter Blutdruck ist ein bedeutender Risikofaktor für die Entstehung einer ganzen Reihe von Erkrankungen. Arterienverkalkung (Kann zu Herzinfarkt und Schlaganfall führen), Nierenerkrankungen, Augenerkrankungen und einiges mehr können Folgen eines dauerhaft hohen Blutdrucks sein.</p>
+<p>Damit wir gemeinsam Ihren Blutdruck optimieren können, in dem wir ggf. eine Therapie beginnen oder anpassen, müssen wir zunächst eine Bestandsaufnahme machen. Am aussagekräftigsten sind Werte, die Sie zuhause in Ihrer gewohnten Umgebung und, ganz wichtig, in Ruhe messen.</p>
+<p>Je mehr Messwerte Sie dabei erheben, um so genauer wird das Bild, das wir von Ihrem Blutdruck erhalten. Nutzen Sie unsere Online-Blutdruckdokumentation, um Ihre Messwerte komfortabel zu dokumentieren und direkt an uns zu übertragen.</p>
+<div class="link-box"><a href="${linkUrl}">${linkUrl}</a></div>
+<p>Löschen Sie diese Mail während des vereinbarten Dokumentationsintervalles nicht. Sie können über den Link immer wieder zu Ihrer Dokumentation gelangen. Alternativ können Sie den Link als Lesezeichen in Ihrem Browser, oder als Web-App auf dem Homescreen Ihres Smartphones ablegen. (Die Eingabe des Körpergewichtes ist optional)</p>
+<p><strong>Legen Sie gleich los!</strong></p>
+<div class="footer"><p>Mit freundlichen Grüssen<br>Ihr Praxis-Team<br><strong>${brand}</strong></p>
+<p style="font-size:.75rem;color:#94a3b8">Diese Nachricht wurde automatisch erstellt.<br>Antworten bitte an: ${REPLY_TO}</p></div></div></body></html>`;
+
+  try {
+    const info = await transporter.sendMail({
+      from: `${FROM_NAME} <${SMTP_USER}>`,
+      to,
+      replyTo: REPLY_TO,
+      subject: `Dokumentieren Sie bitte Ihren Blutdruck! – ${brand}`,
       text: textBody,
       html: htmlBody,
     });
@@ -164,14 +222,16 @@ ${pin ? `<p>🔐 Bitte geben Sie zusätzlich folgende PIN ein: <strong>${pin}</s
 // ─── Send Verification Code Email ───────────────────────────────
 export async function sendVerificationCodeEmail(
   to: string,
-  code: string
+  code: string,
+  practiceName?: string,
 ): Promise<{ success: boolean; messageId?: string; error?: string }> {
   const validate = await validateEmail(to);
   if (!validate.valid) {
     return { success: false, error: validate.error };
   }
+  const brand = practiceName || PRACTICE_NAME;
 
-  const textBody = `Guten Tag,\n\nvielen Dank für die Angabe Ihrer E-Mail-Adresse im Rahmen Ihrer digitalen Anamnese.\n\nUm sicherzustellen, dass wir Sie korrekt erreichen können, bitten wir Sie, den folgenden Code einzugeben:\n\nVerifizierungscode: ${code}\n\nDieser Code ist 30 Minuten gültig.\n\nFalls Sie diese Anfrage nicht gestellt haben, können Sie diese E-Mail ignorieren.\n\nMit freundlichen Grüßen\nIhr Praxis-Team\nHausärzte im Grillepark\n\n--\nAntworten bitte an: ${REPLY_TO}`;
+  const textBody = `Guten Tag,\n\nvielen Dank für die Angabe Ihrer E-Mail-Adresse im Rahmen Ihrer digitalen Anamnese.\n\nUm sicherzustellen, dass wir Sie korrekt erreichen können, bitten wir Sie, den folgenden Code einzugeben:\n\n🔢 Verifizierungscode: ${code}\n\nDieser Code ist 30 Minuten gültig.\n\nFalls Sie diese Anfrage nicht gestellt haben, können Sie diese E-Mail ignorieren.\n\nMit freundlichen Grüßen\nIhr Praxis-Team\n${brand}\n\n--\nAntworten bitte an: ${REPLY_TO}`;
 
   const htmlBody = `<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;background:#f8fafc;margin:0;padding:20px;color:#1e293b}
@@ -182,19 +242,19 @@ p{font-size:.95rem;line-height:1.6;color:#475569;margin:8px 0}
 .code-box{background:#eff6ff;border:2px dashed #4477BB;padding:20px;border-radius:12px;margin:20px 0;text-align:center}
 .code-box .code{font-size:2rem;font-weight:700;color:#4477BB;letter-spacing:8px;font-family:monospace}
 .footer{margin-top:24px;padding-top:16px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#94a3b8}</style></head>
-<body><div class="container"><div class="logo">Hausärzte im Grillepark</div><h1>E-Mail-Adresse bestätigen</h1>
+<body><div class="container"><div class="logo">${brand}</div><h1>E-Mail-Adresse bestätigen</h1>
 <p>Guten Tag,</p><p>vielen Dank für die Angabe Ihrer E-Mail-Adresse im Rahmen Ihrer digitalen Anamnese.</p>
 <p>Um sicherzustellen, dass wir Sie korrekt erreichen können, bitten wir Sie, den folgenden Code einzugeben:</p>
 <div class="code-box"><div class="code">${code}</div></div>
 <p style="font-size:.85rem;color:#94a3b8">Dieser Code ist 30 Minuten gültig. Falls Sie diese Anfrage nicht gestellt haben, können Sie diese E-Mail ignorieren.</p>
-<div class="footer"><p>Mit freundlichen Grüßen<br>Ihr Praxis-Team<br><strong>Hausärzte im Grillepark</strong></p></div></div></body></html>`;
+<div class="footer"><p>Mit freundlichen Grüßen<br>Ihr Praxis-Team<br><strong>${brand}</strong></p></div></div></body></html>`;
 
   try {
     const info = await transporter.sendMail({
       from: `${FROM_NAME} <${SMTP_USER}>`,
       to,
       replyTo: REPLY_TO,
-      subject: "Ihr Verifizierungscode – Hausärzte im Grillepark",
+      subject: "Ihr Verifizierungscode – " + brand,
       text: textBody,
       html: htmlBody,
     });
@@ -207,11 +267,13 @@ p{font-size:.95rem;line-height:1.6;color:#475569;margin:8px 0}
 
 export async function sendVerificationEmail(
   to: string,
-  magicUrl: string
+  magicUrl: string,
+  practiceName?: string,
 ): Promise<{ success: boolean; error?: string }> {
   if (!isValidEmailSyntax(to)) {
     return { success: false, error: "Invalid email syntax" };
   }
+  const brand = practiceName || PRACTICE_NAME;
 
   const html = `
 <!DOCTYPE html>
@@ -253,7 +315,7 @@ export async function sendVerificationEmail(
       from: `"${FROM_NAME}" <${SMTP_USER}>`,
       to,
       replyTo: REPLY_TO || undefined,
-      subject: "E-Mail-Adresse bestätigen – Hausärzte im Grillepark",
+      subject: "E-Mail-Adresse bestätigen – " + brand,
       text,
       html,
     });

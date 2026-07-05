@@ -3,12 +3,12 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Einwilligung zur KI-gestützten Gesprächsdokumentation (x.scribe)</title>
+<title>Einwilligung zur KI-gestützten Gesprächsdokumentation</title>
 <style>
 /* ---------- Basis ---------- */
 :root {
-  --primary: #4477BB;
-  --accent: #3366AA;
+  --primary: #1e3a5f;
+  --accent: #3b82f6;
   --text: #1e293b;
   --text-light: #475569;
   --border: #cbd5e1;
@@ -235,7 +235,7 @@ body {
 <body>
 
 <div class="print-hint no-print">
-  Druckoptimierte A4-Version – <button onclick="window.print()">Jetzt drucken</button> oder als PDF speichern (Strg+P / Cmd+P)
+  📄 Druckoptimierte A4-Version – <button onclick="window.print()">Jetzt drucken</button> oder als PDF speichern (Strg+P / Cmd+P)
 </div>
 
 <!-- ===================== SEITE 1 ===================== -->
@@ -247,7 +247,7 @@ body {
   </div>
 
   <h1 class="doc-title">Einwilligung zur KI-gestützten Gesprächsdokumentation</h1>
-  <p class="doc-subtitle">Produkt: <strong>x.scribe</strong> (medatixx GmbH) – KI-Anbieter: Corti ApS, Kopenhagen</p>
+  <p class="doc-subtitle">Produkt: <strong>{{KI_PRODUKTNAME}}</strong> ({{KI_HERSTELLER}}) – KI-Anbieter: {{KI_MODELL_ANBIETER}}</p>
 
   <div class="notice-box">
     <strong>Hinweis:</strong> Dies ist ein <strong>Einwilligungsformular</strong> gemäß Art. 6 Abs. 1 lit. a und Art. 9 Abs. 2 lit. a DSGVO. Ihre Einwilligung ist <strong>freiwillig</strong>. Sie können die Behandlung auch ohne Einwilligung in die KI-gestützte Gesprächsdokumentation erhalten. Sie können Ihre Einwilligung jederzeit mit Wirkung für die Zukunft widerrufen.
@@ -264,7 +264,7 @@ body {
 
   <div class="section">
     <h2>2. Zweck der Datenverarbeitung</h2>
-    <p>Wir setzen das Produkt <strong>x.scribe</strong> der medatixx GmbH ein, um Arzt-Patienten-Gespräche während der Konsultation <strong>aufzuzeichnen</strong> und mittels Künstlicher Intelligenz (KI) in strukturierte, editierbare <strong>Dokumentationsvorschläge</strong> zu überführen. Diese können direkt in die Patientenakte (z. B. Anamnese, Befund oder Sonografie-Abschnitt) übernommen werden.</p>
+    <p>Wir setzen das Produkt <strong>{{KI_PRODUKTNAME}}</strong> der {{KI_HERSTELLER}} ein, um Arzt-Patienten-Gespräche während der Konsultation <strong>aufzuzeichnen</strong> und mittels Künstlicher Intelligenz (KI) in strukturierte, editierbare <strong>Dokumentationsvorschläge</strong> zu überführen. Diese können direkt in die Patientenakte (z. B. Anamnese, Befund oder Sonografie-Abschnitt) übernommen werden.</p>
     <ul>
       <li><strong>Zweck:</strong> Echtzeit-Transkription und strukturierte Dokumentation des Arzt-Patienten-Gesprächs zur Qualitätssicherung und Effizienzsteigerung</li>
       <li><strong>Art der Daten:</strong> Audioaufzeichnungen (Sprachdaten), daraus abgeleitete Texttranskripte und Dokumentationsvorschläge</li>
@@ -275,9 +275,9 @@ body {
   <div class="section">
     <h2>3. KI-Anbieter und Technologie</h2>
     <ul>
-      <li><strong>Produktname:</strong> x.scribe</li>
-      <li><strong>Hersteller / Anbieter:</strong> medatixx GmbH</li>
-      <li><strong>KI-Anbieter (Speech-to-Text &amp; KI-Modell):</strong> Corti ApS, Kopenhagen, Dänemark</li>
+      <li><strong>Produktname:</strong> {{KI_PRODUKTNAME}}</li>
+      <li><strong>Hersteller / Anbieter:</strong> {{KI_HERSTELLER}}</li>
+      <li><strong>KI-Anbieter (Speech-to-Text &amp; KI-Modell):</strong> {{KI_MODELL_ANBIETER}}</li>
       <li><strong>Verarbeitungsort:</strong> Ausschließlich innerhalb der Europäischen Union (EU-Hosting)</li>
       <li><strong>Drittlandübermittlung:</strong> Nein – es erfolgt keine Datenübermittlung in Staaten außerhalb des Europäischen Wirtschaftsraums (EWR)</li>
     </ul>
@@ -303,7 +303,7 @@ body {
   </div>
 
   <div class="page-footer">
-    <span>x.scribe Einwilligung – Version 1.0</span>
+    <span>Einwilligung zur KI-gestützten Gesprächsdokumentation – Version 1.0</span>
     <span>Seite 1 / 2</span>
   </div>
 
@@ -356,7 +356,7 @@ body {
   <div class="section">
     <h2>10. Erklärung der Einwilligung</h2>
     <div class="notice-box">
-      Ich willige ein, dass meine Arzt-Patienten-Gespräche im Rahmen meiner Behandlung zur Erstellung von Dokumentationsvorschlägen mittels der KI-gestützten Software <strong>x.scribe</strong> aufgezeichnet und verarbeitet werden dürfen. Mir ist bekannt, dass ich diese Einwilligung jederzeit widerrufen kann.
+      Ich willige ein, dass meine Arzt-Patienten-Gespräche im Rahmen meiner Behandlung zur Erstellung von Dokumentationsvorschlägen mittels der KI-gestützten Software <strong>{{KI_PRODUKTNAME}}</strong> aufgezeichnet und verarbeitet werden dürfen. Mir ist bekannt, dass ich diese Einwilligung jederzeit widerrufen kann.
     </div>
   </div>
 
@@ -391,7 +391,7 @@ body {
   </div>
 
   <div class="page-footer">
-    <span>x.scribe Einwilligung – Version 1.0</span>
+    <span>Einwilligung zur KI-gestützten Gesprächsdokumentation – Version 1.0</span>
     <span>Seite 2 / 2</span>
   </div>
 

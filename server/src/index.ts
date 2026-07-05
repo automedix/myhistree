@@ -69,7 +69,19 @@ app.get("/aufklaerung/:token", async (request, reply) => {
 });
 
 app.get("/auffklaerung/:token", async (request, reply) => {
-  return reply.redirect(`/aufklaerung/${(request.params as { token: string }).token}`);
+  return reply.sendFile("aufklaerung.html");
+});
+
+app.get("/behandlungsvertrag/:token", async (request, reply) => {
+  return reply.sendFile("behandlungsvertrag.html");
+});
+
+app.get("/blutdruck/:token", async (request, reply) => {
+  return reply
+    .header("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate")
+    .header("Pragma", "no-cache")
+    .header("Expires", "0")
+    .sendFile("blutdruck.html");
 });
 
 app.get("/admin", async (request, reply) => {
@@ -77,6 +89,13 @@ app.get("/admin", async (request, reply) => {
 });
 
 app.get("/health", async () => ({ status: "ok", version: "0.6.7" }));
+   app.get("/api/config", async () => ({
+     urlBase: process.env.URL_BASE || "",
+     brandPracticeName: process.env.BRAND_PRACTICE_NAME || "",
+     brandFooterHtml: process.env.BRAND_FOOTER_HTML || "",
+     showCredits: process.env.BRAND_SHOW_CREDITS !== "false",
+   }));
+   
 
 // SPA fallback for client-side routing
 app.setNotFoundHandler(async (request, reply) => {

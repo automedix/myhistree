@@ -70,7 +70,7 @@ const MIGRATIONS = [
     target TEXT,
     details TEXT,
     ip TEXT,
-    created_at TEXT DEFAULT (datetime('now'))
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
   );`,
   `CREATE INDEX IF NOT EXISTS idx_audit_action ON audit_log(action);`,
   `CREATE INDEX IF NOT EXISTS idx_audit_created ON audit_log(created_at);`,
@@ -87,8 +87,8 @@ const MIGRATIONS = [
     role TEXT DEFAULT 'praxis',
     practice_id TEXT REFERENCES practices(id),
     last_login TEXT,
-    created_at TEXT DEFAULT (datetime('now')),
-    updated_at TEXT DEFAULT (datetime('now'))
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
   );`,
   `CREATE TABLE IF NOT EXISTS admin_sessions (
     id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
@@ -96,7 +96,7 @@ const MIGRATIONS = [
     refresh_token_hash TEXT NOT NULL,
     ip TEXT,
     user_agent TEXT,
-    created_at TEXT DEFAULT (datetime('now')),
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
     expires_at TEXT NOT NULL
   );`,
   `CREATE INDEX IF NOT EXISTS idx_admin_sessions_token ON admin_sessions(refresh_token_hash);`,
@@ -116,7 +116,7 @@ const MIGRATIONS = [
     signed_at TEXT NOT NULL,
     ip_address TEXT,
     user_agent TEXT,
-    created_at TEXT DEFAULT (datetime('now'))
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
   );`,
   `CREATE INDEX IF NOT EXISTS idx_consent_encounter ON consent_submissions(encounter_id);`,
   `CREATE TABLE IF NOT EXISTS consent_form_templates (
@@ -125,12 +125,34 @@ const MIGRATIONS = [
     title TEXT NOT NULL,
     content_html TEXT NOT NULL,
     version TEXT NOT NULL DEFAULT '1.0',
-    created_at TEXT DEFAULT (datetime('now')),
-    updated_at TEXT DEFAULT (datetime('now'))
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
   );`,
-  `ALTER TABLE consent_submissions ADD COLUMN consent_items TEXT;`
+  `ALTER TABLE consent_submissions ADD COLUMN consent_items TEXT;`,
+  `CREATE TABLE IF NOT EXISTS behandlungsvertrag_submissions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    encounter_id TEXT UNIQUE NOT NULL REFERENCES encounters(id) ON DELETE CASCADE,
+    patient_name TEXT NOT NULL,
+    tariff TEXT NOT NULL,
+    multiplier REAL,
+    signature_svg TEXT NOT NULL,
+    signed_at TEXT NOT NULL,
+    ip_address TEXT,
+    user_agent TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+  );`,
+  `CREATE INDEX IF NOT EXISTS idx_bv_encounter ON behandlungsvertrag_submissions(encounter_id);`,
+  `CREATE TABLE IF NOT EXISTS bloodpressure_readings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    encounter_id TEXT NOT NULL,
+    systolic INTEGER NOT NULL,
+    diastolic INTEGER NOT NULL,
+    pulse INTEGER NOT NULL,
+    weight REAL,
+    recorded_at TEXT DEFAULT CURRENT_TIMESTAMP
+  );`,
+  `CREATE INDEX IF NOT EXISTS idx_bp_encounter ON bloodpressure_readings(encounter_id);`
 ];
-
 export function initSchema() {
   db.exec(`
     CREATE TABLE IF NOT EXISTS practices (
@@ -141,7 +163,7 @@ export function initSchema() {
       postal_code TEXT,
       phone TEXT,
       email TEXT,
-      created_at TEXT DEFAULT (datetime('now')),
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       linked_at TEXT
     );
     CREATE TABLE IF NOT EXISTS patients (
@@ -151,7 +173,7 @@ export function initSchema() {
       last_name TEXT,
       date_of_birth TEXT,
       gender TEXT,
-      created_at TEXT DEFAULT (datetime('now')),
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       linked_at TEXT
     );
     CREATE TABLE IF NOT EXISTS encounters (
@@ -162,8 +184,8 @@ export function initSchema() {
       source TEXT,
       status TEXT DEFAULT 'in-progress',
       pvs_patient_id TEXT,
-      created_at TEXT DEFAULT (datetime('now')),
-      updated_at TEXT DEFAULT (datetime('now')),
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
       completed_at TEXT,
       processed_at TEXT,
       current_screen TEXT
@@ -175,8 +197,8 @@ export function initSchema() {
       category TEXT NOT NULL,
       status TEXT DEFAULT 'draft',
       data TEXT,
-      created_at TEXT DEFAULT (datetime('now')),
-      updated_at TEXT DEFAULT (datetime('now'))
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      updated_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
     CREATE TABLE IF NOT EXISTS patient_links (
       id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
@@ -192,7 +214,7 @@ export function initSchema() {
       pin TEXT,
       status TEXT DEFAULT 'pending',
       expires_at TEXT,
-      created_at TEXT DEFAULT (datetime('now')),
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
       linked_at TEXT
     );
     CREATE TABLE IF NOT EXISTS email_verifications (
@@ -203,7 +225,7 @@ export function initSchema() {
       verified INTEGER DEFAULT 0,
       attempts INTEGER DEFAULT 0,
       expires_at TEXT NOT NULL,
-      created_at TEXT DEFAULT (datetime('now'))
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP
     );
     CREATE INDEX IF NOT EXISTS idx_links_token ON patient_links(token);
     CREATE INDEX IF NOT EXISTS idx_links_practice ON patient_links(practice_id);
@@ -280,4 +302,5 @@ export function applyRetention() {
     deletedUsed: r3.changes,
     deletedExpired: r4.changes
   };
+
 }

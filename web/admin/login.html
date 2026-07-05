@@ -23,10 +23,13 @@
       --shadow: 0 10px 40px rgba(0,0,0,0.08);
     }
     * { box-sizing: border-box; margin: 0; padding: 0; }
-    body {
+    html, body {
       font-family: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      min-height: 100vh;
+      height: 100%;
+    }
+    .page {
       display: flex;
+      height: 100%;
     }
 
     /* ─── Brand side (links) ─── */
@@ -150,11 +153,13 @@
 </head>
 <body>
 
+  <div class="page">
+
   <!-- Linke Seite: Branding -->
   <div class="brand-side">
     <div>
       <div class="logo">
-        <img src="/logo.png" alt="Hausärzte im Grillepark" onerror="this.style.display='none'">
+            <img src="/logo.png" alt="" id="brand-logo-img" onerror="this.style.display='none'">
       </div>
       <h1>myhistree</h1>
       <p class="subtitle">
@@ -175,17 +180,15 @@
           Übersichtlich verwaltet
         </div>
       </div>
-    </div>
-    <div class="brand-footer">
-      Hausärzte im Grillepark
-    </div>
+        </div>
+    <div class="brand-footer" id="brand-footer"></div>
   </div>
 
   <!-- Rechte Seite: Login -->
   <div class="form-side">
     <div class="form-container">
       <div class="mobile-logo">
-        <img src="/logo.png" alt="Hausärzte im Grillepark" onerror="this.style.display='none'">
+               <img src="/logo.png" alt="" id="mobile-brand-logo-img" onerror="this.style.display='none'">
       </div>
 
       <div class="login-card">
@@ -220,10 +223,15 @@
         <div class="version">v0.5.6</div>
 
         <div class="login-footer">
-          Vibecoded mit <a href="https://hermes-agent.nousresearch.com" target="_blank" rel="noopener">Hermes</a> sandboxed bei <a href="https://clawi.ai" target="_blank" rel="noopener">Clawi.ai</a>
+          <span>Vibecoded mit</span>
+          <a href="https://clawi.ai" target="_blank" rel="noopener">Clawi.ai</a>
+          <span>und</span>
+          <a href="https://hermes-agent.nousresearch.com" target="_blank" rel="noopener">Hermes Agent</a>
         </div>
       </div>
 
+      <div class="app-footer">
+        © Automedix · myhistree
       </div>
     </div>
   </div>
@@ -328,6 +336,26 @@
         }
       }
     });
+    </script>
+  <script>
+    (async function() {
+      try {
+        const res = await fetch('/api/config');
+        if (!res.ok) return;
+        const cfg = await res.json();
+        if (cfg.brandPracticeName) {
+          const img1 = document.getElementById('brand-logo-img');
+          const img2 = document.getElementById('mobile-brand-logo-img');
+          if (img1) img1.alt = cfg.brandPracticeName;
+          if (img2) img2.alt = cfg.brandPracticeName;
+        }
+        const footer = document.getElementById('brand-footer');
+        if (footer && cfg.brandFooterHtml) {
+          footer.innerHTML = cfg.brandFooterHtml;
+        }
+      } catch (e) {}
+       })();
   </script>
+  </div>
 </body>
 </html>

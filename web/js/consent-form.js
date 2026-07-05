@@ -46,7 +46,7 @@
     if (!raw) return '<p>Kein Inhalt verfügbar.</p>';
     const tpl = document.createElement('template');
     tpl.innerHTML = raw;
-    ['script','iframe','object','embed','style','link','meta','base','form'].forEach(tag => {
+    ['script','iframe','object','embed','style','link','meta','base','form','input','textarea','button'].forEach(tag => {
       tpl.content.querySelectorAll(tag).forEach(n => n.remove());
     });
     tpl.content.querySelectorAll('*').forEach(node => {
@@ -100,14 +100,6 @@
         els.authPinGroup.classList.remove('hidden');
       }
 
-      // Prefill DOB if available
-      if (linkData && linkData.patient_dob) {
-        const parts = linkData.patient_dob.split('-');
-        if (parts.length === 3) {
-          els.authDob.value = `${parts[2]}-${parts[1]}-${parts[0]}`; // dd-mm-yyyy -> yyyy-mm-dd
-        }
-      }
-
       els.authSubmit.addEventListener('click', handleAuthSubmit);
       els.authDob.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleAuthSubmit(); });
       els.authPin.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleAuthSubmit(); });
@@ -117,17 +109,31 @@
     }
   }
 
+  function parseGermanDate(dobStr) {
+    const m = dobStr.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+    if (!m) return null;
+    const [, dd, mm, yyyy] = m;
+    const d = new Date(yyyy + '-' + mm + '-' + dd + 'T00:00:00');
+    if (d.getFullYear() !== parseInt(yyyy) || d.getMonth() + 1 !== parseInt(mm) || d.getDate() !== parseInt(dd)) return null;
+    return yyyy + '-' + mm + '-' + dd;
+  }
+
   async function handleAuthSubmit() {
     els.authError.textContent = '';
-    const dobVal = els.authDob.value;
+    const dobVal = els.authDob.value.trim();
     if (!dobVal) {
       els.authError.textContent = 'Bitte geben Sie Ihr Geburtsdatum ein.';
       return;
     }
 
     const startPayload = { token };
-    // Format: YYYY-MM-DD (from date input)
-    startPayload.patientDob = dobVal.replace(/\./g, '-');
+    startPayload.patientDob = parseGermanDate(dobVal);
+    if (!startPayload.patientDob) {
+      els.authError.textContent = 'Bitte geben Sie das Geburtsdatum im Format TT.MM.JJJJ ein.';
+      els.authSubmit.disabled = false;
+      els.authSubmit.textContent = 'Aufklärungsbogen öffnen';
+      return;
+    }
 
     if (currentLinkData && currentLinkData.has_pin) {
       const pin = els.authPin.value.trim();
@@ -174,7 +180,18 @@
         throw new Error(err.error || 'Ungültiger oder abgelaufener Link');
       }
       const data = await res.json();
-      if (data.document_type !== 'consent_form') throw new Error('Kein Aufklärungsbogen');
+      if (data.document_type !== 'consent_form') {
+        if (data.document_type === 'bloodpressure') {
+          window.location.replace(window.location.origin + '/blutdruck/' + token);
+          return;
+        }
+        if (data.document_type === 'behandlungsvertrag') {
+          const token = window.location.pathname.split('/').pop();
+          window.location.replace(window.location.origin + '/behandlungsvertrag/' + token);
+          return;
+        }
+        throw new Error('Kein Aufklärungsbogen');
+      }
 
       if (data.alreadySubmitted) {
         showAlreadySubmitted(data.submittedAt);
@@ -319,7 +336,7 @@
       ctx.stroke();
       hasSignature = true;
       els.canvas.classList.add('has-signature');
-      if (els.sigHint) els.sigHint.textContent = 'Unterschrift erfasst';
+      if (els.sigHint) els.sigHint.textContent = '✅ Unterschrift erfasst';
       checkEnableSubmit();
     };
     const end = () => { isDrawing = false; };
@@ -355,7 +372,7 @@
     els.nameInput.addEventListener('input', () => {
       const val = els.nameInput.value.trim();
       if (val.length >= 2) {
-        els.nameHint.textContent = 'Name erfasst';
+        els.nameHint.textContent = '✅ Name erfasst';
         els.nameHint.style.color = '#22c55e';
       } else {
         els.nameHint.textContent = 'Mindestens 2 Zeichen';

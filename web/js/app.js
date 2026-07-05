@@ -83,7 +83,6 @@ const screens = [
   "contact",
   "email_verified",
   "notes",
-  "review",
   "done"
 ];
 
@@ -102,7 +101,7 @@ function getUrlParams() {
 }
 function escapeHtml(str) {
   if (!str) return "";
-  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/""/g, "&quot;");
+  return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;").replace(/'/g, "&#x27;");
 }
 
 function showError(msg) {
@@ -152,7 +151,7 @@ const wizard = {
     if (currentScreen === "children") buildChildrenScreen();
     const pct = Math.round((currentStep / (screens.length - 1)) * 100);
     document.getElementById("progress-fill").style.width = pct + "%";
-    if (currentScreen === "review") await buildReview();
+    
   },
   async saveAndNext(category, collectorFn) {
     const data = collectorFn();
@@ -181,11 +180,22 @@ const wizard = {
 };
 
 // ─── Verification ───────────────────────────────────────────────
+function parseGermanDate(dobStr) {
+  const m = dobStr.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+  if (!m) return null;
+  const [, dd, mm, yyyy] = m;
+  const d = new Date(`${yyyy}-${mm}-${dd}T00:00:00`);
+  if (d.getFullYear() !== parseInt(yyyy) || d.getMonth() + 1 !== parseInt(mm) || d.getDate() !== parseInt(dd)) return null;
+  return `${yyyy}-${mm}-${dd}`;
+}
+
 async function verifyAndStart() {
   hideError();
-  const dob = document.getElementById("verify-dob")?.value;
+  const dobRaw = document.getElementById("verify-dob")?.value?.trim();
   const pin = document.getElementById("verify-pin")?.value;
-  if (!dob) { showError("Bitte geben Sie Ihr Geburtsdatum ein."); return; }
+  if (!dobRaw) { showError("Bitte geben Sie Ihr Geburtsdatum ein."); return; }
+  const dob = parseGermanDate(dobRaw);
+  if (!dob) { showError("Bitte geben Sie das Geburtsdatum im Format TT.MM.JJJJ ein."); return; }
   if (linkData?.requiresPin && !pin) { showError("Bitte geben Sie die PIN ein."); return; }
   const btn = document.getElementById("btn-verify");
   if (btn) { btn.disabled = true; btn.textContent = "Wird überprüft..."; }
@@ -301,7 +311,7 @@ async function initPage() {
     const info = document.getElementById("verify-info");
     if (info) {
       info.innerHTML = `<div style="background:#f0fdf4;border:1px solid #22c55e;border-radius:8px;padding:12px;margin-bottom:16px;">
-        <strong>Praxis:</strong> ${escapeHtml(linkData.practiceName) || "Hausärzte im Grillepark"}<br>
+        <strong>Praxis:</strong> ${escapeHtml(linkData.practiceName) || "Ihre Praxis"}<br>
         ${linkData.pvsPatientId ? `<strong>Patienten-ID:</strong> ${escapeHtml(linkData.pvsPatientId)}<br>` : ""}
         ${linkData.patientEmail ? `<strong>E-Mail:</strong> ${escapeHtml(linkData.patientEmail)}<br>` : ""}
       </div>`;
@@ -471,7 +481,8 @@ function initChips(groupId) {
   const group = document.getElementById(groupId);
   if (!group) return;
   group.querySelectorAll(".chip").forEach(chip => {
-    chip.addEventListener("click", () => {
+    chip.addEventListener("click", (e) => {
+      e.preventDefault();
       chip.classList.toggle("selected");
       const val = chip.dataset.value;
       const noneChip = Array.from(group.querySelectorAll(".chip")).find(c => c.dataset.value === "keine");
@@ -598,9 +609,13 @@ function collectConditions() {
   const heartText = document.getElementById("condition-heart-text").value.trim();
   const cancer = document.querySelector('input[name="cond_cancer"]:checked')?.value;
   const cancerText = document.getElementById("condition-cancer-text").value.trim();
+  const detailText = escapeHtml(document.getElementById("condition-detail-text")?.value.trim() || "");
   if (!heart || !cancer) { alert("Bitte beantworten Sie die Fragen zu Herzkrankheit und Krebs."); return undefined; }
+  const hasConditions = conditions.length > 0 || detailText.length > 0;
+  if (!hasConditions) { alert("Bitte wählen Sie mindestens eine Vorerkrankung aus oder beschreiben Sie diese."); return undefined; }
   return {
     conditions: conditions.length ? conditions.join(", ") : undefined,
+    other_conditions: detailText.length ? detailText : undefined,
     heart: heart === "ja" ? (heartText || "Ja") : "Nein",
     cancer: cancer === "ja" ? (cancerText || "Ja") : "Nein",
     __completed: true
@@ -617,79 +632,79 @@ function collectOperations() {
 function collectMedsBloodthin() {
   const meds = getChips("bloodthin-chips");
   const detail = document.getElementById("bloodthin-text").value.trim();
-  if (!meds.length) { alert(t("alert.select.one")); return undefined; }
+  if (!meds.length && !detail) { alert(t("alert.select.one")); return undefined; }
   const selected = meds.filter(m => m !== "keine");
-  if (selected.length === 0) return { meds_bloodthin: "Keine", __completed: true };
+  if (selected.length === 0) return { meds_bloodthin: detail || "Keine", detail: detail || undefined, __completed: true };
   return { meds_bloodthin: selected.join(", "), detail: detail || undefined, __completed: true };
 }
 function collectMedsBP() {
   const meds = getChips("bp-chips");
   const detail = document.getElementById("bp-text").value.trim();
-  if (!meds.length) { alert(t("alert.select.one")); return undefined; }
+  if (!meds.length && !detail) { alert(t("alert.select.one")); return undefined; }
   const selected = meds.filter(m => m !== "keine");
-  if (selected.length === 0) return { meds_bp: "Keine", __completed: true };
+  if (selected.length === 0) return { meds_bp: detail || "Keine", detail: detail || undefined, __completed: true };
   return { meds_bp: selected.join(", "), detail: detail || undefined, __completed: true };
 }
 function collectMedsAsthma() {
   const meds = getChips("asthma-chips");
   const detail = document.getElementById("asthma-text").value.trim();
-  if (!meds.length) { alert(t("alert.select.one")); return undefined; }
+  if (!meds.length && !detail) { alert(t("alert.select.one")); return undefined; }
   const selected = meds.filter(m => m !== "keine");
-  if (selected.length === 0) return { meds_asthma: "Keine", __completed: true };
+  if (selected.length === 0) return { meds_asthma: detail || "Keine", detail: detail || undefined, __completed: true };
   return { meds_asthma: selected.join(", "), detail: detail || undefined, __completed: true };
 }
 function collectMedsDiabetes() {
   const meds = getChips("diabetes-chips");
   const detail = document.getElementById("diabetes-text").value.trim();
-  if (!meds.length) { alert(t("alert.select.one")); return undefined; }
+  if (!meds.length && !detail) { alert(t("alert.select.one")); return undefined; }
   const selected = meds.filter(m => m !== "keine");
-  if (selected.length === 0) return { meds_diabetes: "Keine", __completed: true };
+  if (selected.length === 0) return { meds_diabetes: detail || "Keine", detail: detail || undefined, __completed: true };
   return { meds_diabetes: selected.join(", "), detail: detail || undefined, __completed: true };
 }
 function collectMedsNeuro() {
   const meds = getChips("neuro-chips");
   const detail = document.getElementById("neuro-text").value.trim();
-  if (!meds.length) { alert(t("alert.select.one")); return undefined; }
+  if (!meds.length && !detail) { alert(t("alert.select.one")); return undefined; }
   const selected = meds.filter(m => m !== "keine");
-  if (selected.length === 0) return { meds_neuro: "Keine", __completed: true };
+  if (selected.length === 0) return { meds_neuro: detail || "Keine", detail: detail || undefined, __completed: true };
   return { meds_neuro: selected.join(", "), detail: detail || undefined, __completed: true };
 }
 function collectMedsPain() {
   const meds = getChips("pain-chips");
   const detail = document.getElementById("pain-text").value.trim();
-  if (!meds.length) { alert(t("alert.select.one")); return undefined; }
+  if (!meds.length && !detail) { alert(t("alert.select.one")); return undefined; }
   const selected = meds.filter(m => m !== "keine");
-  if (selected.length === 0) return { meds_pain: "Keine", __completed: true };
+  if (selected.length === 0) return { meds_pain: detail || "Keine", detail: detail || undefined, __completed: true };
   return { meds_pain: selected.join(", "), detail: detail || undefined, __completed: true };
 }
 function collectMedsGynUro() {
   const meds = getChips("gynuro-chips");
   const detail = document.getElementById("gynuro-text").value.trim();
-  if (!meds.length) { alert(t("alert.select.one")); return undefined; }
+  if (!meds.length && !detail) { alert(t("alert.select.one")); return undefined; }
   const selected = meds.filter(m => m !== "keine");
-  if (selected.length === 0) return { meds_gynuro: "Keine", __completed: true };
+  if (selected.length === 0) return { meds_gynuro: detail || "Keine", detail: detail || undefined, __completed: true };
   return { meds_gynuro: selected.join(", "), detail: detail || undefined, __completed: true };
 }
 function collectMedsChol() {
   const meds = getChips("chol-chips");
   const detail = document.getElementById("chol-text").value.trim();
-  if (!meds.length) { alert(t("alert.select.one")); return undefined; }
+  if (!meds.length && !detail) { alert(t("alert.select.one")); return undefined; }
   const selected = meds.filter(m => m !== "keine");
-  if (selected.length === 0) return { meds_chol: "Keine", __completed: true };
+  if (selected.length === 0) return { meds_chol: detail || "Keine", detail: detail || undefined, __completed: true };
   return { meds_chol: selected.join(", "), detail: detail || undefined, __completed: true };
 }
 function collectNotes() {
   const text = document.getElementById("notes-text").value.trim();
-  if (!text) return null; // skip if empty
-  return { notes: text, __completed: true };
+  // Always save, even if empty, so the admin sees "Keine Angaben"
+  return { notes: text || "", __completed: true };
 }
 
 function collectMedsOther() {
   const meds = getChips("other-meds-chips");
   const detail = document.getElementById("other-meds-text").value.trim();
-  if (!meds.length) { alert(t("alert.select.one")); return undefined; }
+  if (!meds.length && !detail) { alert(t("alert.select.one")); return undefined; }
   const selected = meds.filter(m => m !== "keine");
-  if (selected.length === 0) return { meds_other: "Keine", __completed: true };
+  if (selected.length === 0) return { meds_other: detail || "Keine", detail: detail || undefined, __completed: true };
   return { meds_other: selected.join(", "), detail: detail || undefined, __completed: true };
 }
 
@@ -764,8 +779,10 @@ function collectContact() {
   if (email) {
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { alert("Bitte eine gültige E-Mail-Adresse eingeben."); return undefined; }
     result.email = email;
-    const verified = document.getElementById("contact-email-verified")?.value === "1";
-    result.email_verified = verified;
+    // Fallback to sessionStorage if DOM was reset (e.g. new tab or reload)
+    const domVerified = document.getElementById("contact-email-verified")?.value === "1";
+    const storageVerified = sessionStorage.getItem("myhistoree_email_verified") === "1";
+    result.email_verified = domVerified || storageVerified;
   }
   return result;
 }
@@ -907,7 +924,19 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
-// ─── Review & Submit ────────────────────────────────────────────
+function saveNotesAndSubmit() {
+  const data = collectNotes();
+  if (encounterId) {
+    fetch(API + "/api/anamnese/" + encounterId + "/notes", {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(data)
+    }).catch(function(e){ console.error("Speichern fehlgeschlagen", e); });
+  }
+  submitFinal();
+}
+
+// ─── Review & Submit ──────────────────────────────────────────── ────────────────────────────────────────────
 async function buildReview() {
   const T = (k, fallback) => (typeof t === "function" ? t(k) : null) || fallback || k;
   const items = [
