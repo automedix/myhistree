@@ -479,7 +479,7 @@ async function viewEncounter(encounterId) {
         html += '<div class="field"><div class="field-label">Unterschrieben am</div><div class="field-value">' + fmtDateTime(sub.signed_at) + '</div></div>';
         if (enc.contract_html) {
           html += '<hr style="margin: 16px 0;"><h3>Vertragstext</h3>';
-          html += '<div style="border:1px solid var(--border);border-radius:8px;padding:12px;background:#fafafa;max-height:60vh;overflow:auto;font-size:0.85rem;line-height:1.5;">' + enc.contract_html + '</div>';
+          html += '<div style="border:1px solid var(--border);border-radius:8px;padding:12px;background:#fafafa;max-height:60vh;overflow:auto;font-size:0.85rem;line-height:1.5;">' + sanitizeConsentHtml(enc.contract_html) + '</div>';
         } else {
           html += '<hr style="margin: 16px 0;"><p style="color:#888;font-style:italic;">Vertragstext nicht gespeichert (ältere Einreichung)</p>';
         }
@@ -758,7 +758,7 @@ async function printEncounter(encounterId) {
         html += '<p><strong>Unterschrieben am:</strong> ' + fmtDateTime(sub.signed_at) + '</p>';
         if (enc.contract_html) {
           html += '<hr style="margin: 16px 0;"><h3>Vertragstext</h3>';
-          html += '<div style="border:1px solid #ddd;border-radius:8px;padding:12px;background:#fafafa;font-size:0.85rem;line-height:1.5;">' + enc.contract_html + '</div>';
+          html += '<div style="border:1px solid #ddd;border-radius:8px;padding:12px;background:#fafafa;font-size:0.85rem;line-height:1.5;">' + sanitizeConsentHtml(enc.contract_html) + '</div>';
         } else {
           html += '<hr style="margin: 16px 0;"><p style="color:#888;font-style:italic;">Vertragstext nicht gespeichert (ältere Einreichung)</p>';
         }
