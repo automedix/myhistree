@@ -1,4 +1,4 @@
-const CACHE_NAME = "myhistree-v0.6.9";
+const CACHE_NAME = "myhistree-v0.6.11";
 
 self.addEventListener("install", (e) => { self.skipWaiting(); });
 

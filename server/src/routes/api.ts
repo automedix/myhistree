@@ -116,8 +116,11 @@ export default async function apiRoutes(fastify: FastifyInstance) {
   });
 
   // ─── Email Send ─────────────────────────────────────────────────
-  fastify.post("/link/send-email", { onRequest: requireAuth }, async (request) => {
+  fastify.post("/link/send-email", { onRequest: requireAuth }, async (request, reply) => {
     const { to, pvsPatientId, linkUrl, patientDob, pin, documentType, consentFormId } = request.body as any;
+    if (!to || !linkUrl) return reply.status(400).send({ error: "E-Mail und Link-URL sind erforderlich" });
+    const emailCheck = await validateEmail(to);
+    if (!emailCheck.valid) return reply.status(400).send({ error: emailCheck.error });
     let result;
     const practiceRow = db.prepare("SELECT name FROM practices ORDER BY id ASC LIMIT 1").get() as any;
     const practiceName = practiceRow?.name || "";
@@ -134,9 +137,11 @@ export default async function apiRoutes(fastify: FastifyInstance) {
       result = await sendAnamneseLink(to, pvsPatientId, linkUrl, patientDob, pin, practiceName);
     }
     if (result.success) {
-      logAudit("SEND_EMAIL", pvsPatientId, `to: ${to}, typ: ${documentType || "anamnese"}`, undefined, request.ip);
+      logAudit("SEND_EMAIL", pvsPatientId, `to: ${to}, typ: ${documentType || "anamnese"}`, (request as any).user?.email, request.ip);
+      return result;
+    } else {
+      return reply.status(500).send({ error: result.error || "E-Mail konnte nicht gesendet werden" });
     }
-    return result;
   });
 
   fastify.post("/email/send-code", async (request, reply) => {
@@ -467,7 +472,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
         );
         row.consent_html = row.consent_html.replace(
           /<li><strong>KI-Anbieter \(Speech-to-Text &(?:amp;)? KI-Modell\):<\/strong> {{KI_MODELL_ANBIETER}}<\/li>/,
-          `<li><strong>KI-Anbieter (Speech-to-Text &(?:amp;)? KI-Modell):</strong> ${val(practice.ki_model_provider)}</li>`
+          `<li><strong>KI-Anbieter (Speech-to-Text &amp; KI-Modell):</strong> ${val(practice.ki_model_provider)}</li>`
         );
         row.consent_html = row.consent_html.replace(
           /<li><strong>Verarbeitungsort:<\/strong> {{KI_VERARBEITUNGSORT}}<\/li>/,
@@ -652,7 +657,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
         );
         template.content_html = template.content_html.replace(
           /<li><strong>KI-Anbieter \(Speech-to-Text &(?:amp;)? KI-Modell\):<\/strong> {{KI_MODELL_ANBIETER}}<\/li>/,
-          `<li><strong>KI-Anbieter (Speech-to-Text &(?:amp;)? KI-Modell):</strong> ${val(practice?.ki_model_provider)}</li>`
+          `<li><strong>KI-Anbieter (Speech-to-Text &amp; KI-Modell):</strong> ${val(practice?.ki_model_provider)}</li>`
         );
         template.content_html = template.content_html.replace(
           /<li><strong>Verarbeitungsort:<\/strong> {{KI_VERARBEITUNGSORT}}<\/li>/,

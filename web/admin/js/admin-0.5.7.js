@@ -161,16 +161,29 @@ async function createLink() {
     const qrDiv = document.getElementById('result-qr');
     qrDiv.innerHTML = '';
     new QRCode(qrDiv, { text: url, width: 160, height: 160, colorDark: '#1e293b', colorLight: '#ffffff', correctLevel: QRCode.CorrectLevel.M });
-    if (email) { try { await sendLinkEmail(email, pvsId, url, dob, data.pin, docType, consentFormId); } catch(e) { console.log('E-Mail skipped', e); } }
+    if (email) {
+    try {
+      await sendLinkEmail(email, pvsId, url, dob, data.pin, docType, consentFormId);
+      console.log('E-Mail gesendet');
+    } catch(e) {
+      console.error('E-Mail Fehler:', e);
+      alert('E-Mail konnte nicht gesendet werden: ' + e.message);
+    }
+  }
     await loadLinks();
   } catch (e) { alert('Netzwerkfehler: ' + (e.message || e)); } finally { btn.disabled = false; btn.textContent = 'Link erstellen'; }
 }
 
 async function sendLinkEmail(to, pvsPatientId, linkUrl, patientDob, pin, documentType, consentFormId) {
-  await fetch(`${API}/link/send-email`, {
+  const res = await fetch(`${API}/link/send-email`, {
     method: 'POST', headers: {'Content-Type':'application/json'}, credentials: 'include',
     body: JSON.stringify({ to, pvsPatientId, linkUrl, patientDob, pin, documentType, consentFormId, practiceId: CURRENT_PRACTICE })
   });
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}));
+    throw new Error(data.error || `HTTP ${res.status}`);
+  }
+  return res.json();
 }
 
 // ─── Links laden ────────────────────────────────────────────────
