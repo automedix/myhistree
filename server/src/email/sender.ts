@@ -325,3 +325,36 @@ export async function sendVerificationEmail(
     return { success: false, error: String(err) };
   }
 }
+// ─── Deximed ─────────────────────────────────────────────────────
+export async function sendDeximedInfo(to: string, url: string, title: string, practiceName?: string): Promise<{ success: boolean; error?: string }> {
+  const brand = practiceName || PRACTICE_NAME;
+  const html = `<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;background:#f8fafc;margin:0;padding:20px;color:#1e293b}
+.container{max-width:480px;margin:0 auto;background:#fff;border-radius:16px;padding:32px;box-shadow:0 4px 20px rgba(0,0,0,0.08)}
+.logo{font-size:1.3rem;font-weight:700;color:#4477BB;margin-bottom:24px}
+h1{font-size:1.1rem;color:#1e293b;margin-bottom:12px}
+p{font-size:.95rem;line-height:1.6;color:#475569;margin:8px 0}
+.btn{display:inline-block;background:#4477BB;color:#fff;text-decoration:none;padding:14px 28px;border-radius:8px;font-size:16px;font-weight:600}
+.link-box{margin:16px 0;word-break:break-all}
+.footer{margin-top:24px;padding-top:16px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#94a3b8}</style></head>
+<body><div class="container"><div class="logo">${brand}</div><h1>Patienteninformation: ${title}</h1>
+<p>Guten Tag,</p><p>Ihr Arzt hat Ihnen folgende Patienteninformationen empfohlen:</p>
+<div style="text-align:center;margin:28px 0;"><a href="${url}" class="btn">Patienteninformation öffnen</a></div>
+<p style="font-size:.85rem;color:#64748b;">Funktioniert der Button nicht? Kopieren Sie diesen Link in Ihren Browser:<br><a href="${url}" style="color:#4477BB;word-break:break-all;">${url}</a></p>
+<div class="footer">
+<p style="font-size:.85rem;color:#475569;">Diese E-Mail enthält keine Diagnose oder Therapieempfehlung. Bitte wenden Sie sich bei Fragen an Ihren Arzt.</p>
+<p style="font-size:.75rem;color:#94a3b8;margin-top:12px;">Diese Nachricht wurde automatisch erstellt. Auf Antworten wird nicht gelesen.</p>
+</div></div></body></html>`;
+  try {
+    await transporter.sendMail({
+      from: `${FROM_NAME} <${SMTP_USER}>`,
+      to,
+      replyTo: REPLY_TO,
+      subject: `Patienteninformation: ${title}`,
+      html,
+    });
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || "E-Mail konnte nicht gesendet werden" };
+  }
+}

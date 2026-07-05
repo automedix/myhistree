@@ -2,7 +2,7 @@ import { FastifyInstance } from "fastify";
 import { db, logAudit, getAuditLog, applyRetention } from "../db/index";
 import { randomUUID } from "crypto";
 import { z } from "zod";
-import { sendAnamneseLink, sendBloodpressureLink, sendConsentFormLink, sendVerificationCodeEmail, sendVerificationEmail, validateEmail } from "../email/sender";
+import { sendAnamneseLink, sendBloodpressureLink, sendConsentFormLink, sendVerificationCodeEmail, sendVerificationEmail, validateEmail, sendDeximedInfo } from "../email/sender";
 import { isValidEmailSyntax } from "../email/sender";
 
 const anamneseBody = z.record(z.any());
@@ -758,6 +758,51 @@ export default async function apiRoutes(fastify: FastifyInstance) {
     db.prepare("DELETE FROM admin_sessions WHERE admin_id = ?").run(id);
     logAudit(newActive === 1 ? "ACTIVATE_USER" : "DEACTIVATE_USER", id, target.email, undefined, request.ip);
     return { success: true, active: newActive };
+  });
+
+  // ─── Deximed Patienteninformation ───────────────────────────────
+  fastify.get("/deximed/search", { onRequest: requireAuth }, async (request, reply) => {
+    const query = ((request.query as any).q || "").trim();
+    if (!query || query.length < 2) return reply.status(400).send({ error: "Mindestens 2 Zeichen erforderlich" });
+    const like = `%${query.replace(/[%_]/g, "\\$&")}%`;
+    const rows = db.prepare(
+      `SELECT id, title, url, slug FROM deximed_articles WHERE title LIKE ? OR slug LIKE ? ORDER BY title LIMIT 20`
+    ).all(like, like) as any[];
+    logAudit("DEXIMED_SEARCH", undefined, query, (request as any).user?.email, request.ip);
+    return { results: rows };
+  });
+
+  fastify.post("/deximed/send", { onRequest: requireAuth }, async (request, reply) => {
+    const body = request.body as any;
+    const { email, url, title } = body;
+    if (!email || !url) return reply.status(400).send({ error: "E-Mail und URL erforderlich" });
+    const emailCheck = await validateEmail(email);
+    if (!emailCheck.valid) return reply.status(400).send({ error: emailCheck.error });
+    const practiceRow = db.prepare("SELECT name FROM practices ORDER BY id ASC LIMIT 1").get() as any;
+    const practiceName = practiceRow?.name || "";
+    const result = await sendDeximedInfo(email, url, title, practiceName);
+    if (result.success) {
+      logAudit("DEXIMED_SEND", undefined, `${email} | ${url}`, (request as any).user?.email, request.ip);
+      return { success: true };
+    } else {
+      return reply.status(500).send({ error: result.error || "E-Mail konnte nicht gesendet werden" });
+    }
+  });
+
+  fastify.get("/deximed/count", { onRequest: requireAuth }, async () => {
+    const { total } = db.prepare("SELECT COUNT(*) as total FROM deximed_articles").get() as any;
+    return { total };
+  });
+
+  fastify.post("/deximed/reindex", { onRequest: requireAuth }, async (request, reply) => {
+    const admin = (request as any).user;
+    if (!["admin","superadmin"].includes(admin.role)) return reply.status(403).send({ error: "Forbidden" });
+    const { spawn } = require("child_process");
+    const scriptPath = require("path").join(process.cwd(), "server/dist/scripts/import-deximed.js");
+    const child = spawn("node", [scriptPath], { detached: true, stdio: "ignore" });
+    child.unref();
+    logAudit("DEXIMED_REINDEX_START", undefined, "detached", admin.email, request.ip);
+    return { success: true, message: "Reindex gestartet. Das kann ein paar Minuten dauern." };
   });
 
 }

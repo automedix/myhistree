@@ -151,7 +151,18 @@ const MIGRATIONS = [
     weight REAL,
     recorded_at TEXT DEFAULT CURRENT_TIMESTAMP
   );`,
-  `CREATE INDEX IF NOT EXISTS idx_bp_encounter ON bloodpressure_readings(encounter_id);`
+  `CREATE INDEX IF NOT EXISTS idx_bp_encounter ON bloodpressure_readings(encounter_id);`,
+  `CREATE TABLE IF NOT EXISTS deximed_articles (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    title TEXT NOT NULL,
+    url TEXT NOT NULL UNIQUE,
+    slug TEXT,
+    keywords TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+  );`,
+  `CREATE INDEX IF NOT EXISTS idx_deximed_title ON deximed_articles(title);`,
+  `CREATE INDEX IF NOT EXISTS idx_deximed_slug ON deximed_articles(slug);`
 ];
 export function initSchema() {
   db.exec(`

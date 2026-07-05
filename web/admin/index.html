@@ -165,11 +165,102 @@ pre.json { background:#1e293b; color:#e2e8f0; padding:16px; border-radius:8px; o
           <div id="result-pin" style="margin-top:8px;font-weight:600;color:#4477BB;"></div>
         </div>
       </div>
+    <div style="height:40px;"></div>
+  <!-- Deximed Card -->
+  <div class="card" id="deximed-card">
+    <h2>Deximed Patienteninformation</h2>
+    <p>Anzahl Artikel: <span id="deximed-count">-</span></p>
+    <input type="text" id="deximed-search" placeholder="Suche nach Begriff..." style="width:100%;padding:8px;margin-bottom:10px;" />
+    <div id="deximed-results" style="margin-bottom:10px;max-height:200px;overflow-y:auto;"></div>
+    <input type="email" id="deximed-email" placeholder="Patienten-E-Mail" style="width:100%;padding:8px;margin-bottom:10px;" />
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button id="btn-deximed-send" class="btn btn-primary">Information senden</button>
+      <button id="btn-deximed-reset" class="btn btn-secondary">Zurücksetzen</button>
+      <button id="btn-deximed-reindex" class="btn btn-primary">Index aktualisieren</button>
+    </div>
+    <div id="deximed-status" style="margin-top:8px;font-size:14px;"></div>
+  </div>
+
+<script>
+  (function(){
+    const searchInput = document.getElementById("deximed-search");
+    const resultsDiv = document.getElementById("deximed-results");
+    const emailInput = document.getElementById("deximed-email");
+    const sendBtn = document.getElementById("btn-deximed-send");
+    const resetBtn = document.getElementById("btn-deximed-reset");
+    const reindexBtn = document.getElementById("btn-deximed-reindex");
+    const countSpan = document.getElementById("deximed-count");
+    const statusDiv = document.getElementById("deximed-status");
+    let selectedUrl = null;
+    let selectedTitle = null;
+
+    async function updateCount(){
+      try {
+        const r = await fetch("/api/deximed/count", { credentials: 'include' });
+        const j = await r.json();
+        countSpan.textContent = j.total;
+      }catch(e){ countSpan.textContent = "?"; }
+    }
+    updateCount();
+
+    async function doSearch(){
+      const q = searchInput.value.trim();
+      if (q.length < 2) { resultsDiv.innerHTML = ""; return; }
+      try {
+        const r = await fetch("/api/deximed/search?q=" + encodeURIComponent(q), { credentials: 'include' });
+        const j = await r.json();
+        resultsDiv.innerHTML = j.results.map(x => {
+          return `<div class="deximed-row" data-url="${x.url}" data-title="${x.title.replace(/"/g, '\\u0026quot;')}" style="padding:10px 12px;border-radius:6px;border:1px solid transparent;cursor:pointer;margin-bottom:4px;background:#fff;transition:all .15s;">
+            <div style="font-weight:600;color:#1e293b;font-size:0.95rem;">${x.title}</div>
+          </div>`;
+        }).join("");
+        resultsDiv.querySelectorAll(".deximed-row").forEach(el => {
+          el.addEventListener("mouseenter", () => { if (el.getAttribute("data-sel") !== "1") el.style.background = "#f1f5f9"; });
+          el.addEventListener("mouseleave", () => { if (el.getAttribute("data-sel") !== "1") el.style.background = "#fff"; });
+          el.addEventListener("click", () => {
+            selectedUrl = el.getAttribute("data-url");
+            selectedTitle = el.getAttribute("data-title");
+            resultsDiv.querySelectorAll(".deximed-row").forEach(row => { row.style.background = "#fff"; row.style.borderColor = "transparent"; row.setAttribute("data-sel","0"); });
+            el.style.background = "#eff6ff"; el.style.borderColor = "#4477BB"; el.setAttribute("data-sel","1");
+          });
+        });
+      }catch(e){ resultsDiv.innerHTML = "Fehler bei Suche"; }
+    }
+
+    let debounceTimer;
+    searchInput.addEventListener("input", () => { clearTimeout(debounceTimer); debounceTimer = setTimeout(doSearch, 300); });
+
+    sendBtn.addEventListener("click", async () => {
+      if (!selectedUrl) { statusDiv.textContent = "Bitte Artikel auswählen"; return; }
+      const to = emailInput.value.trim();
+      if (!to) { statusDiv.textContent = "Bitte E-Mail eingeben"; return; }
+      statusDiv.textContent = "Sende...";
+      try {
+        const r = await fetch("/api/deximed/send", { method: "POST", headers: { "Content-Type": "application/json" }, credentials: 'include', body: JSON.stringify({ url: selectedUrl, title: selectedTitle, to }) });
+        const j = await r.json();
+        statusDiv.textContent = j.success ? "Gesendet!" : (j.error || "Fehler");
+        if (j.success) { emailInput.value = ""; selectedUrl = null; selectedTitle = null; resultsDiv.innerHTML = ""; }
+      }catch(e){ statusDiv.textContent = "Netzwerkfehler"; }
+    });
+
+    resetBtn.addEventListener("click", () => { searchInput.value = ""; emailInput.value = ""; resultsDiv.innerHTML = ""; selectedUrl = null; selectedTitle = null; statusDiv.textContent = ""; });
+
+    reindexBtn.addEventListener("click", async () => {
+      statusDiv.textContent = "Reindex wird gestartet...";
+      try {
+        const r = await fetch("/api/deximed/reindex", { method: "POST", credentials: 'include' });
+        const j = await r.json();
+        statusDiv.textContent = j.message || j.error || "OK";
+      }catch(e){ statusDiv.textContent = "Fehler"; }
+    });
+  })();
+</script>
     </div>
     <div class="card">
       <h2>Erstellte Links</h2>
       <div id="links-table-container"><div class="spinner"></div></div>
     </div>
+
   </div>
 
   <!-- TAB: Encounters -->
@@ -236,7 +327,7 @@ pre.json { background:#1e293b; color:#e2e8f0; padding:16px; border-radius:8px; o
 </div>
 
 <script src="/admin/js/qrcode.min.js"></script>
-<script src="/admin/js/admin-0.5.7.js?v=36"></script>
+<script src="/admin/js/admin-0.5.7.js?v=37"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
   var ids = ['new-pvs-id','new-patient-dob','new-patient-email','new-pin'];
@@ -252,6 +343,7 @@ document.addEventListener('DOMContentLoaded', function() {
   if (pinRow) { pinRow.style.display = 'none'; }
 });
 </script>
+
+
 </body>
 </html>
-
