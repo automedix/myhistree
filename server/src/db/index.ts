@@ -251,7 +251,7 @@ export function ensurePracticeDefaults() {
   const stmt = db.prepare("SELECT id FROM practices WHERE id = 'demo-practice'");
   if (!stmt.get()) {
     db.prepare(`INSERT INTO practices (id, name, address, city, postal_code, phone, email)
-                VALUES ('demo-practice', 'Haus\u00e4rzte im Grillepark',
+                VALUES ('demo-practice', 'Musterpraxis',
                         'Musterstraße 1', 'Musterstadt', '12345',
                         '01234 567890', 'praxis@example.com')`).run();
   }

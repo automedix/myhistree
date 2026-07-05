@@ -1,7 +1,7 @@
 {
   "name": "myhistree – Online Anamnese",
   "short_name": "myhistree",
-  "description": "Digitale Anamnese für Hausärzte",
+  "description": "Digitale Anamnese und Patientenkommunikation",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f8fafc",

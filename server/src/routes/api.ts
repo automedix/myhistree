@@ -160,7 +160,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
                 VALUES (?, ?, ?, ?, 0, 0, ?, ?, ?)`)
       .run(randomUUID(), encounterId, email, code, expiresAt.toISOString(), magicToken, encounter.source_link_id || null);
 
-    const baseUrl = process.env.BASE_URL || `https://${request.hostname || request.headers.host || "myhistree.automedix.de"}`;
+    const baseUrl = process.env.BASE_URL || `https://${request.hostname || request.headers.host || "localhost"}`;
     const magicUrl = `${baseUrl}/anamnese/${encounter.source_link_id || ""}?verify=email&verifyToken=${magicToken}`;
     const result = await sendVerificationEmail(email, magicUrl);
     if (!result.success) {
@@ -448,15 +448,6 @@ export default async function apiRoutes(fastify: FastifyInstance) {
         function val(s: string | null | undefined): string {
           return esc(s && s.trim() ? s.trim() : 'Keine Angabe');
         }
-        if (practice.name) row.consent_html = row.consent_html.replace(/Hausärzte im Grillepark/g, esc(practice.name));
-        if (fullAddr) row.consent_html = row.consent_html.replace(/Musterstraße 1, 12345 Musterstadt/g, esc(fullAddr));
-        if (practice.phone) {
-          row.consent_html = row.consent_html.replace(/01234 567890/g, esc(practice.phone));
-        } else {
-          row.consent_html = row.consent_html.replace(/<br>Telefon: 01234 567890/g, '');
-          row.consent_html = row.consent_html.replace(/Telefon: 01234 567890<br>/g, '');
-        }
-        if (practice.email) row.consent_html = row.consent_html.replace(/praxis@example\.com/g, esc(practice.email));
         let kiTransfer = practice.ki_third_country_transfer;
         if (kiTransfer === "yes" || kiTransfer === "ja") kiTransfer = "Ja";
         else if (kiTransfer === "no" || kiTransfer === "nein") kiTransfer = "Nein";
