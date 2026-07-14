@@ -52,7 +52,7 @@ input:focus { outline:none; border-color:var(--primary); }
       <h1 id="title-verify">Fragebogen</h1>
       <p>Bitte geben Sie Ihr Geburtsdatum ein, um den Fragebogen zu öffnen.</p>
       <label>Geburtsdatum (TT.MM.JJJJ)</label>
-      <input type="text" id="dob-input" placeholder="01.01.1980" maxlength="10" autocomplete="off" inputmode="numeric" oninput="autoFormatDob(this)">
+      <input type="text" id="dob-input" placeholder="tt.mm.jjjj" maxlength="10" autocomplete="off" inputmode="numeric">
       <div class="error" id="verify-error"></div>
       <button class="btn btn-primary" onclick="startFlow()">Weiter</button>
     </div>
@@ -109,7 +109,6 @@ input:focus { outline:none; border-color:var(--primary); }
   </div>
 </div>
 <script>
-function autoFormatDob(el){var v=el.value.replace(/\D/g,"").substring(0,8);if(v.length>=4)v=v.substring(0,2)+"."+v.substring(2,4)+"."+v.substring(4);else if(v.length>=2)v=v.substring(0,2)+"."+v.substring(2);el.value=v;}
 const API = '';
 let token = null, encounterId = null, templateData = null, questions = [], answers = {}, currentQ = 0, patientName = '', collectorName = '', currentSlug = '';
 
@@ -309,6 +308,12 @@ async function submitData(){
   finally{ const btn = document.querySelector('#screen-review .btn-primary'); if(btn){ btn.textContent='Absenden'; btn.disabled=false; } }
 }
 
+document.getElementById('dob-input').addEventListener('input', function(e){
+  let v = e.target.value.replace(/\D/g,'');
+  if(v.length>=4) v = v.slice(0,2)+'.'+v.slice(2,4)+'.'+v.slice(4,8);
+  else if(v.length>=2) v = v.slice(0,2)+'.'+v.slice(2);
+  e.target.value = v;
+});
 </script>
 </body>
 </html>

@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then(function(regs) {
+    for (var i = 0; i < regs.length; i++) { regs[i].unregister(); }
+  });
+}
+if (typeof caches !== 'undefined') {
+  caches.keys().then(function(names) {
+    for (var i = 0; i < names.length; i++) { caches.delete(names[i]); }
+  });
+}
+</script>
+
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<title>Kostenvoranschlag</title>
+<style>
+:root { --primary:#4477BB; --primary-dark:#3366AA; --bg:#f1f5f9; --card:#fff; --text:#1e293b; --text-light:#64748b; --border:#e2e8f0; --danger:#ef4444; --radius:12px; }
+* { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif; background:var(--bg); color:var(--text); line-height:1.5; padding:20px; overscroll-behavior-y: contain; }
+.container { width:100%; max-width:700px; margin:0 auto; padding:0 12px; }
+.card { background:var(--card); border-radius:var(--radius); padding:20px 16px; margin-bottom:16px; box-shadow:0 2px 8px rgba(0,0,0,0.04); border:1px solid var(--border); overflow:hidden; }
+h1 { font-size:1.2rem; margin-bottom:12px; color:var(--primary-dark); }
+h2 { font-size:1rem; margin:12px 0 6px; }
+label { font-weight:600; font-size:0.85rem; color:var(--text-light); display:block; margin:10px 0 4px; }
+input, select, textarea { width:100%; padding:10px 12px; border:2px solid var(--border); border-radius:8px; font-size:16px; -webkit-appearance:none; }
+input:focus { outline:none; border-color:var(--primary); }
+button { padding:12px 20px; border:none; border-radius:8px; font-size:1rem; font-weight:600; cursor:pointer; }
+.btn-primary { background:var(--primary); color:#fff; width:100%; }
+.btn-primary:disabled { opacity:0.6; }
+.btn-secondary { background:#e2e8f0; color:var(--text); }
+.btn-print { background:#16a34a; color:#fff; width:100%; }
+table { width:100%; border-collapse:collapse; font-size:0.8rem; table-layout:fixed; }
+th, td { text-align:left; padding:6px 4px; border-bottom:1px solid var(--border); white-space:normal; word-break:break-word; overflow-wrap:anywhere; }
+td:nth-child(1), th:nth-child(1) { width:14%; text-align:center; } td:nth-child(2), th:nth-child(2) { width:38%; } td:nth-child(3), th:nth-child(3) { width:14%; text-align:center; } td:nth-child(4), th:nth-child(4) { width:17%; text-align:right; } td:nth-child(5), th:nth-child(5) { width:17%; text-align:right; }
+th { background:#f8fafc; font-weight:600; color:var(--text-light); font-size:0.8rem; text-transform:uppercase; }
+.total-row { font-weight:700; font-size:1.1rem; text-align:right; padding-top:12px; }
+.signature-box { border:2px dashed var(--border); border-radius:8px; width:100%; height:220px; max-width:100%; background:#fafafa; touch-action:none; -webkit-user-select:none; user-select:none; overscroll-behavior:contain; }
+.hint { background:#f0f9ff; border-radius:8px; padding:12px; font-size:0.85rem; color:#334155; margin-top:16px; }
+.error { color:var(--danger); font-size:0.9rem; margin-top:8px; }
+.success { text-align:center; padding:40px 20px; }
+.success-icon { font-size:3rem; margin-bottom:12px; }
+.hidden { display:none; }
+@media (max-width:480px) { body { padding:8px; } .card { padding:16px 12px; margin-bottom:12px; overflow-x:hidden; } h1 { font-size:1.1rem; } table { font-size:0.75rem; table-layout:auto; width:100%; } th, td { padding:5px 4px; word-break:break-word; overflow-wrap:anywhere; } td:nth-child(1),th:nth-child(1),td:nth-child(2),th:nth-child(2),td:nth-child(3),th:nth-child(3),td:nth-child(4),th:nth-child(4),td:nth-child(5),th:nth-child(5) { width:auto; min-width:0; } .total-row { font-size:1rem; } .signature-box { width:100%; height:280px; touch-action:none; } }
+@media print { body { background:#fff; padding:0; } .no-print { display:none!important; } .card { box-shadow:none; border:1px solid #ccc; } }
+</style>
+</head>
+<body>
+<div class="container">
+<div id="screen-dob" class="card hidden">
+  <h1>Kostenvoranschlag</h1>
+  <p style="margin-bottom:12px;color:var(--text-light);">Bitte geben Sie Ihr Geburtsdatum ein, um den Kostenvoranschlag zu öffnen.</p>
+  <label>Geburtsdatum *</label>
+  <input type="text" id="dob-input" placeholder="tt.mm.jjjj" maxlength="10" autocomplete="off" oninput="autoFormatDob(this)">
+  <button class="btn-primary" onclick="validateDob()" style="margin-top:12px;">Weiter</button>
+  <div id="dob-error" class="error hidden"></div>
+</div>
+<div id="screen-quote" class="hidden">
+  <div class="card">
+    <h1>Kostenvoranschlag</h1>
+    <div style="font-size:0.9rem;color:var(--text-light);margin-bottom:16px;">
+      <div id="praxis-name"></div>
+      <div id="praxis-addr"></div>
+    </div>
+    <div style="margin-bottom:16px;">
+      <strong>Patient:</strong> <span id="q-patient"></span><br>
+      <strong>PVS-ID:</strong> <span id="q-pvsid"></span><br>
+      <strong>Datum:</strong> <span id="q-date"></span>
+    </div>
+    <h2>Leistungen</h2>
+    <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;width:100%;box-sizing:border-box;">
+    <table style="min-width:100%;">
+      <thead><tr><th>GOAE</th><th>Leistung</th><th style="text-align:center">Anz.</th><th style="text-align:right">Einzel</th><th style="text-align:right">Gesamt</th></tr></thead>
+      <tbody id="q-items"></tbody>
+    </table>
+    </div>
+    <div class="total-row">Gesamtsumme: <span id="q-total"></span></div>
+    <div class="hint">
+      <strong>Hinweis:</strong>
+      <ul style="margin-top:4px;padding-left:18px;">
+        <li>Die angegebenen Preise basieren auf der GOAE mit einem <span id="q-mult"></span>-fachen Steigerungssatz.</li>
+        <li>Dies ist eine Privatleistung (IGeL). Ihre gesetzliche Krankenkasse übernimmt diese Kosten nicht.</li>
+        <li>Die tatsächlichen Kosten können je nach Behandlungsaufwand abweichen.</li>
+        <li>Dieser Kostenvoranschlag ist 7 Tage gültig.</li>
+        <li>Soweit die Leistungen per E-Mail/Fernkommunikation vereinbart werden, steht Ihnen ein Widerrufsrecht nach BGB zu.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="card no-print">
+    <h2>Unterschrift</h2>
+    <p style="font-size:0.9rem;color:var(--text-light);margin-bottom:8px;">Geben Sie bitte Ihren vollständigen Namen ein und unterschreiben Sie, um die Leistungen zum genannten Preis zu akzeptieren.</p>
+    <label>Name *</label>
+    <input type="text" id="sign-name" placeholder="Vor- und Nachname" autocomplete="name" maxlength="100" style="font-size:16px;">
+    <label>Unterschrift *</label>
+    <canvas id="sign-canvas" class="signature-box"></canvas>
+    <div style="display:flex;gap:8px;margin-top:8px;">
+      <button class="btn-secondary" onclick="clearSignature()" style="flex:1;">Unterschrift löschen</button>
+    </div>
+    <button class="btn-primary" onclick="submitSignature()" style="margin-top:12px;">Akzeptieren und unterschreiben</button>
+    <div id="sign-error" class="error hidden"></div>
+  </div>
+</div>
+<div id="screen-done" class="hidden">
+  <div class="card success">
+    <div class="success-icon">&#10003;</div>
+    <h1>Vielen Dank!</h1>
+    <p style="margin:12px 0;">Sie haben den Kostenvoranschlag erfolgreich unterschrieben.</p>
+    <button class="btn-print no-print" onclick="window.print()">Drucken / Als PDF speichern</button>
+    <p class="no-print" style="margin-top:12px;font-size:0.85rem;color:var(--text-light);">Nach dem Drucken können Sie diese Seite schließen.</p>
+  </div>
+  <div id="done-quote-content"></div>
+  <div id="done-signature" style="margin-top:16px;"></div>
+</div>
+</div>
+<script>
+(function() {
+  const TOKEN = document.URL.split("/").filter(function(s){return s.length>0;}).pop() || "";
+  let QUOTE_DATA = null;
+  let REQUIRES_DOB = false;
+  let SIGNED_NAME = "";
+  let SIGNED_SVG = "";
+function autoFormatDob(input) {
+  var v = input.value.replace(/\D/g, '');
+  if (v.length >= 2) v = v.slice(0,2) + '.' + v.slice(2);
+  if (v.length >= 5) v = v.slice(0,5) + '.' + v.slice(5,8);
+  input.value = v;
+}
+function parseDobToISO(dob) {
+  if (!dob) return '';
+  var m = dob.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
+  return m ? (m[3] + '-' + m[2] + '-' + m[1]) : dob;
+}
+
+  const cvs = document.getElementById("sign-canvas");
+  cvs.style.touchAction = "none";
+  const ctx = cvs.getContext("2d");
+  let drawing = false;
+  let activePointerId = null;
+  function fixDpr() {
+    var dpr = window.devicePixelRatio || 1;
+    var rect = cvs.getBoundingClientRect();
+    if (!rect.width || !rect.height) return;
+    var newW = Math.round(rect.width * dpr);
+    var newH = Math.round(rect.height * dpr);
+    if (cvs.width === newW && cvs.height === newH) return;
+    // Save current drawing to temp canvas to avoid clearing on resize (mobile URL bar)
+    var tmpC = document.createElement('canvas');
+    tmpC.width = cvs.width; tmpC.height = cvs.height;
+    var tmpCtx = tmpC.getContext('2d');
+    tmpCtx.drawImage(cvs, 0, 0);
+    cvs.width = newW; cvs.height = newH;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.drawImage(tmpC, 0, 0, tmpC.width, tmpC.height, 0, 0, newW, newH);
+    ctx.lineWidth = 2.5; ctx.lineCap = "round"; ctx.strokeStyle = "#000";
+  }
+  window.addEventListener("resize", fixDpr);
+  function getPos(e) {
+    var r = cvs.getBoundingClientRect();
+    var clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    var clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    return { x: clientX - r.left, y: clientY - r.top };
+  }
+  cvs.addEventListener("pointerdown", function(e) {
+    drawing = true; activePointerId = e.pointerId;
+    try { cvs.setPointerCapture(e.pointerId); } catch(x){}
+    e.preventDefault();
+    var p = getPos(e); ctx.beginPath(); ctx.moveTo(p.x, p.y);
+  }, { passive: false });
+  cvs.addEventListener("pointermove", function(e) {
+    if (!drawing || (activePointerId !== null && e.pointerId !== activePointerId)) return;
+    e.preventDefault(); e.stopPropagation();
+    var p = getPos(e); ctx.lineTo(p.x, p.y); ctx.stroke();
+  }, { passive: false });
+  cvs.addEventListener("pointerup", function(e) {
+    drawing = false;
+    if (activePointerId !== null) { try { cvs.releasePointerCapture(activePointerId); } catch(x){} activePointerId = null; }
+  });
+  cvs.addEventListener("pointerleave", function(e) {
+    if (activePointerId !== null) { try { cvs.releasePointerCapture(activePointerId); } catch(x){} activePointerId = null; }
+    drawing = false;
+  });
+  ctx.lineWidth = 2.5; ctx.lineCap = "round"; ctx.strokeStyle = "#000";
+  window.clearSignature = function() { ctx.clearRect(0, 0, cvs.width, cvs.height); };
+  async function init() {
+    if (!TOKEN) { showError("Ungültiger Link."); return; }
+    try {
+      var res = await fetch("/api/quote/" + TOKEN);
+      var data = await res.json();
+      if (!res.ok) { showError(data.error || "Fehler"); return; }
+      QUOTE_DATA = data;
+      REQUIRES_DOB = !!data.requiresDob;
+      if (REQUIRES_DOB) {
+        document.getElementById("screen-dob").classList.remove("hidden");
+      } else {
+        document.getElementById("screen-dob").classList.add("hidden");
+        showQuote(data.quote, data.items, data.practice);
+      }
+    } catch(e) { showError("Verbindungsfehler."); }
+  }
+  function showError(msg) {
+    var el = document.getElementById("dob-error") || document.getElementById("sign-error");
+    if (el) { el.textContent = msg; el.classList.remove("hidden"); }
+  }
+  function showQuote(quote, items, practice) {
+    if (!quote) { showError("Daten nicht verfügbar."); return; }
+    document.getElementById("screen-quote").classList.remove("hidden");
+    setTimeout(fixDpr, 50);
+    if (practice) {
+      document.getElementById("praxis-name").textContent = practice.name || "";
+      var addr = [practice.address, practice.postal_code + " " + practice.city].filter(Boolean).join(", ");
+      document.getElementById("praxis-addr").textContent = addr;
+    }
+    document.getElementById("q-patient").textContent = quote.patient_name || quote.pvs_patient_id || "-";
+    document.getElementById("q-pvsid").textContent = quote.pvs_patient_id || "-";
+    document.getElementById("q-date").textContent = (quote.created_at ? new Date(quote.created_at).toLocaleDateString("de-DE") : "-");
+    document.getElementById("q-mult").textContent = quote.multiplier || "2,3";
+    var tbody = "";
+    var total = 0;
+    for (var i = 0; i < (items || []).length; i++) { var it = items[i]; var line = Math.round((it.unit_euro || 0) * (it.quantity || 1) * 100) / 100; total += line; tbody += "<tr><td>" + esc(it.ziffer) + "</td><td>" + esc(it.title) + "</td><td style='text-align:center'>" + (it.quantity || 1) + "</td><td style='text-align:right'>" + fmt(it.unit_euro) + "</td><td style='text-align:right;font-weight:600;'>" + fmt(line) + "</td></tr>"; }
+    document.getElementById("q-items").innerHTML = tbody;
+    document.getElementById("q-total").textContent = fmt(total);
+    var clone = document.getElementById("screen-quote").cloneNode(true);
+    clone.querySelectorAll(".no-print").forEach(function(el){ el.remove(); });
+    document.getElementById("done-quote-content").innerHTML = clone.innerHTML;
+  }
+  window.validateDob = async function() {
+    var dob = parseDobToISO(document.getElementById("dob-input").value);
+    if (!dob) { showError("Bitte Geburtsdatum eingeben."); return; }
+    document.getElementById("dob-error").classList.add("hidden");
+    try {
+      var res = await fetch("/api/quote/" + TOKEN + "/validate", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({dob}) });
+      var data = await res.json();
+      if (!res.ok) { showError(data.error || "Fehler"); return; }
+      document.getElementById("screen-dob").classList.add("hidden");
+      showQuote(QUOTE_DATA.quote, QUOTE_DATA.items, QUOTE_DATA.practice);
+    } catch(e) { showError("Verbindungsfehler."); }
+  };
+  function canvasToSVG() {
+    var dataUrl = cvs.toDataURL("image/png");
+    var rect = cvs.getBoundingClientRect();
+    var w = Math.round(rect.width);
+    var h = Math.round(rect.height);
+    return "<svg xmlns='http://www.w3.org/2000/svg' width='" + w + "' height='" + h + "'><image href='" + dataUrl + "' width='" + w + "' height='" + h + "'/></svg>";
+  }
+  window.submitSignature = async function() {
+    var name = document.getElementById("sign-name").value.trim();
+    var svg = canvasToSVG();
+    if (!name || name.length < 2) { document.getElementById("sign-error").textContent = "Bitte Name eingeben."; document.getElementById("sign-error").classList.remove("hidden"); return; }
+    if (!svg || svg.length < 50) { document.getElementById("sign-error").textContent = "Bitte unterschreiben."; document.getElementById("sign-error").classList.remove("hidden"); return; }
+    document.getElementById("sign-error").classList.add("hidden");
+    try {
+      var dobEl = document.getElementById("dob-input");
+      var dob = dobEl ? parseDobToISO(dobEl.value) : "";
+      var res = await fetch("/api/quote/" + TOKEN + "/sign", { method: "POST", headers: {"Content-Type":"application/json"}, body: JSON.stringify({name, signatureSvg: svg, dob: dob || undefined}) });
+      var data = await res.json();
+      if (!res.ok) { document.getElementById("sign-error").textContent = data.error || "Fehler"; document.getElementById("sign-error").classList.remove("hidden"); return; }
+      SIGNED_NAME = name; SIGNED_SVG = svg;
+      document.getElementById("screen-quote").classList.add("hidden");
+      var sigHtml = "<div class='card'><h3>Unterschrift</h3><div style='font-size:0.9rem;color:#334155;margin-bottom:8px;'>Signiert von: <strong>" + esc(name) + "</strong></div><div style='max-width:100%;'>" + svg + "</div></div>";
+      document.getElementById("done-signature").innerHTML = sigHtml;
+      document.getElementById("screen-done").classList.remove("hidden");
+    } catch(e) { document.getElementById("sign-error").textContent = "Verbindungsfehler."; document.getElementById("sign-error").classList.remove("hidden"); }
+  };
+  function esc(s) { var d = document.createElement("div"); d.textContent = s || ""; return d.innerHTML; }
+  function fmt(v) { return (typeof v === "number" ? v : parseFloat(v || 0)).toFixed(2).replace(".", ",") + " EUR"; }
+  init();
+})();
+</script>
+</body>
+</html>
