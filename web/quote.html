@@ -219,6 +219,9 @@ function parseDobToISO(dob) {
     document.getElementById("q-pvsid").textContent = quote.pvs_patient_id || "-";
     document.getElementById("q-date").textContent = (quote.created_at ? new Date(quote.created_at).toLocaleDateString("de-DE") : "-");
     document.getElementById("q-mult").textContent = quote.multiplier || "2,3";
+    var titleEl = document.querySelector("#screen-quote h1");
+    if (titleEl) { titleEl.textContent = quote.title || "Kostenvoranschlag"; }
+    document.title = (quote.title || "Kostenvoranschlag");
     var tbody = "";
     var total = 0;
     for (var i = 0; i < (items || []).length; i++) { var it = items[i]; var line = Math.round((it.unit_euro || 0) * (it.quantity || 1) * 100) / 100; total += line; tbody += "<tr><td>" + esc(it.ziffer) + "</td><td>" + esc(it.title) + "</td><td style='text-align:center'>" + (it.quantity || 1) + "</td><td style='text-align:right'>" + fmt(it.unit_euro) + "</td><td style='text-align:right;font-weight:600;'>" + fmt(line) + "</td></tr>"; }
