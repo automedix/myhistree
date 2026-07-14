@@ -32,7 +32,7 @@
 
       <div class="form-group required">
         <label for="auth-dob">Geburtsdatum</label>
-        <input type="text" id="auth-dob" inputmode="numeric" maxlength="10" placeholder="TT.MM.JJJJ" autocomplete="off" required>
+        <input type="text" id="auth-dob" inputmode="numeric" maxlength="10" placeholder="TT.MM.JJJJ" autocomplete="off" required oninput="autoFormatDob(this)">
         <span class="hint" id="auth-dob-hint">Format: TT.MM.JJJJ</span>
       </div>
 
@@ -103,18 +103,9 @@
   <script src="/js/consent-form.js?v=0.7.0"></script>
 
 <script>
-function setupDobAutoFormat(inputId) {
-  var el = document.getElementById(inputId);
-  if (!el) return;
-  el.addEventListener("input", function(e) {
-    var digits = el.value.replace(/[^0-9]/g, "");
-    var val = digits;
-    if (digits.length >= 2) val = digits.substring(0, 2) + "." + digits.substring(2);
-    if (digits.length >= 4) val = val.substring(0, 5) + "." + digits.substring(4, 8);
-    el.value = val;
-  });
-}
-if (document.getElementById("auth-dob")) setupDobAutoFormat("auth-dob");
+function autoFormatDob(el){var v=el.value.replace(/\D/g,"").substring(0,8);if(v.length>=4)v=v.substring(0,2)+"."+v.substring(2,4)+"."+v.substring(4);else if(v.length>=2)v=v.substring(0,2)+"."+v.substring(2);el.value=v;}
+
+
 </script>
 </body>
 </html>

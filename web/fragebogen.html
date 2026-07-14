@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Fragebogen – myhistree</title>
+<style>
+:root { --primary:#4477BB; --primary-dark:#3366AA; --bg:#f1f5f9; --card:#fff; --text:#1e293b; --text-light:#64748b; --border:#e2e8f0; --success:#22c55e; --radius:12px; }
+* { box-sizing:border-box; margin:0; padding:0; }
+body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif; background:var(--bg); color:var(--text); line-height:1.5; }
+.container { max-width:640px; margin:0 auto; padding:20px; min-height:100vh; display:flex; flex-direction:column; justify-content:center; }
+.card { background:var(--card); border-radius:var(--radius); padding:24px; box-shadow:0 2px 8px rgba(0,0,0,0.04); border:1px solid var(--border); }
+h1 { font-size:1.25rem; margin-bottom:12px; color:var(--text); }
+p { font-size:0.95rem; color:var(--text-light); margin-bottom:16px; }
+label { font-size:0.9rem; font-weight:600; color:var(--text-light); display:block; margin-bottom:6px; }
+input[type="text"] { width:100%; padding:12px; border:2px solid var(--border); border-radius:8px; font-size:1rem; }
+#dob-input { text-align:center; letter-spacing:2px; }
+input:focus { outline:none; border-color:var(--primary); }
+.btn { width:100%; padding:12px; border-radius:8px; font-size:1rem; font-weight:600; border:none; cursor:pointer; margin-top:16px; }
+.btn-primary { background:var(--primary); color:#fff; }
+.btn-primary:hover { background:var(--primary-dark); color:#fff; }
+.btn-secondary { background:var(--bg); color:var(--text); border:2px solid var(--border); }
+.question-text { font-size:1.05rem; font-weight:600; margin-bottom:8px; color:var(--text); }
+.question-desc { font-size:0.85rem; color:var(--text-light); margin-bottom:12px; }
+.options { display:flex; flex-direction:column; gap:10px; }
+.option { display:flex; align-items:center; gap:12px; padding:14px; border:2px solid var(--border); border-radius:8px; cursor:pointer; transition:all .15s; background:#fff; }
+.option:hover { border-color:var(--primary); background:#eff6ff; }
+.option input[type="radio"] { width:20px; height:20px; accent-color:var(--primary); flex-shrink:0; }
+.option-text { font-size:0.92rem; }
+.nav-btns { display:flex; gap:12px; margin-top:24px; }
+.nav-btns .btn { flex:1; margin-top:0; }
+.review-item { display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--border); font-size:0.9rem; }
+.review-item:last-child { border-bottom:none; }
+.review-label { color:var(--text-light); max-width:70%; }
+.review-value { font-weight:600; color:var(--text); }
+.score-box { background:#eff6ff; border-left:4px solid var(--primary); padding:20px; border-radius:0 8px 8px 0; margin:16px 0; text-align:center; }
+.score-title { font-weight:700; color:var(--primary); font-size:1.2rem; }
+.score-number { font-size:2.5rem; font-weight:800; color:var(--primary-dark); }
+.score-desc { color:var(--text-light); margin-top:4px; }
+.error { color:#ef4444; font-size:0.85rem; margin-top:8px; display:none; }
+.screen { display:none; }
+.screen.active { display:block; }
+.progress { height:4px; background:var(--border); border-radius:2px; margin-bottom:20px; overflow:hidden; }
+.progress-fill { height:100%; background:var(--primary); width:0%; transition:width .3s; }
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="progress"><div class="progress-fill" id="progress-fill"></div></div>
+  <div id="screen-verify" class="screen active">
+    <div class="card">
+      <h1 id="title-verify">Fragebogen</h1>
+      <p>Bitte geben Sie Ihr Geburtsdatum ein, um den Fragebogen zu öffnen.</p>
+      <label>Geburtsdatum (TT.MM.JJJJ)</label>
+      <input type="text" id="dob-input" placeholder="01.01.1980" maxlength="10" autocomplete="off" inputmode="numeric" oninput="autoFormatDob(this)">
+      <div class="error" id="verify-error"></div>
+      <button class="btn btn-primary" onclick="startFlow()">Weiter</button>
+    </div>
+  </div>
+
+  <div id="screen-intro" class="screen">
+    <div class="card">
+      <h1>Barthel-Index</h1>
+      <p>Hier können Sie schnell und einfach den Barthel-Index für den/die in der Nachricht genannte*n Patient*in erheben. Sie helfen uns damit sehr! Wir bedanken uns für Ihre Unterstützung.</p>
+      <label for="patient-name-input">Für welche*n Patient*in erheben Sie den Barthel-Index?</label>
+      <input type="text" id="patient-name-input" placeholder="Name des Patienten" maxlength="100" autocomplete="off">
+      <div class="error" id="intro-error"></div>
+      <button class="btn btn-primary" onclick="goToQuestions()">Weiter</button>
+    </div>
+  </div>
+
+  <div id="screen-questions" class="screen"></div>
+
+  <div id="screen-collector" class="screen">
+    <div class="card">
+      <h1>Erhebung abschließen</h1>
+      <p>Fast geschafft! Bitte geben Sie noch an, von wem der Befund erhoben wurde.</p>
+      <label for="collector-name-input">Von wem wurde der Befund erhoben?</label>
+      <input type="text" id="collector-name-input" placeholder="Name der Pflegekraft" maxlength="100" autocomplete="off">
+      <div class="error" id="collector-error"></div>
+      <div class="nav-btns">
+        <button class="btn btn-secondary" onclick="backToLastQuestion()">Zurück</button>
+        <button class="btn btn-primary" onclick="goToReview()">Weiter</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="screen-review" class="screen">
+    <div class="card">
+      <h1>Zusammenfassung</h1>
+      <p>Bitte überprüfen Sie Ihre Angaben.</p>
+      <div id="review-content"></div>
+      <div class="nav-btns">
+        <button class="btn btn-secondary" onclick="goToQuestion(0)">Zurück</button>
+        <button class="btn btn-primary" onclick="submitData()">Absenden</button>
+      </div>
+    </div>
+  </div>
+  <div id="screen-done" class="screen">
+    <div class="card" style="text-align:center;">
+      <h1>Vielen Dank!</h1>
+      <p>Ihr Fragebogen wurde übermittelt.</p>
+      <div class="score-box">
+        <div class="score-title">Gesamtergebnis</div>
+        <div class="score-number" id="score-number">-</div>
+        <div class="score-desc" id="score-desc">-</div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+function autoFormatDob(el){var v=el.value.replace(/\D/g,"").substring(0,8);if(v.length>=4)v=v.substring(0,2)+"."+v.substring(2,4)+"."+v.substring(4);else if(v.length>=2)v=v.substring(0,2)+"."+v.substring(2);el.value=v;}
+const API = '';
+let token = null, encounterId = null, templateData = null, questions = [], answers = {}, currentQ = 0, patientName = '', collectorName = '', currentSlug = '';
+
+function parseToken() { const m = window.location.pathname.match(/\/(?:fragebogen|barthel-index)\/([a-f0-9-]{32,})/); return m ? m[1] : null; }
+function fmtDob(v) { const m = v.match(/^(\d{2})\.(\d{2})\.(\d{4})$/); if(!m) return null; const d = new Date(m[3]+'-'+m[2]+'-'+m[1]+'T00:00:00'); if(d.getFullYear()!=parseInt(m[3])||d.getMonth()+1!=parseInt(m[2])||d.getDate()!=parseInt(m[1])) return null; return m[3]+'-'+m[2]+'-'+m[1]; }
+function showError(msg){ const el=document.getElementById('verify-error'); el.textContent=msg; el.style.display='block'; }
+function hideError(){ document.getElementById('verify-error').style.display='none'; }
+function showScreen(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); document.getElementById(id).classList.add('active'); window.scrollTo(0,0); }
+function setProgress(pct){ document.getElementById('progress-fill').style.width = Math.round(pct)+'%'; }
+
+function stripHtml(v){ return v.replace(/[<>]/g,'').trim().substring(0,100); }
+function showIntroError(msg){ const el=document.getElementById('intro-error'); el.textContent=msg; el.style.display='block'; }
+function hideIntroError(){ document.getElementById('intro-error').style.display='none'; }
+function showCollectorError(msg){ const el=document.getElementById('collector-error'); el.textContent=msg; el.style.display='block'; }
+function hideCollectorError(){ document.getElementById('collector-error').style.display='none'; }
+function goToQuestions(){
+  patientName = stripHtml(document.getElementById('patient-name-input').value);
+  if(!patientName){ showIntroError('Bitte geben Sie den Namen des Patienten ein.'); return; }
+  hideIntroError();
+  showScreen('screen-questions');
+  setProgress((1/(questions.length+2))*100);
+}
+function backToLastQuestion(){
+  showScreen('screen-questions');
+  goToQuestion(questions.length-1);
+}
+function goToReview(){
+  collectorName = stripHtml(document.getElementById('collector-name-input').value);
+  if(!collectorName){ showCollectorError('Bitte geben Sie Ihren Namen ein.'); return; }
+  hideCollectorError();
+  showReview();
+}
+
+async function startFlow(){
+  const raw = document.getElementById('dob-input').value.trim();
+  const dob = fmtDob(raw);
+  if(!dob){ showError('Bitte gültiges Format TT.MM.JJJJ eingeben.'); return; }
+  token = parseToken();
+  if(!token){ showError('Ungültiger Link. Bitte QR-Code oder Link aus der E-Mail verwenden.'); return; }
+  hideError();
+  const btn = document.querySelector('#screen-verify .btn'); btn.textContent='Prüfe...'; btn.disabled=true;
+  try{
+    const r = await fetch(`${API}/api/link/start`,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token,patientDob:raw})});
+    const j = await r.json();
+    if(!r.ok) throw new Error(j.error || 'Verifizierung fehlgeschlagen');
+    encounterId = j.encounterId;
+    const qSlug = j.questionnaireSlug || 'phq-9';
+    const tplR = await fetch(`${API}/api/questionnaire/template/${qSlug}`);
+    if(!tplR.ok) throw new Error('Fragebogenvorlage konnte nicht geladen werden');
+    templateData = await tplR.json();
+    questions = templateData.questions || [];
+    currentSlug = qSlug;
+    document.getElementById('title-verify').textContent = templateData.title || 'Fragebogen';
+    buildQuestions();
+    if(currentSlug === 'barthel-index' || currentSlug === 'barthel'){
+      showScreen('screen-intro');
+    } else {
+      showScreen('screen-questions');
+    }
+  }catch(e){ showError(e.message); }
+  finally{ btn.textContent='Weiter'; btn.disabled=false; }
+}
+
+function escapeHtml(t){ if(t==null)return''; const d=document.createElement('div'); d.textContent=t; return d.innerHTML; }
+
+function buildQuestions(){
+  const container = document.getElementById('screen-questions'); container.innerHTML = '';
+  const globalOpts = (templateData.scoring && templateData.scoring.options) ? templateData.scoring.options : null;
+  questions.forEach((q,i)=>{
+    const opts = q.options || globalOpts || [];
+    let html = `<div id="question-${i}" style="display:${i===0?'block':'none'}" class="question-wrapper"><div class="card">`;
+    html += `<div style="font-size:0.95rem;color:#4a5568;margin-bottom:6px;">Markieren Sie bitte, was Sie am ehesten für zutreffend halten.</div>`;
+    html += `<div class="question-text">${i+1}. ${escapeHtml(q.text)}</div>`;
+    if(q.sub) html += `<div class="question-desc">${escapeHtml(q.sub)}</div>`;
+    html += `<div class="options">`;
+    opts.forEach(opt=>{
+      html += `<div class="option" onclick="selectOption('${q.id}',${opt.value})"><input type="radio" name="${q.id}" id="${q.id}_${opt.value}" value="${opt.value}"><div class="option-text">${escapeHtml(opt.label)}</div></div>`;
+    });
+    html += `</div><div class="nav-btns">`;
+    if(i>0) html += `<button class="btn btn-secondary" onclick="goToQuestion(${i-1})">Zurück</button>`;
+    html += `<button class="btn btn-primary" onclick="nextFromQuestion(${i})">Weiter</button>`;
+    html += `</div></div></div>`;
+    container.innerHTML += html;
+  });
+  setProgress( (1/(questions.length+2))*100 );
+}
+
+function selectOption(qid,val){
+  answers[qid]=val;
+  const el=document.getElementById(qid+'_'+val); if(el) el.checked=true;
+  document.querySelectorAll(`[name="${qid}"]`).forEach(r=>{ const p=r.closest('.option'); if(p) p.style.borderColor=''; });
+  const sel=document.getElementById(qid+'_'+val); if(sel){ const p=sel.closest('.option'); if(p) p.style.borderColor='var(--primary)'; }
+}
+
+function goToQuestion(idx){
+  questions.forEach((q,i)=>{ const el=document.getElementById('question-'+i); if(el) el.style.display=(i===idx)?'block':'none'; });
+  currentQ=idx; setProgress(((idx+1)/(questions.length+2))*100);
+}
+
+function nextFromQuestion(idx){
+  const qid=questions[idx].id;
+  if(answers[qid]===undefined){ alert('Bitte eine Option wählen.'); return; }
+  if(idx===questions.length-1){
+    if(currentSlug === 'barthel-index' || currentSlug === 'barthel'){
+      showScreen('screen-collector');
+    } else {
+      showReview();
+    }
+  }
+  else{ goToQuestion(idx+1); }
+}
+
+function getAnswerLabel(qid){
+  const opts = (questions.find(q=>q.id===qid)?.options) || (templateData.scoring && templateData.scoring.options) || [];
+  const sel = opts.find(o=>o.value==answers[qid]);
+  return sel ? sel.label : '-';
+}
+
+function showReview(){
+  let html='';
+  if((currentSlug === 'barthel-index' || currentSlug === 'barthel') && patientName){
+    html += `<div class="review-item"><div class="review-label">Patient</div><div class="review-value">${escapeHtml(patientName)}</div></div>`;
+    html += `<div class="review-item"><div class="review-label">Erheber</div><div class="review-value">${escapeHtml(collectorName)}</div></div>`;
+  }
+  questions.forEach((q,i)=>{
+    let ans = '-';
+    const qid=q.id;
+    const opts = q.options || (templateData.scoring && templateData.scoring.options) || [];
+    const sel = opts.find(o=>o.value==answers[qid]);
+    if(sel) ans = sel.label + ' (' + sel.value + ' Punkte)';
+    html += `<div class="review-item"><div class="review-label">${i+1}. ${escapeHtml(q.text)}</div><div class="review-value">${escapeHtml(ans)}</div></div>`;
+  });
+  document.getElementById('review-content').innerHTML = html;
+  showScreen('screen-review'); setProgress(90);
+}
+
+function calcSeverity(score){
+  const sev = (templateData.scoring && templateData.scoring.severity) ? templateData.scoring.severity : [];
+  for(const r of sev){
+    if(score >= (r.min!==undefined?r.min:0) && score <= (r.max!==undefined?r.max:999)) return r.label;
+  }
+  return '-';
+}
+
+async function submitData(){
+  let total = 0;
+  const ansMap = {};
+  questions.forEach(q=>{
+    if(answers[q.id]!==undefined){
+      total += parseInt(answers[q.id]);
+      ansMap[q.id] = answers[q.id];
+    }
+  });
+
+  const isBarthel = currentSlug === 'barthel-index' || currentSlug === 'barthel';
+
+  const details = [];
+  if(isBarthel && patientName){
+    details.push('Patient: ' + patientName);
+    details.push('Erheber: ' + collectorName);
+    details.push('');
+    details.push('--- Barthel-Index ---');
+    details.push('');
+  }
+  if(currentSlug === 'phq-9' || currentSlug === 'phq9'){
+    details.push('--- PHQ-9 ---');
+    details.push('');
+  }
+  questions.forEach((q,i)=>{
+    const label = getAnswerLabel(q.id);
+    const val = answers[q.id] !== undefined ? answers[q.id] : '-';
+    details.push((i+1) + '. ' + q.text + ': ' + label + ' (' + val + ' Punkte)');
+  });
+
+  const payload = {
+    answers: ansMap,
+    score: total,
+    severity: calcSeverity(total),
+    completedAt: new Date().toISOString(),
+    details: details.join('\n')
+  };
+
+  if(isBarthel){
+    payload.patientName = patientName;
+    payload.collectorName = collectorName;
+  }
+
+  try{
+    const btn = document.querySelector('#screen-review .btn-primary'); if(btn){ btn.textContent='Sende...'; btn.disabled=true; }
+    const r = await fetch(`${API}/api/questionnaire/submit/${encounterId}`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(payload) });
+    if(!r.ok) throw new Error('Fehler beim Absenden');
+    showScreen('screen-done');
+    document.getElementById('score-number').textContent = payload.score;
+    document.getElementById('score-desc').textContent = payload.severity;
+    setProgress(100);
+  }catch(e){ alert(e.message); }
+  finally{ const btn = document.querySelector('#screen-review .btn-primary'); if(btn){ btn.textContent='Absenden'; btn.disabled=false; } }
+}
+
+</script>
+</body>
+</html>
