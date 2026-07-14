@@ -1399,6 +1399,9 @@ if (isDraft) {
     html += '<button onclick="saveQuote(false)" style="padding:10px 20px;background:var(--primary);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Speichern (Entwurf)</button>';
     html += '<button onclick="saveQuote(true)" style="padding:10px 20px;background:#16a34a;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Fertig</button>';
   }
+  if (!isNew) {
+    html += '<button onclick="saveQuote(false)" style="padding:10px 20px;background:#64748b;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Aktualisieren</button>';
+  }
   if (isFinalized) {
     html += '<button onclick="sendQuoteLink()" style="padding:10px 20px;background:var(--primary);color:#fff;border:none;border-radius:8px;cursor:pointer;">Per E-Mail senden</button>';
   }
