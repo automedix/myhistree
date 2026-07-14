@@ -1,0 +1,68 @@
+[
+  {
+    "ziffer": "29",
+    "bezeichnung": "Gesundheitsuntersuchung zur Früherkennung von Krankheiten bei einem Erwachsenen – einschließlich Untersuchung zur Erhebung des vollständigen Status (Ganzkörperstatus), Erörterung des individuellen Risikoprofils und verhaltensmedizinisch orientierter Beratung",
+    "punkte": 440,
+    "regelsatz_2_3": "50,16",
+    "max_faktor": 3.5
+  },
+  {
+    "ziffer": "250",
+    "bezeichnung": "Blutentnahme mittels Spritze, Kanüle oder Katheter aus der Vene",
+    "punkte": 40,
+    "regelsatz_2_3": "4,56",
+    "max_faktor": 1.8,
+    "hinweis": "Maximal 1,8-facher Satz (§ 12 Abs. 2 GOÄ)"
+  },
+  {
+    "ziffer": "410",
+    "bezeichnung": "Ultraschalluntersuchung eines Organs",
+    "punkte": 200,
+    "regelsatz_2_3": "22,80",
+    "max_faktor": 3.5
+  },
+  {
+    "ziffer": "420",
+    "bezeichnung": "Ultraschalluntersuchung von bis zu drei weiteren Organen im Anschluss an eine der Leistungen nach den Nummern 410 bis 418, je Organ",
+    "punkte": 80,
+    "regelsatz_2_3": "9,12",
+    "max_faktor": 3.5,
+    "hinweis": "Höchstens dreimal je Sitzung berechenbar"
+  },
+  {
+    "ziffer": "602",
+    "bezeichnung": "Oxymetrische Untersuchung(en) (Bestimmung der prozentualen Sauerstoffsättigung im Blut) – gegebenenfalls einschließlich Bestimmung(en) nach Belastung",
+    "punkte": 152,
+    "regelsatz_2_3": "17,33",
+    "max_faktor": 1.8,
+    "hinweis": "Maximal 1,8-facher Satz (§ 12 Abs. 2 GOÄ)"
+  },
+  {
+    "ziffer": "605",
+    "bezeichnung": "Ruhespirographische Untersuchung (im geschlossenen oder offenen System) mit fortlaufend registrierenden Methoden",
+    "punkte": 242,
+    "regelsatz_2_3": "27,59",
+    "max_faktor": 3.5
+  },
+  {
+    "ziffer": "651",
+    "bezeichnung": "Elektrokardiographische Untersuchung in Ruhe – auch gegebenenfalls nach Belastung – mit Extremitäten- und Brustwandableitungen (mindestens neun Ableitungen)",
+    "punkte": 253,
+    "regelsatz_2_3": "28,84",
+    "max_faktor": 3.5
+  },
+  {
+    "ziffer": "652",
+    "bezeichnung": "Elektrokardiographische Untersuchung unter fortschreibender Registrierung (mindestens neun Ableitungen) in Ruhe und bei physikalisch definierter und reproduzierbarer Belastung (Ergometrie) – gegebenenfalls auch Belastungsänderung",
+    "punkte": 445,
+    "regelsatz_2_3": "50,73",
+    "max_faktor": 3.5
+  },
+  {
+    "ziffer": "659",
+    "bezeichnung": "Elektrokardiographische Untersuchung über mindestens 18 Stunden (Langzeit-EKG) – gegebenenfalls einschließlich gleichzeitiger Registrierung von Puls und Atmung –, mit Auswertung",
+    "punkte": 400,
+    "regelsatz_2_3": "45,60",
+    "max_faktor": 3.5
+  }
+]
