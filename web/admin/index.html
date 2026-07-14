@@ -359,7 +359,7 @@ pre.json { background:#1e293b; color:#e2e8f0; padding:16px; border-radius:8px; o
         </div>
         <div>
           <label>Geburtsdatum *</label>
-          <input type="date" id="q-dob" autocomplete="off">
+          <input type="text" id="q-dob" placeholder="tt.mm.jjjj" maxlength="10" autocomplete="off" oninput="autoFormatDob(this)">
         </div>
       </div>
       <div class="form-row">
@@ -711,10 +711,7 @@ async function loadQuestionnaireDetail(encounterId){
 function printQuestionnaireReport(){
   const w = window.open('', '_blank');
   if(!w){ alert('Popup-Blocker verhindert Drucken. Bitte erlauben.'); return; }
-  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Fragebogen</title><meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-<meta http-equiv="Pragma" content="no-cache">
-<meta http-equiv="Expires" content="0">
-</head><body>');
+  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Fragebogen</title><meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate"><meta http-equiv="Pragma" content="no-cache"><meta http-equiv="Expires" content="0"></head><body>');
   w.document.write(window._lastPrintHtml || '');
   w.document.write('</body></html>');
   w.document.close();
