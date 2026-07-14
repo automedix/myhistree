@@ -1394,18 +1394,18 @@ if (isDraft) {
   html += 'Hinweis: Dieser Kostenvoranschlag ist nach GOAE mit einem ' + d.multiplier + '-fachen Steigerungssatz kalkuliert. Die tatsaechlichen Kosten koennen je nach Aufwand abweichen. Gueltigkeit: 7 Tage. Die Krankenkasse uebernimmt diese Leistungen nicht.';
   html += '</div>';
 
-  html += '<div style="display:flex;gap:8px;margin-top:20px;flex-wrap:wrap;">';
-  if (isDraft) {
-    html += '<button onclick="saveQuote(false)" style="padding:10px 20px;background:var(--primary);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Speichern (Entwurf)</button>';
-    html += '<button onclick="saveQuote(true)" style="padding:10px 20px;background:#16a34a;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Fertig</button>';
-  }
-  if (!isNew) {
-    html += '<button onclick="saveQuote(false)" style="padding:10px 20px;background:#64748b;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Aktualisieren</button>';
-  }
-  if (isFinalized) {
-    html += '<button onclick="sendQuoteLink()" style="padding:10px 20px;background:var(--primary);color:#fff;border:none;border-radius:8px;cursor:pointer;">Per E-Mail senden</button>';
-  }
-  html += '</div>';
+    html += '<div style="display:flex;gap:8px;margin-top:20px;flex-wrap:wrap;">';
+    if (isDraft) {
+        html += '<button onclick="saveQuote(false)" style="padding:10px 20px;background:var(--primary);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Speichern (Entwurf)</button>';
+        html += '<button onclick="saveQuote(true)" style="padding:10px 20px;background:#16a34a;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Fertig</button>';
+    }
+    if (!isNew) {
+        html += '<button onclick="saveQuote(false)" style="padding:10px 20px;background:#64748b;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:600;">Aktualisieren</button>';
+    }
+    if (isFinalized) {
+        html += '<button onclick="sendQuoteLink()" style="padding:10px 20px;background:var(--primary);color:#fff;border:none;border-radius:8px;cursor:pointer;">Per E-Mail senden</button>';
+    }
+    html += '</div>';
 
   html += '</div>';
   el.innerHTML = html;
@@ -1666,7 +1666,7 @@ async function sendQuoteLink() {
     }
     const res4 = await fetch(`${API}/admin/quotes/` + id + '/send-link', {
       method: 'POST', headers: {'Content-Type':'application/json'}, credentials: 'include',
-      body: JSON.stringify({})
+      body: JSON.stringify({ patientEmail: QUOTE_DRAFT.patientEmail || '', patientDob: QUOTE_DRAFT.patientDob || '', patientName: QUOTE_DRAFT.patientName || '' })
     });
     const data = await res4.json();
     if (!res4.ok) throw new Error(data.error || 'Fehler');

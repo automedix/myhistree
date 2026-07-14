@@ -1,6 +1,20 @@
 <!DOCTYPE html>
 <html lang="de">
 <head>
+<script>
+// Aggressiv: alle registrierten Service Worker entfernen und alle Caches leeren
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.getRegistrations().then(function(regs) {
+    for (var i = 0; i < regs.length; i++) { regs[i].unregister(); }
+  });
+}
+if (typeof caches !== 'undefined') {
+  caches.keys().then(function(names) {
+    for (var i = 0; i < names.length; i++) { caches.delete(names[i]); }
+  });
+}
+</script>
+
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>myhistree – Praxis Admin</title>
@@ -26,10 +40,11 @@ input, select, textarea { width:100%; padding:10px 12px; border:2px solid var(--
 input:focus, select:focus, textarea:focus { outline:none; border-color:var(--primary); }
 .btn { padding:10px 18px; border-radius:8px; font-size:0.95rem; font-weight:600; border:none; cursor:pointer; }
 .btn-primary { background:var(--primary); color:#fff; }
-.btn-primary:hover { background:var(--primary-dark); }
+.btn-primary:hover { background:var(--primary-dark); color:#fff; }
 .btn-secondary { background:var(--bg); color:var(--text); border:2px solid var(--border); }
 .btn-sm { padding:6px 12px; font-size:0.8rem; }
 .btn-success { background:var(--success); color:#fff; }
+.btn-success:hover { background:var(--success); color:#fff; }
 table { width:100%; border-collapse:collapse; font-size:0.9rem; }
 th, td { text-align:left; padding:10px; border-bottom:1px solid var(--border); }
 th { font-weight:600; color:var(--text-light); font-size:0.8rem; text-transform:uppercase; letter-spacing:0.5px; }
@@ -45,7 +60,9 @@ tr:hover { background:#f8fafc; }
 .badge-processed { background:#e2e8f0; color:#334155; }
     .badge-inactive { background:#fee2e2; color:#991b1b; }
     .btn-success { background:#16a34a; color:#fff; }
+    .btn-success:hover { background:#16a34a; color:#fff; }
     .btn-warning { background:#f59e0b; color:#fff; }
+    .btn-warning:hover { background:#f59e0b; color:#fff; }
 .url-box { background:#f1f5f9; padding:12px; border-radius:8px; font-family:ui-monospace,monospace; font-size:0.85rem; word-break:break-all; margin:8px 0; }
 .tabs { display:flex; gap:4px; margin-bottom:20px; border-bottom:2px solid var(--border); }
 .tab { padding:10px 16px; border:none; background:none; font-size:0.95rem; cursor:pointer; color:var(--text-light); border-bottom:2px solid transparent; margin-bottom:-2px; }
@@ -74,16 +91,15 @@ pre.json { background:#1e293b; color:#e2e8f0; padding:16px; border-radius:8px; o
 .print-view .field-value { color:var(--text); }
 .print-actions { display:flex; gap:8px; margin-top:16px; padding-top:16px; border-top:1px solid var(--border); }
 @media print {
-  body * { visibility:hidden; }
-  .modal-overlay, .modal-overlay * { visibility:visible; }
-  .modal-overlay { position:absolute; left:0; top:0; width:100%; height:100%; background:#fff; display:block; }
-  .modal { max-width:100%; width:100%; max-height:none; box-shadow:none; }
   .modal-header, .print-actions { display:none; }
   .print-view { border:none; }
 }
 #qr-fullscreen { display:none;position:fixed;inset:0;background:#fff;z-index:9999;flex-direction:column;align-items:center;justify-content:center;cursor:pointer;touch-action:manipulation; }
 #qr-fullscreen canvas { box-shadow:0 8px 32px rgba(0,0,0,0.15); }
 </style>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
 </head>
 <body>
 <div class="container">
@@ -99,6 +115,8 @@ pre.json { background:#1e293b; color:#e2e8f0; padding:16px; border-radius:8px; o
     <button class="tab" data-tab="audit" onclick="switchTab('audit')">Audit-Log</button>
     <button class="tab" data-tab="users" onclick="switchTab('users')">Nutzer</button>
     <button class="tab" data-tab="settings" onclick="switchTab('settings')">Einstellungen</button>
+    <button class="tab" data-tab="quotes" onclick="switchTab('quotes')">Kostenvoranschläge</button>
+    <button class="tab" data-tab="questionnaires" onclick="switchTab('questionnaires')">Fragebögen</button>
   </div>
 
   <!-- TAB: Links -->
@@ -114,7 +132,7 @@ pre.json { background:#1e293b; color:#e2e8f0; padding:16px; border-radius:8px; o
         </div>
         <div>
           <label>Geburtsdatum *</label>
-          <input type="date" id="new-patient-dob" autocomplete="off">
+          <input type="text" id="new-patient-dob" placeholder="tt.mm.jjjj" maxlength="10" autocomplete="off" oninput="autoFormatDob(this)">
         </div>
       </div>
       <div class="form-row">
@@ -165,7 +183,28 @@ pre.json { background:#1e293b; color:#e2e8f0; padding:16px; border-radius:8px; o
           <div id="result-pin" style="margin-top:8px;font-weight:600;color:#4477BB;"></div>
         </div>
       </div>
-    <div style="height:40px;"></div>
+   <!-- Recall Card -->
+  <div class="card" id="recall-card" style="margin-top:16px;border-left:4px solid #7aa4e6;">
+    <h2>Recall / Erinnerung</h2>
+    <div style="margin-bottom:12px;">
+      <label>Recall-Typ</label>
+      <select id="recall-type">
+        <option value="impfung" selected>Impfung fällig — Bitte Termin vereinbaren</option>
+        <option value="medikament">Therapieüberprüfung — Bitte Termin vereinbaren</option>
+      </select>
+    </div>
+    <div style="margin-bottom:12px;">
+      <label>E-Mail-Adresse</label>
+      <input type="email" id="recall-email" placeholder="z.B. max@beispiel.de" style="width:100%;padding:8px;" inputmode="email" autocomplete="off" />
+    </div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <button type="button" id="btn-recall-send" class="btn btn-primary">Recall senden</button>
+      <button id="btn-recall-reset" class="btn btn-secondary">Zurücksetzen</button>
+    </div>
+    <div id="recall-status" style="margin-top:8px;font-size:14px;"></div>
+  </div>
+
+   <div style="height:40px;"></div>
   <!-- Deximed Card -->
   <div class="card" id="deximed-card">
     <h2>Deximed Patienteninformation</h2>
@@ -307,7 +346,79 @@ pre.json { background:#1e293b; color:#e2e8f0; padding:16px; border-radius:8px; o
       <p class="empty">Lade Einstellungen...</p>
     </div>
   </div>
+
+
+  <!-- TAB: Fragebögen -->
+  <div id="tab-questionnaires" class="tab-content">
+    <div class="card">
+      <h2>Fragebogen</h2>
+      <div class="form-row">
+        <div>
+          <label>PVS Patienten-ID *</label>
+          <input type="text" id="q-pvs-id" placeholder="z.B. 12345" autocomplete="off">
+        </div>
+        <div>
+          <label>Geburtsdatum *</label>
+          <input type="date" id="q-dob" autocomplete="off">
+        </div>
+      </div>
+      <div class="form-row">
+        <div>
+          <label>Patienten-E-Mail (optional)</label>
+          <input type="email" id="q-email" placeholder="max@beispiel.de" inputmode="email" autocomplete="off">
+        </div>
+        <div>
+          <label>PIN (optional)</label>
+          <input type="text" id="q-pin" placeholder="z.B. 1234" inputmode="numeric" pattern="[0-9]*" maxlength="6" autocomplete="off">
+        </div>
+      </div>
+      <div style="margin-bottom:12px;">
+        <label>Fragebogen</label>
+        <select id="q-template">
+          <option value="phq-9" selected>PHQ-9 Depressionsscreening</option>
+          <option value="barthel-index">Barthel Index (ADL-Skala)</option>
+        </select>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-primary" id="btn-q-create" onclick="createQuestionnaireLink()">Link erstellen</button>
+        <button class="btn btn-success" id="btn-q-send" style="display:none;" onclick="sendQuestionnaireEmail()">Per E-Mail senden</button>
+      </div>
+      <div id="q-result" style="margin-top:16px;display:none;">
+        <div class="url-box" id="q-url"></div>
+        <div id="q-qr" style="margin:12px 0;text-align:center;cursor:pointer;" onclick="showQuestionnaireQR()"></div>
+        <div id="q-pin-display" style="margin-top:8px;font-weight:600;color:#4477BB;"></div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
+          <button class="btn btn-sm btn-secondary" onclick="copyQuestionnaireLink()">Link kopieren</button>
+        </div>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px;">
+      <h2>Fragebogen-Einreichungen</h2>
+      <div id="q-submissions-container"><p class="empty">Keine Einreichungen vorhanden</p></div>
+    </div>
+    <div class="card" style="margin-top:16px;">
+      <h2>Abgeschlossen</h2>
+      <div id="q-archived-container"><p class="empty">Keine abgeschlossenen Einreichungen</p></div>
+    </div>
+  </div>
+
+  <!-- TAB: Kostenvoranschlaege -->
+  <div id="tab-quotes" class="tab-content">
+    <div id="templates-panel" style="margin-bottom:16px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+        <h3 style="margin:0;">Vorlagen</h3>
+        <button class="btn btn-sm btn-primary" onclick="newTemplateEditor()">Neue Vorlage</button>
+      </div>
+      <div id="templates-list"></div>
+      <div id="template-editor" style="display:none;margin-top:12px;" class="card"></div>
+    </div>
+    <hr style="border:none;border-top:1px solid #e2e8f0;margin:16px 0;">
+    <div id="quotes-content"></div>
+  </div>
 </div>
+
+
+
 
 <!-- Modal -->
 <div class="modal-overlay" id="modal">
@@ -327,7 +438,7 @@ pre.json { background:#1e293b; color:#e2e8f0; padding:16px; border-radius:8px; o
 </div>
 
 <script src="/admin/js/qrcode.min.js"></script>
-<script src="/admin/js/admin-0.5.7.js?v=39"></script>
+<script src="/admin/js/admin-0.5.11.js?v=3"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
   var ids = ['new-pvs-id','new-patient-dob','new-patient-email','new-pin'];
@@ -344,6 +455,281 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 </script>
 
+
+<script>
+(function(){
+      const recallStatusDiv = document.getElementById("recall-status");
+      async function loadRecallTypes(){
+        try {
+          const r = await fetch("/api/recall/templates", { credentials: 'include' });
+          if (!r.ok) return;
+          const j = await r.json();
+          const sel = document.getElementById("recall-type");
+          if (!j.templates || !j.templates.length) return;
+          sel.innerHTML = j.templates.map(t => {
+            return `<option value="${t.key}">${t.title}</option>`;
+          }).join("");
+        }catch(e){ console.error(e); }
+      }
+      document.getElementById("btn-recall-send").addEventListener("click", async () => {
+        const email = document.getElementById("recall-email").value.trim();
+        const type = document.getElementById("recall-type").value;
+        if (!email) { recallStatusDiv.textContent = "Bitte E-Mail-Adresse eingeben"; return; }
+        if (!/^\S+@\S+\.\S+$/.test(email)) { recallStatusDiv.textContent = "Bitte gültige E-Mail-Adresse eingeben"; return; }
+        recallStatusDiv.textContent = "Sende...";
+        try {
+          const r = await fetch("/api/recall/send", {
+            method: "POST", headers: { "Content-Type": "application/json" },
+            credentials: 'include',
+            body: JSON.stringify({ email, recallType: type })
+          });
+          const j = await r.json();
+          recallStatusDiv.textContent = j.success ? "Erinnerung gesendet." : (j.error || "Fehler beim Senden.");
+          if (j.success) document.getElementById("recall-email").value = "";
+        }catch(e){ recallStatusDiv.textContent = "Netzwerkfehler"; }
+      });
+      document.getElementById("btn-recall-reset").addEventListener("click", () => {
+        document.getElementById("recall-email").value = "";
+        recallStatusDiv.textContent = "";
+        loadRecallTypes();
+      });
+      loadRecallTypes();
+
+})();
+</script>
+
+<script>
+if(!window.openModal){
+  window.openModal = function(title, body){
+    var overlay = document.getElementById('openmodal-fallback');
+    if(!overlay){
+      overlay = document.createElement('div');
+      overlay.id = 'openmodal-fallback';
+      overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.75);z-index:9999;display:flex;align-items:center;justify-content:center;padding:16px;';
+      overlay.innerHTML = '<div style="background:#fff;border-radius:8px;max-width:640px;width:100%;max-height:90vh;overflow:auto;padding:24px;position:relative;"><button id="omf-close" style="position:absolute;top:12px;right:12px;border:none;background:transparent;font-size:20px;cursor:pointer;">&times;</button><h2 id="omf-title" style="margin-top:0;color:#3366aa;"></h2><div id="omf-body"></div></div>';
+      document.body.appendChild(overlay);
+      document.getElementById('omf-close').onclick = function(){ document.getElementById('openmodal-fallback').style.display = 'none'; };
+    }
+    document.getElementById('omf-title').textContent = title;
+    document.getElementById('omf-body').innerHTML = body;
+    overlay.style.display = 'flex';
+  };
+}
+</script>
+
+<script>
+
+let qLastLink = null;
+
+async function createQuestionnaireLink(){
+  const pvs = document.getElementById('q-pvs-id').value.trim();
+  const dob = document.getElementById('q-dob').value;
+  const email = document.getElementById('q-email').value.trim();
+  const pin = document.getElementById('q-pin').value.trim();
+  const template = document.getElementById('q-template').value;
+  const btn = document.getElementById('btn-q-create');
+  if(!pvs || !dob){ alert('PVS-ID und Geburtsdatum sind erforderlich'); return; }
+  btn.textContent = 'Erstelle...'; btn.disabled = true;
+  try {
+    const r = await fetch('/api/link/create', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      credentials:'include',
+      body: JSON.stringify({ practiceId:'demo-practice', pvsPatientId:pvs, patientEmail:email||undefined, pin:pin||undefined, documentType:'questionnaire', questionnaireTemplate:template })
+    });
+    const j = await r.json();
+    if(!r.ok) throw new Error(j.error||'Fehler');
+    qLastLink = j;
+    const resDiv = document.getElementById('q-result');
+    const urlBox = document.getElementById('q-url');
+    const qrDiv = document.getElementById('q-qr');
+    const pinDiv = document.getElementById('q-pin-display');
+    const base = location.protocol + '//' + location.host;
+    const fullUrl = base + j.link;
+    urlBox.textContent = fullUrl;
+    pinDiv.textContent = j.pin ? 'PIN: ' + j.pin : '';
+    resDiv.style.display = 'block';
+    document.getElementById('btn-q-send').style.display = email ? 'inline-block' : 'none';
+    // generate QR
+    qrDiv.innerHTML = '';
+    if(typeof QRCode !== 'undefined'){
+      new QRCode(qrDiv, { text: fullUrl, width:160, height:160, colorDark:'#3366aa', colorLight:'#ffffff' });
+    }
+  }catch(e){ alert(e.message); }
+  finally{ btn.textContent = 'Link erstellen'; btn.disabled = false; }
+}
+
+function copyQuestionnaireLink(){
+  if(!qLastLink) return;
+  const url = location.protocol+'//'+location.host+qLastLink.link;
+  navigator.clipboard.writeText(url).then(()=>alert('Link kopiert'));
+}
+
+function showQuestionnaireQR(){
+  if(!qLastLink) return;
+  const url = location.protocol+'//'+location.host+qLastLink.link;
+  const overlay = document.getElementById('qr-fullscreen');
+  const canvas = document.getElementById('qr-fullscreen-canvas');
+  canvas.innerHTML = '';
+  if(typeof QRCode !== 'undefined'){
+    new QRCode(canvas, { text:url, width:280, height:280, colorDark:'#3366aa', colorLight:'#ffffff' });
+  }
+  overlay.style.display = 'flex';
+}
+
+async function sendQuestionnaireEmail(){
+  if(!qLastLink) return;
+  const email = document.getElementById('q-email').value.trim();
+  if(!email){ alert('Bitte E-Mail eingeben'); return; }
+  const btn = document.getElementById('btn-q-send');
+  btn.textContent = 'Sende...'; btn.disabled = true;
+  try {
+    const base = location.protocol+'//'+location.host;
+    const r = await fetch('/api/link/send-email', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      credentials:'include',
+      body: JSON.stringify({ to:email, pvsPatientId:document.getElementById('q-pvs-id').value.trim(), linkUrl:base+qLastLink.link, pin:qLastLink.pin, documentType:'questionnaire', consentFormId:document.getElementById('q-template').value })
+    });
+    const j = await r.json();
+    if(!r.ok) throw new Error(j.error||'Fehler');
+    alert('E-Mail gesendet');
+  }catch(e){ alert(e.message); }
+  finally{ btn.textContent = 'Per E-Mail senden'; btn.disabled = false; }
+}
+
+async function loadQuestionnaireSubmissions(){
+  const container = document.getElementById('q-submissions-container');
+  container.innerHTML = '<div class="spinner"></div>';
+  try {
+    const r = await fetch('/api/questionnaire/submissions/demo-practice?status=active', { credentials:'include' });
+    if(!r.ok) throw new Error('Fehler beim Laden');
+    const rows = await r.json();
+    if(!rows.length){ container.innerHTML = '<p class="empty">Keine Einreichungen vorhanden</p>'; return; }
+    let html = '<table><thead><tr><th>PVS-ID</th><th>Typ</th><th>Eingereicht</th><th>Aktion</th></tr></thead><tbody>';
+    for(const row of rows){
+      const date = row.signed_at ? new Date(row.signed_at).toLocaleString('de-DE') : (row.created_at ? new Date(row.created_at).toLocaleString('de-DE') : '-');
+      const typeLabel = row.questionnaire_slug === 'barthel-index' ? 'Barthel Index' : 'PHQ-9';
+      html += `<tr>
+        <td>${row.pvs_patient_id||'-'}</td>
+        <td><span class="badge badge-pending">${typeLabel}</span></td>
+        <td>${date}</td>
+        <td><button class="btn btn-sm btn-primary" onclick="loadQuestionnaireDetail('${row.encounter_id}')">Anzeigen</button> <button class="btn btn-sm btn-success" onclick="archiveQuestionnaire('${row.encounter_id}')">In Akte übernommen</button></td>
+      </tr>`;
+    }
+    html += '</tbody></table>';
+    container.innerHTML = html;
+  }catch(e){ container.innerHTML = '<p class="empty">Fehler beim Laden</p>'; console.error(e); }
+}
+
+async function loadArchivedSubmissions(){
+  const container = document.getElementById('q-archived-container');
+  container.innerHTML = '<div class="spinner"></div>';
+  try {
+    const r = await fetch('/api/questionnaire/submissions/demo-practice?status=archived', { credentials:'include' });
+    if(!r.ok) throw new Error('Fehler beim Laden');
+    const rows = await r.json();
+    if(!rows.length){ container.innerHTML = '<p class="empty">Keine abgeschlossenen Einreichungen</p>'; return; }
+    let html = '<table><thead><tr><th>PVS-ID</th><th>Typ</th><th>Übernommen</th><th>Aktion</th></tr></thead><tbody>';
+    for(const row of rows){
+      const date = row.reviewed_at ? new Date(row.reviewed_at).toLocaleString('de-DE') : '-';
+      const typeLabel = row.questionnaire_slug === 'barthel-index' ? 'Barthel Index' : 'PHQ-9';
+      html += `<tr>
+        <td>${row.pvs_patient_id||'-'}</td>
+        <td><span class="badge badge-completed">${typeLabel}</span></td>
+        <td>${date}</td>
+        <td><button class="btn btn-sm btn-primary" onclick="loadQuestionnaireDetail('${row.encounter_id}')">Anzeigen</button> <button class="btn btn-sm btn-warning" onclick="unarchiveQuestionnaire('${row.encounter_id}')">Wiederherstellen</button></td>
+      </tr>`;
+    }
+    html += '</tbody></table>';
+    container.innerHTML = html;
+  }catch(e){ container.innerHTML = '<p class="empty">Fehler beim Laden</p>'; console.error(e); }
+}
+
+async function archiveQuestionnaire(encounterId){
+  try {
+    const r = await fetch('/api/questionnaire/review/'+encounterId, { method:'POST', credentials:'include' });
+    if(!r.ok) throw new Error('Fehler');
+    loadQuestionnaireSubmissions();
+    loadArchivedSubmissions();
+  }catch(e){ alert(e.message); }
+}
+
+async function unarchiveQuestionnaire(encounterId){
+  try {
+    const r = await fetch('/api/questionnaire/unreview/'+encounterId, { method:'POST', credentials:'include' });
+    if(!r.ok) throw new Error('Fehler');
+    loadQuestionnaireSubmissions();
+    loadArchivedSubmissions();
+  }catch(e){ alert(e.message); }
+}
+
+async function loadQuestionnaireDetail(encounterId){
+  try {
+    const r = await fetch('/api/questionnaire/submission/'+encounterId, { credentials:'include' });
+    if(!r.ok) throw new Error('Nicht gefunden');
+    const j = await r.json();
+    const typeLabel = j.encounter?.questionnaire_slug === 'barthel-index' ? 'Barthel Index (ADL-Skala)' : 'PHQ-9 Depressionsscreening';
+    const maxScore = j.encounter?.questionnaire_slug === 'barthel-index' ? '100' : '27';
+    let printHtml = '<div style="font-family:Arial,Helvetica,sans-serif;max-width:700px;margin:0 auto;padding:20px;color:#1e293b;">';
+    printHtml += '<h2 style="color:#4477BB;border-bottom:2px solid #4477BB;padding-bottom:6px;margin-top:0;">Fragebogen-Ergebnis</h2>';
+    printHtml += '<p><strong>Typ:</strong> '+typeLabel+'</p>';
+    printHtml += '<p><strong>PVS-ID:</strong> '+(j.encounter?.pvs_patient_id||'-')+'</p>';
+    if(j.data?.patient_name){
+      printHtml += '<p><strong>Patient:</strong> '+j.data.patient_name+'</p>';
+    }
+    if(j.data?.collector_name){
+      printHtml += '<p><strong>Erheber:</strong> '+j.data.collector_name+'</p>';
+    }
+    printHtml += '<p><strong>Score:</strong> '+(j.data?.score||'-')+' / '+maxScore+'</p>';
+    printHtml += '<p><strong>Schweregrad:</strong> '+(j.data?.severity||'-')+'</p>';
+    printHtml += '<p><strong>Eingereicht:</strong> '+(j.data?.signed_at ? new Date(j.data.signed_at).toLocaleString('de-DE') : '-')+'</p>';
+    if(j.data?.reviewed_at){
+      printHtml += '<p><strong>In Akte übernommen:</strong> '+new Date(j.data.reviewed_at).toLocaleString('de-DE')+'</p>';
+    }
+    if(j.data?.details){
+      printHtml += '<h3 style="color:#4477BB;border-bottom:1px solid #e2e8f0;padding-bottom:4px;margin-top:24px;">Details</h3>';
+      const lines = j.data.details.split('\n');
+      for(const line of lines){
+        if(line.trim() === ''){ printHtml += '<br>'; continue; }
+        printHtml += '<p>'+line+'</p>';
+      }
+    } else if(j.data?.answers){
+      printHtml += '<h3 style="color:#4477BB;border-bottom:1px solid #e2e8f0;padding-bottom:4px;margin-top:24px;">Antworten</h3>';
+      for(const [k,v] of Object.entries(j.data.answers)){
+        printHtml += '<p><strong>'+k+':</strong> '+v+'</p>';
+      }
+    }
+    printHtml += '</div>';
+    let body = '<div class="print-view">' + printHtml + '</div>';
+    body += '<div class="print-actions"><button class="btn btn-secondary" onclick="printQuestionnaireReport()">Drucken</button></div>';
+    window._lastPrintHtml = printHtml;
+    openModal('Fragebogen-Einreichung', body);
+  }catch(e){ alert(e.message); }
+}
+
+function printQuestionnaireReport(){
+  const w = window.open('', '_blank');
+  if(!w){ alert('Popup-Blocker verhindert Drucken. Bitte erlauben.'); return; }
+  w.document.write('<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Fragebogen</title><meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+</head><body>');
+  w.document.write(window._lastPrintHtml || '');
+  w.document.write('</body></html>');
+  w.document.close();
+  setTimeout(function(){ w.print(); }, 300);
+}
+
+// Hook into switchTab to load submissions
+const _origSwitchTab = window.switchTab;
+if(_origSwitchTab){
+  window.switchTab = function(tabId){
+    _origSwitchTab(tabId);
+    if(tabId === 'questionnaires'){ loadQuestionnaireSubmissions(); loadArchivedSubmissions(); }
+  };
+}
+</script>
 
 </body>
 </html>
