@@ -2,7 +2,7 @@ import { FastifyInstance } from "fastify";
 import { db, logAudit, getAuditLog, applyRetention } from "../db/index";
 import { randomUUID } from "crypto";
 import { z } from "zod";
-import { sendAnamneseLink, sendBloodpressureLink, sendConsentFormLink, sendVerificationCodeEmail, sendVerificationEmail, validateEmail, sendDeximedInfo } from "../email/sender";
+import { sendAnamneseLink, sendBloodpressureLink, sendConsentFormLink, sendVerificationCodeEmail, sendVerificationEmail, validateEmail, sendDeximedInfo, getRecallTemplates, sendRecallEmail } from "../email/sender";
 import { isValidEmailSyntax } from "../email/sender";
 
 const anamneseBody = z.record(z.any());
@@ -809,5 +809,33 @@ export default async function apiRoutes(fastify: FastifyInstance) {
     logAudit("DEXIMED_REINDEX_START", undefined, "detached", admin.email, request.ip);
     return { success: true, message: "Reindex gestartet. Das kann ein paar Minuten dauern." };
   });
+
+
+  // ─── Recall ─────────────────────────────────────────────────────
+  fastify.get("/recall/templates", { onRequest: requireAuth }, async (_request, reply) => {
+    return reply.send({ templates: getRecallTemplates() });
+  });
+
+  fastify.post("/recall/send", { onRequest: requireAuth }, async (request, reply) => {
+    const body = request.body as any;
+    const { email, recallType } = body;
+    if (!email || !recallType) {
+      return reply.status(400).send({ error: "E-Mail-Adresse und Recall-Typ sind erforderlich." });
+    }
+    const emailCheck = await validateEmail(email);
+    if (!emailCheck.valid) {
+      return reply.status(400).send({ error: emailCheck.error });
+    }
+    const admin = (request as any).user;
+    const practiceRow = db.prepare("SELECT name, recall_medflex_url, recall_medatixx_url FROM practices ORDER BY id ASC LIMIT 1").get() as any;
+    const practiceName = practiceRow?.name || "";
+    const result = await sendRecallEmail(email, recallType, practiceName, practiceRow?.recall_medflex_url, practiceRow?.recall_medatixx_url);
+    if (result.success) {
+      logAudit("RECALL_SEND", recallType, `to: ${email}, type: ${recallType}`, admin?.email, request.ip);
+      return reply.send({ success: true, messageId: result.messageId });
+    }
+    return reply.status(500).send({ error: result.error || "E-Mail konnte nicht gesendet werden." });
+  });
+
 
 }
