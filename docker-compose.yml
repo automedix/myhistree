@@ -1,9 +1,6 @@
 services:
   myhistree:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    image: myhistree-myhistree:latest
+    image: myhistree-myhistree:stable
     container_name: myhistree
     restart: unless-stopped
     ports:
@@ -11,6 +8,7 @@ services:
     volumes:
       - ./data:/app/data
       - ./web:/app/web
+      # NOTE: server/dist is baked into the image — never mount it from host!
     env_file: .env
     environment:
       - NODE_ENV=production
