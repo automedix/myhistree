@@ -530,4 +530,53 @@ export async function sendRecallEmail(
     console.error("[EMAIL] Recall send error:", err);
     return { success: false, error: err.message || "E-Mail konnte nicht gesendet werden." };
   }
+
+}
+
+export async function sendQuoteLinkEmail(to: string, patientName: string, quoteTitle: string, linkUrl: string, practiceName: string): Promise<{ success: boolean; error?: string }> {
+  if (!isValidEmailSyntax(to)) {
+    return { success: false, error: "Ungültige E-Mail-Adresse." };
+  }
+  const brand = practiceName || PRACTICE_NAME;
+  const textBody = `Liebe Patientin, lieber Patient${patientName ? " " + patientName : ""},\n\nim Anhang finden Sie Ihren Kostenvoranschlag von ${brand}.\n\nSie können den Kostenvoranschlag unter folgendem Link einsehen und digital unterschreiben:\n\n${linkUrl}\n\nDer Link ist 7 Tage gültig.\n\nMit freundlichen Grüßen\nIhr Praxis-Team\n${brand}\n\n--\nDiese Nachricht wurde automatisch erstellt.\nAntworten bitte an: ${REPLY_TO}`;
+  const htmlBody = `<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>body{font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif;background:#f8fafc;margin:0;padding:20px;color:#1e293b}
+.container{max-width:480px;margin:0 auto;background:#fff;border-radius:16px;padding:32px;box-shadow:0 4px 20px rgba(0,0,0,0.08)}
+.logo{font-size:1.3rem;font-weight:700;color:#4477BB;margin-bottom:24px}
+h1{font-size:1.1rem;color:#1e293b;margin-bottom:12px}
+.preamble{font-size:0.95rem;line-height:1.6;color:#334155;margin-bottom:16px}
+.action-box{background:#f1f5f9;border-radius:12px;padding:16px;margin:16px 0;text-align:center}
+.footer{font-size:0.8rem;color:#64748b;margin-top:24px;border-top:1px solid #e2e8f0;padding-top:16px}
+.footer a{color:#4477BB;text-decoration:none}</style></head>
+<body><div class="container">
+<div class="logo">${brand}</div>
+<h1>${quoteTitle}</h1>
+<div class="preamble">
+<p>Liebe Patientin, lieber Patient${patientName ? " " + patientName : ""},</p>
+<p>im Anhang finden Sie Ihren Kostenvoranschlag von <strong>${brand}</strong>.</p>
+<p>Sie können den Kostenvoranschlag unter folgendem Link einsehen und digital unterschreiben:</p>
+</div>
+<div class="action-box">
+<a href="${linkUrl}" style="display:inline-block;background:#4477BB;color:#fff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;">Kostenvoranschlag öffnen</a>
+<div style="font-size:0.8rem;color:#64748b;margin-top:8px;word-break:break-all;">${linkUrl}</div>
+</div>
+<div class="footer">
+<p>Der Link ist 7 Tage gültig.</p>
+<p>Mit freundlichen Grüßen<br>Ihr Praxis-Team<br><strong>${brand}</strong></p>
+<p>--<br>Diese Nachricht wurde automatisch erstellt.<br>Antworten bitte an: <a href="mailto:${REPLY_TO}">${REPLY_TO}</a></p>
+</div>
+</div></body></html>`;
+  try {
+    await transporter.sendMail({
+      from: `${FROM_NAME} <${SMTP_USER}>`,
+      to,
+      replyTo: REPLY_TO,
+      subject: `${quoteTitle} – ${brand}`,
+      text: textBody,
+      html: htmlBody,
+    });
+    return { success: true };
+  } catch (err: any) {
+    return { success: false, error: err.message || "E-Mail konnte nicht gesendet werden" };
+  }
 }

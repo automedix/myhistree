@@ -2,7 +2,7 @@ import { FastifyInstance } from "fastify";
 import { db, logAudit, getAuditLog, applyRetention } from "../db/index";
 import { randomUUID } from "crypto";
 import { z } from "zod";
-import { sendAnamneseLink, sendBloodpressureLink, sendConsentFormLink, sendVerificationCodeEmail, sendVerificationEmail, validateEmail, sendDeximedInfo, getRecallTemplates, sendRecallEmail } from "../email/sender";
+import { sendAnamneseLink, sendBloodpressureLink, sendConsentFormLink, sendVerificationCodeEmail, sendVerificationEmail, validateEmail, sendDeximedInfo, getRecallTemplates, sendRecallEmail, sendQuoteLinkEmail } from "../email/sender";
 import { isValidEmailSyntax } from "../email/sender";
 
 const anamneseBody = z.record(z.any());
@@ -56,19 +56,19 @@ export default async function apiRoutes(fastify: FastifyInstance) {
     const link = db.prepare(`SELECT l.*, p.name as practice_name, p.address, p.city, p.postal_code, p.phone, p.email as practice_email
       FROM patient_links l JOIN practices p ON l.practice_id = p.id WHERE l.token = ?`).get(token) as any;
     if (!link) return reply.status(404).send({ error: "Link not found" });
-    if (new Date(link.expires_at) < new Date()) {
-      db.prepare("UPDATE patient_links SET status = 'expired' WHERE id = ?").run(link.id);
+    if (new Date((link as any).expires_at) < new Date()) {
+      db.prepare("UPDATE patient_links SET status = 'expired' WHERE id = ?").run((link as any).id);
       return reply.status(410).send({ error: "Link expired" });
     }
-    if (link.status === "used") {
+    if ((link as any).status === "used") {
       const encounter = db.prepare("SELECT id, current_screen, document_type FROM encounters WHERE source_link_id = ? AND status = 'in-progress'").get(token) as any;
       if (encounter) {
-        delete link.patient_dob; return { ...link, resume: true, encounterId: encounter.id, currentScreen: encounter.current_screen, documentType: encounter.document_type };
+        delete (link as any).patient_dob; return { ...link, resume: true, encounterId: encounter.id, currentScreen: encounter.current_screen, documentType: encounter.document_type };
       }
       return reply.status(410).send({ error: "Link already used" });
     }
-    if (link.status !== "pending") return reply.status(410).send({ error: "Link already used or expired" });
-    delete link.patient_dob; return link;
+    if ((link as any).status !== "pending") return reply.status(410).send({ error: "Link already used or expired" });
+    delete (link as any).patient_dob; return link;
   });
 
   fastify.post("/link/start", async (request, reply) => {
@@ -84,15 +84,15 @@ export default async function apiRoutes(fastify: FastifyInstance) {
     } else if (!/^\d{4}-\d{2}-\d{2}$/.test(dobInput)) {
       return reply.status(400).send({ error: "Ungültiges Geburtsdatum. Format: TT.MM.JJJJ oder YYYY-MM-DD" });
     }
-    if (link.patient_dob && link.patient_dob !== dobNormalized) {
+    if ((link as any).patient_dob && (link as any).patient_dob !== dobNormalized) {
       return reply.status(403).send({ error: "Date of birth does not match" });
     }
-    if (link.pin) {
-      const decodedPin = Buffer.from(link.pin, "base64").toString("utf8");
+    if ((link as any).pin) {
+      const decodedPin = Buffer.from((link as any).pin, "base64").toString("utf8");
       if (decodedPin !== body.pin) return reply.status(403).send({ error: "Incorrect PIN" });
     }
 
-    if (link.status === "used") {
+    if ((link as any).status === "used") {
       const encounter = db.prepare("SELECT id, patient_id, practice_id FROM encounters WHERE source_link_id = ? AND status = 'in-progress'").get(body.token) as any;
       if (encounter) {
         return { encounterId: encounter.id, patientId: encounter.patient_id, practiceId: encounter.practice_id, resume: true };
@@ -100,19 +100,19 @@ export default async function apiRoutes(fastify: FastifyInstance) {
       return reply.status(400).send({ error: "Invalid or expired link" });
     }
 
-    if (link.status !== "pending") return reply.status(400).send({ error: "Invalid or expired link" });
+    if ((link as any).status !== "pending") return reply.status(400).send({ error: "Invalid or expired link" });
 
     const patientId = randomUUID();
-    db.prepare("INSERT INTO patients (id, pvs_patient_id, date_of_birth) VALUES (?, ?, ?)").run(patientId, link.pvs_patient_id, link.patient_dob);
+    db.prepare("INSERT INTO patients (id, pvs_patient_id, date_of_birth) VALUES (?, ?, ?)").run(patientId, (link as any).pvs_patient_id, (link as any).patient_dob);
 
     const encounterId = randomUUID();
     db.prepare("INSERT INTO encounters (id, patient_id, practice_id, source_link_id, pvs_patient_id, status, document_type, consent_form_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
-      .run(encounterId, patientId, link.practice_id, link.token, link.pvs_patient_id || null, "in-progress", link.document_type || "anamnese", link.consent_form_id || null);
+      .run(encounterId, patientId, (link as any).practice_id, (link as any).token, (link as any).pvs_patient_id || null, "in-progress", (link as any).document_type || "anamnese", (link as any).consent_form_id || null);
     db.prepare("UPDATE patient_links SET status = 'used', linked_at = datetime('now') WHERE id = ?")
-      .run(link.id);
+      .run((link as any).id);
 
     logAudit("START_ANAMNESE", link.token, `Encounter: ${encounterId}, Typ: ${link.document_type || "anamnese"}`, undefined, request.ip);
-    return { encounterId, patientId, practiceId: link.practice_id, documentType: link.document_type || "anamnese" };
+    return { encounterId, patientId, practiceId: (link as any).practice_id, documentType: (link as any).document_type || "anamnese" };
   });
 
   // ─── Email Send ─────────────────────────────────────────────────
@@ -183,16 +183,16 @@ export default async function apiRoutes(fastify: FastifyInstance) {
 
     const row = db.prepare("SELECT * FROM email_verifications WHERE encounter_id = ? AND email = ? ORDER BY created_at DESC LIMIT 1").get(encounterId, email) as any;
     if (!row) return reply.status(404).send({ error: "No verification found" });
-    if (row.verified) return reply.status(400).send({ error: "Already verified" });
-    if (new Date(row.expires_at) < new Date()) return reply.status(410).send({ error: "Code expired" });
+    if ((row as any).verified) return reply.status(400).send({ error: "Already verified" });
+    if (new Date((row as any).expires_at) < new Date()) return reply.status(410).send({ error: "Code expired" });
 
-    const attempts = (row.attempts || 0) + 1;
-    db.prepare("UPDATE email_verifications SET attempts = ? WHERE id = ?").run(attempts, row.id);
+    const attempts = ((row as any).attempts || 0) + 1;
+    db.prepare("UPDATE email_verifications SET attempts = ? WHERE id = ?").run(attempts, (row as any).id);
 
     if (attempts > 5) return reply.status(403).send({ error: "Too many attempts" });
-    if (row.code !== code) return reply.status(400).send({ error: "Invalid code" });
+    if ((row as any).code !== code) return reply.status(400).send({ error: "Invalid code" });
 
-    db.prepare("UPDATE email_verifications SET verified = 1 WHERE id = ?").run(row.id);
+    db.prepare("UPDATE email_verifications SET verified = 1 WHERE id = ?").run((row as any).id);
     logAudit("VERIFY_EMAIL", encounterId, email, undefined, request.ip);
     return { success: true, message: "Email verified" };
   });
@@ -203,15 +203,15 @@ export default async function apiRoutes(fastify: FastifyInstance) {
 
     const row = db.prepare("SELECT * FROM email_verifications WHERE magic_token = ?").get(token) as any;
     if (!row) return reply.status(404).send({ error: "Invalid or expired token" });
-    if (row.verified) return reply.status(400).send({ error: "Already verified" });
-    if (new Date(row.expires_at) < new Date()) return reply.status(410).send({ error: "Token expired" });
+    if ((row as any).verified) return reply.status(400).send({ error: "Already verified" });
+    if (new Date((row as any).expires_at) < new Date()) return reply.status(410).send({ error: "Token expired" });
 
-    db.prepare("UPDATE email_verifications SET verified = 1 WHERE id = ?").run(row.id);
+    db.prepare("UPDATE email_verifications SET verified = 1 WHERE id = ?").run((row as any).id);
 
     const encounter = db.prepare("SELECT id, source_link_id FROM encounters WHERE id = ?").get(row.encounter_id) as any;
 
-    logAudit("VERIFY_EMAIL_MAGIC", row.encounter_id, row.email, undefined, request.ip);
-    return { verified: true, encounterId: row.encounter_id, linkToken: encounter?.source_link_id || null };
+    logAudit("VERIFY_EMAIL_MAGIC", (row as any).encounter_id, (row as any).email, undefined, request.ip);
+    return { verified: true, encounterId: (row as any).encounter_id, linkToken: encounter?.source_link_id || null };
   });
 
   fastify.post("/email/validate", async (request) => {
@@ -222,9 +222,9 @@ export default async function apiRoutes(fastify: FastifyInstance) {
   // ─── Anamnese CRUD ──────────────────────────────────────────────
   fastify.get("/anamnese/:encounterId", async (request, reply) => {
     const { encounterId } = request.params as { encounterId: string };
-    const encounter = db.prepare("SELECT * FROM encounters WHERE id = ?").get(encounterId);
+    const encounter = db.prepare("SELECT * FROM encounters WHERE id = ?").get(encounterId) as any;
     if (!encounter) return reply.status(404).send({ error: "Not found" });
-    const responses = db.prepare("SELECT category, status, data FROM questionnaire_responses WHERE encounter_id = ?").all(encounterId);
+    const responses = db.prepare("SELECT category, status, data FROM questionnaire_responses WHERE encounter_id = ?").all(encounterId) as any[];
     return { encounter, responses };
   });
 
@@ -237,7 +237,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
 
   fastify.put("/anamnese/:encounterId/:category", async (request) => {
     const { encounterId, category } = request.params as { encounterId: string; category: string };
-    const data = anamneseBody.parse(request.body);
+    const data = anamneseBody.parse(request.body as any);
     const existing = db.prepare("SELECT id FROM questionnaire_responses WHERE encounter_id = ? AND category = ?").get(encounterId, category) as { id: string } | undefined;
     if (existing) {
       db.prepare("UPDATE questionnaire_responses SET data = ?, status = ?, updated_at = datetime('now') WHERE id = ?")
@@ -253,14 +253,14 @@ export default async function apiRoutes(fastify: FastifyInstance) {
   fastify.get("/anamnese/:encounterId/:category", async (request) => {
     const { encounterId, category } = request.params as { encounterId: string; category: string };
     const row = db.prepare("SELECT data FROM questionnaire_responses WHERE encounter_id = ? AND category = ?").get(encounterId, category) as { data: string } | undefined;
-    return row ? JSON.parse(row.data) : {};
+    return row ? JSON.parse((row as any).data) : {};
   });
 
   fastify.get("/anamnese/:encounterId/responses", async (request) => {
     const { encounterId } = request.params as { encounterId: string };
     const rows = db.prepare("SELECT category, data FROM questionnaire_responses WHERE encounter_id = ?").all(encounterId) as { category: string; data: string }[];
     const result: Record<string, any> = {};
-    for (const row of rows) result[row.category] = JSON.parse(row.data);
+    for (const row of rows) result[(row as any).category] = JSON.parse((row as any).data);
     return result;
   });
 
@@ -268,9 +268,9 @@ export default async function apiRoutes(fastify: FastifyInstance) {
   fastify.get("/encounter/:encounterId", async (request) => {
     const { encounterId } = request.params as { encounterId: string };
     logAudit("VIEW_ENCOUNTER", encounterId, undefined, undefined, request.ip);
-    const encounter = db.prepare("SELECT * FROM encounters WHERE id = ?").get(encounterId);
+    const encounter = db.prepare("SELECT * FROM encounters WHERE id = ?").get(encounterId) as any;
     if (!encounter) return { error: "Not found" };
-    const responses = db.prepare("SELECT category, status, data FROM questionnaire_responses WHERE encounter_id = ?").all(encounterId);
+    const responses = db.prepare("SELECT category, status, data FROM questionnaire_responses WHERE encounter_id = ?").all(encounterId) as any[];
     return { encounter, responses: responses.map((r: any) => ({ ...r, data: r.data ? JSON.parse(r.data) : null })) };
   });
 
@@ -302,7 +302,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
   });
 
   fastify.get("/practices/list", { onRequest: requireAuth }, async () => {
-    return db.prepare("SELECT id, name, address, city, postal_code, phone, email, ki_provider_name, ki_product_name, ki_manufacturer, ki_model_provider, ki_processing_location, ki_third_country_transfer FROM practices").all();
+    return db.prepare("SELECT id, name, address, city, postal_code, phone, email, ki_provider_name, ki_product_name, ki_manufacturer, ki_model_provider, ki_processing_location, ki_third_country_transfer FROM practices").all() as any[];
   });
 
   fastify.get("/practice/:practiceId/settings", { onRequest: requireAuth }, async (request, reply) => {
@@ -342,7 +342,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
 
   fastify.post("/practice/:practiceId/test-email", { onRequest: requireAuth }, async (request, reply) => {
     const { practiceId } = request.params as { practiceId: string };
-    const { to } = request.body as { to?: string };
+    const { to } = request.body as any as { to?: string };
     if (!to) return reply.status(400).send({ error: "Recipient required" });
     const result = await sendConsentFormLink(to, "", "", "", "Test-E-Mail");
     if (result.success) {
@@ -387,7 +387,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
   // ─── Admin: Mark encounter as processed ─────────────────────────
   fastify.post("/admin/encounter/:encounterId/process", { onRequest: requireAuth }, async (request, reply) => {
     const { encounterId } = request.params as { encounterId: string };
-    const encounter = db.prepare("SELECT id FROM encounters WHERE id = ?").get(encounterId);
+    const encounter = db.prepare("SELECT id FROM encounters WHERE id = ?").get(encounterId) as any;
     if (!encounter) return reply.status(404).send({ error: "Not found" });
     db.prepare("UPDATE encounters SET status = 'processed', processed_at = datetime('now') WHERE id = ?").run(encounterId);
     logAudit("PROCESS_ENCOUNTER", encounterId, undefined, undefined, request.ip);
@@ -426,7 +426,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
 
   // ─── Consent Forms ───────────────────────────────────────────────
   fastify.get("/consent-forms", async () => {
-    const templates = db.prepare("SELECT id, slug, title, version FROM consent_form_templates ORDER BY title").all();
+    const templates = db.prepare("SELECT id, slug, title, version FROM consent_form_templates ORDER BY title").all() as any[];
     return { templates };
   });
 
@@ -442,7 +442,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
     `).get(token) as any;
     if (!row) return reply.status(404).send({ error: "Not found" });
     const existing = db.prepare("SELECT patient_name, signed_at FROM consent_submissions WHERE encounter_id = ?").get(row.id) as any;
-    if (row.consent_html && row.practice_id) {
+    if ((row as any).consent_html && (row as any).practice_id) {
       const practice = db.prepare("SELECT name, address, city, postal_code, phone, email, ki_provider_name, ki_product_name, ki_manufacturer, ki_model_provider, ki_processing_location, ki_third_country_transfer FROM practices WHERE id = ?").get(row.practice_id) as any;
       if (practice) {
         const fullAddr = [practice.address, ((practice.postal_code && practice.city) ? `${practice.postal_code} ${practice.city}` : practice.city || practice.postal_code)].filter(Boolean).join(', ');
@@ -457,28 +457,28 @@ export default async function apiRoutes(fastify: FastifyInstance) {
         if (kiTransfer === "yes" || kiTransfer === "ja") kiTransfer = "Ja";
         else if (kiTransfer === "no" || kiTransfer === "nein") kiTransfer = "Nein";
         // KI-Daten (Abschnitt 2)
-        row.consent_html = row.consent_html.replace(
+        (row as any).consent_html = (row as any).consent_html.replace(
           /Wir setzen das Produkt <strong>{{KI_PRODUKTNAME}}<\/strong> der {{KI_HERSTELLER}} ein/,
           `Wir setzen das Produkt <strong>${val(practice.ki_product_name)}</strong> der ${val(practice.ki_manufacturer)} ein`
         );
         // KI-Daten (Abschnitt 3)
-        row.consent_html = row.consent_html.replace(
+        (row as any).consent_html = (row as any).consent_html.replace(
           /<li><strong>Produktname:<\/strong> {{KI_PRODUKTNAME}}<\/li>/,
           `<li><strong>Produktname:</strong> ${val(practice.ki_product_name)}</li>`
         );
-        row.consent_html = row.consent_html.replace(
+        (row as any).consent_html = (row as any).consent_html.replace(
           /<li><strong>Hersteller \/ Anbieter:<\/strong> {{KI_HERSTELLER}}<\/li>/,
           `<li><strong>Hersteller / Anbieter:</strong> ${val(practice.ki_manufacturer)}</li>`
         );
-        row.consent_html = row.consent_html.replace(
+        (row as any).consent_html = (row as any).consent_html.replace(
           /<li><strong>KI-Anbieter \(Speech-to-Text &(?:amp;)? KI-Modell\):<\/strong> {{KI_MODELL_ANBIETER}}<\/li>/,
           `<li><strong>KI-Anbieter (Speech-to-Text &amp; KI-Modell):</strong> ${val(practice.ki_model_provider)}</li>`
         );
-        row.consent_html = row.consent_html.replace(
+        (row as any).consent_html = (row as any).consent_html.replace(
           /<li><strong>Verarbeitungsort:<\/strong> {{KI_VERARBEITUNGSORT}}<\/li>/,
           `<li><strong>Verarbeitungsort:</strong> ${val(practice.ki_processing_location)}</li>`
         );
-        row.consent_html = row.consent_html.replace(
+        (row as any).consent_html = (row as any).consent_html.replace(
           /<li><strong>Drittlandübermittlung:<\/strong> {{KI_DRITTLANDUEBERMITTLUNG}}<\/li>/,
           `<li><strong>Drittlandübermittlung:</strong> ${val(kiTransfer)}</li>`
         );
@@ -613,7 +613,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
     const encounter = db.prepare("SELECT id, status, document_type FROM encounters WHERE id = ?").get(encounterId) as any;
     if (!encounter) return reply.status(404).send({ error: "Encounter not found" });
     if (encounter.document_type !== "bloodpressure") return reply.status(400).send({ error: "Not a bloodpressure encounter" });
-    const rows = db.prepare("SELECT systolic, diastolic, pulse, weight, recorded_at FROM bloodpressure_readings WHERE encounter_id = ? ORDER BY recorded_at ASC").all(encounterId);
+    const rows = db.prepare("SELECT systolic, diastolic, pulse, weight, recorded_at FROM bloodpressure_readings WHERE encounter_id = ? ORDER BY recorded_at ASC").all(encounterId) as any[];
     return { readings: rows };
   });
 
@@ -692,7 +692,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
     const encounter = db.prepare("SELECT id, status, document_type, created_at, pvs_patient_id FROM encounters WHERE id = ?").get(encounterId) as any;
     if (!encounter) return reply.status(404).send({ error: "Not found" });
     if (encounter.document_type !== "bloodpressure") return reply.status(400).send({ error: "Not a bloodpressure encounter" });
-    const rows = db.prepare("SELECT systolic, diastolic, pulse, weight, recorded_at FROM bloodpressure_readings WHERE encounter_id = ? ORDER BY recorded_at ASC").all(encounterId);
+    const rows = db.prepare("SELECT systolic, diastolic, pulse, weight, recorded_at FROM bloodpressure_readings WHERE encounter_id = ? ORDER BY recorded_at ASC").all(encounterId) as any[];
     return { encounter, readings: rows };
   });
 
@@ -700,7 +700,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
   fastify.get("/admin/users", { onRequest: requireAuth }, async (request, reply) => {
     const admin = (request as any).user;
     if (!["admin","superadmin"].includes(admin.role)) return reply.status(403).send({ error: "Forbidden" });
-    return db.prepare("SELECT id, email, role, practice_id, totp_enabled, active, created_at FROM admin_users ORDER BY created_at DESC").all();
+    return db.prepare("SELECT id, email, role, practice_id, totp_enabled, active, created_at FROM admin_users ORDER BY created_at DESC").all() as any[];
   });
 
   fastify.post("/admin/users", { onRequest: requireAuth }, async (request, reply) => {
@@ -709,7 +709,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
     const body = request.body as any;
     const { email, password, role = "user", practiceId = "demo-practice" } = body;
     if (!email || !password || password.length < 8) return reply.status(400).send({ error: "Email and password (min 8 chars) required" });
-    const existing = db.prepare("SELECT id FROM admin_users WHERE email = ?").get(email);
+    const existing = db.prepare("SELECT id FROM admin_users WHERE email = ?").get(email) as any;
     if (existing) return reply.status(409).send({ error: "Email already exists" });
     const bcrypt = require("bcrypt");
     const pepper = process.env.PASSWORD_PEPPER || (() => { throw new Error("PASSWORD_PEPPER environment variable is required"); })();
@@ -740,7 +740,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
     const body = request.body as any;
     const { newPassword } = body;
     if (!newPassword || newPassword.length < 8) return reply.status(400).send({ error: "Password min 8 chars" });
-    const target = db.prepare("SELECT id FROM admin_users WHERE id = ?").get(id);
+    const target = db.prepare("SELECT id FROM admin_users WHERE id = ?").get(id) as any;
     if (!target) return reply.status(404).send({ error: "Not found" });
     const bcrypt = require("bcrypt");
     const pepper = process.env.PASSWORD_PEPPER || (() => { throw new Error("PASSWORD_PEPPER environment variable is required"); })();
@@ -838,4 +838,399 @@ export default async function apiRoutes(fastify: FastifyInstance) {
   });
 
 
+
+  // === OTHER ===============================================================
+    fastify.post("/internal/cron/expire-links", async (request, reply) => {
+        // Set encounter status to 'expired' for all in-progress encounters
+        // whose source link has expired (expires_at < now).
+        // Bloodpressure links have no expires_at (NULL) and are excluded.
+        const result = db.prepare(`
+      UPDATE encounters
+      SET status = 'expired',
+          updated_at = datetime('now')
+      WHERE status = 'in-progress'
+        AND source_link_id IN (
+          SELECT token FROM patient_links
+          WHERE expires_at IS NOT NULL
+            AND datetime(expires_at) < datetime('now')
+        )
+    `).run();
+        return { expiredCount: result.changes || 0 };
+    });
+
+    fastify.post("/encounter/:encounterId/finish", { onRequest: requireAuth }, async (request, reply) => {
+        const { encounterId } = request.params as any;
+        const encounter = db.prepare("SELECT id, status FROM encounters WHERE id = ?").get(encounterId) as any;
+        if (!encounter)
+            return reply.status(404).send({ error: "Encounter not found" });
+        if (encounter.status === 'completed' || encounter.status === 'processed') {
+            return { success: true, message: "Already finished" };
+        }
+        db.prepare("UPDATE encounters SET status = 'completed', completed_at = datetime('now') WHERE id = ?").run(encounterId);
+        logAudit("ENCOUNTER_FINISH", encounterId, "Manual finish", (request as any).user?.email, request.ip);
+        return { success: true };
+    });
+
+  // === GOA =================================================================
+    fastify.get("/admin/goa/search", { onRequest: requireAuth }, async (request) => {
+        const q = (request.query as any).q || "";
+        const terms = q.toLowerCase().split(/\s+/).filter(Boolean);
+        if (!terms.length)
+            return { items: [] };
+        let sql = "SELECT ziffer, title, description, base_euro, multiplier FROM goa_tarife WHERE 1=1";
+        const params = [];
+        for (const t of terms) {
+            sql += " AND (LOWER(ziffer) LIKE ? OR LOWER(title) LIKE ? OR LOWER(description) LIKE ? OR LOWER(keywords) LIKE ?)";
+            params.push(`%${t}%`, `%${t}%`, `%${t}%`, `%${t}%`);
+        }
+        sql += " ORDER BY ziffer LIMIT 20";
+        const items = db.prepare(sql).all(...params) as any[];
+        return { items: items.map((it) => ({ ...it, base_euro: parseFloat(it.base_euro), multiplier: parseFloat(it.multiplier || 2.3), steiger_euro: Math.round(it.base_euro * (it.multiplier || 2.3) * 100) / 100 })) };
+    });
+
+    fastify.get("/admin/goa/templates", { onRequest: requireAuth }, async () => {
+        return { items: db.prepare("SELECT slug, title, description, items_json FROM quote_templates ORDER BY title").all() as any[] };
+    });
+    /* ===== Quotes Admin ===== */
+
+  // === QUESTIONNAIRE =======================================================
+    fastify.get("/questionnaire/template/:slug", async (request, reply) => {
+        const { slug } = request.params as any;
+        const template = db.prepare("SELECT slug, title, questions_json, scoring_json FROM questionnaire_templates WHERE slug = ?").get(slug) as any;
+        if (!template)
+            return reply.status(404).send({ error: "Template not found" });
+        return {
+            slug: template.slug,
+            title: template.title,
+            questions: template.questions_json ? JSON.parse(template.questions_json) : [],
+            scoring: template.scoring_json ? JSON.parse(template.scoring_json) : null,
+        };
+    });
+    // --- Questionnaire submissions for admin --------------------------------
+
+    fastify.get("/questionnaire/submissions/:practiceId", { onRequest: requireAuth }, async (request, reply) => {
+        const { practiceId } = request.params as any;
+        const { status } = request.query as any;
+        const reviewedFilter = status === "archived" ? "NOT" : (status === "active" ? "" : null);
+        if (reviewedFilter === null)
+            return reply.status(400).send({ error: "Ungueltiger Status. Erlaubt: active, archived" });
+        const rows = db.prepare(`SELECT qs.id, qs.encounter_id, qs.questionnaire_slug, qs.score, qs.severity, qs.signed_at, qs.created_at, qs.reviewed_at, qs.patient_name, qs.collector_name,
+      e.pvs_patient_id
+      FROM questionnaire_submissions qs
+      JOIN encounters e ON e.id = qs.encounter_id
+      JOIN patient_links l ON l.token = e.source_link_id
+      WHERE l.practice_id = ? AND qs.reviewed_at IS ${reviewedFilter} NULL
+      ORDER BY qs.created_at DESC`).all(practiceId);
+        return rows;
+    });
+
+    fastify.get("/questionnaire/submission/:encounterId", { onRequest: requireAuth }, async (request, reply) => {
+        const { encounterId } = request.params as any;
+        const sub = db.prepare("SELECT * FROM questionnaire_submissions WHERE encounter_id = ?").get(encounterId) as any;
+        if (!sub)
+            return reply.status(404).send({ error: "Nicht gefunden" });
+        const encounter = db.prepare(`SELECT e.id, e.pvs_patient_id, COALESCE(l.questionnaire_slug, e.consent_form_id) as questionnaire_slug
+      FROM encounters e
+      LEFT JOIN patient_links l ON l.token = e.source_link_id
+      WHERE e.id = ?`).get(encounterId);
+        return {
+            encounter,
+            data: sub ? {
+                patient_name: sub.patient_name,
+                collector_name: sub.collector_name,
+                score: sub.score,
+                severity: sub.severity,
+                signed_at: sub.signed_at,
+                reviewed_at: sub.reviewed_at,
+                details: sub.details || null,
+                answers: sub.answers_json ? JSON.parse(sub.answers_json) : null,
+            } : null,
+        };
+    });
+
+    fastify.post("/questionnaire/review/:encounterId", { onRequest: requireAuth }, async (request, reply) => {
+        const { encounterId } = request.params as any;
+        const now = new Date().toISOString();
+        const result = db.prepare("UPDATE questionnaire_submissions SET reviewed_at = ? WHERE encounter_id = ?").run(now, encounterId);
+        if (result.changes === 0)
+            return reply.status(404).send({ error: "Nicht gefunden" });
+        logAudit("QUESTIONNAIRE_REVIEW", encounterId, "reviewed", (request as any).user?.email, request.ip);
+        return { success: true };
+    });
+
+    fastify.post("/questionnaire/unreview/:encounterId", { onRequest: requireAuth }, async (request, reply) => {
+        const { encounterId } = request.params as any;
+        const result = db.prepare("UPDATE questionnaire_submissions SET reviewed_at = NULL WHERE encounter_id = ?").run(encounterId);
+        if (result.changes === 0)
+            return reply.status(404).send({ error: "Nicht gefunden" });
+        logAudit("QUESTIONNAIRE_UNREVIEW", encounterId, "unreviewed", (request as any).user?.email, request.ip);
+        return { success: true };
+    });
+
+    fastify.post("/questionnaire/submit/:encounterId", async (request, reply) => {
+        const { encounterId } = request.params as any;
+        const body = request.body as any;
+        const encounter = db.prepare("SELECT id, pvs_patient_id, source_link_id, document_type FROM encounters WHERE id = ?").get(encounterId) as any;
+        if (!encounter)
+            return reply.status(404).send({ error: "Encounter not found" });
+        const link = encounter.source_link_id ? db.prepare("SELECT questionnaire_slug FROM patient_links WHERE token = ?").get(encounter.source_link_id) as any : null;
+        const questionnaireSlug = link?.questionnaire_slug || "phq-9";
+        db.prepare("INSERT OR REPLACE INTO questionnaire_submissions (encounter_id, questionnaire_slug, answers_json, score, severity, signed_at, ip_address, user_agent, patient_name, collector_name, details) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+            .run(encounterId, questionnaireSlug, JSON.stringify(body.answers || {}), body.score ?? null, body.severity ?? null, body.completedAt || new Date().toISOString(), request.ip || null, request.headers["user-agent"] || null, body.patientName ?? "", body.collectorName || null, body.details || null);
+        db.prepare("UPDATE encounters SET status = 'completed', completed_at = datetime('now') WHERE id = ?").run(encounterId);
+        return { success: true };
+    });
+    /* ===== GOÄ Tarife ===== */
+
+  // === QUOTE ===============================================================
+    fastify.get("/admin/quotes", { onRequest: requireAuth }, async (request) => {
+        const { practiceId, status, search } = request.query as any;
+        let sql = `SELECT q.id, q.pvs_patient_id, q.patient_name, q.patient_email, q.title, q.status, q.total_euro, q.multiplier, q.created_at, q.signed_at, q.expires_at,
+      (SELECT COUNT(*) FROM quote_items WHERE quote_id = q.id) as item_count
+      FROM quotes q WHERE 1=1`;
+        const params = [];
+        if (practiceId) {
+            sql += " AND q.practice_id = ?";
+            params.push(practiceId);
+        }
+        if (status) {
+            sql += " AND q.status = ?";
+            params.push(status);
+        }
+        if (search) {
+            sql += " AND (LOWER(q.pvs_patient_id) LIKE ? OR LOWER(q.patient_name) LIKE ? OR LOWER(q.patient_email) LIKE ?)";
+            params.push(`%${search.toLowerCase()}%`, `%${search.toLowerCase()}%`, `%${search.toLowerCase()}%`);
+        }
+        sql += " ORDER BY q.created_at DESC LIMIT 500";
+        return { items: db.prepare(sql).all(...params) as any[] };
+    });
+
+    fastify.get("/admin/quotes/:id", { onRequest: requireAuth }, async (request, reply) => {
+        const { id } = request.params as any;
+        const quote = db.prepare("SELECT * FROM quotes WHERE id = ?").get(id) as any;
+        if (!quote)
+            return reply.status(404).send({ error: "Nicht gefunden" });
+        const items = db.prepare("SELECT * FROM quote_items WHERE quote_id = ? ORDER BY sort_order, id").all(id) as any[];
+        return { quote, items };
+    });
+
+    fastify.get("/admin/quotes/:id/print", { onRequest: requireAuth }, async (request, reply) => {
+        const { id } = request.params as any;
+        const quote = db.prepare("SELECT * FROM quotes WHERE id = ?").get(id) as any;
+        if (!quote)
+            return reply.status(404).send({ error: "Nicht gefunden" });
+        const items = db.prepare("SELECT * FROM quote_items WHERE quote_id = ? ORDER BY sort_order, id").all(id) as any[];
+        const practice = db.prepare("SELECT name, address, city, postal_code, phone, email FROM practices WHERE id = ?").get(quote.practice_id) as any;
+        return { quote, items, practice };
+    });
+
+    fastify.post("/admin/quotes", { onRequest: requireAuth }, async (request, reply) => {
+        const body = request.body as any;
+        const id = db.prepare(`INSERT INTO quotes (practice_id, pvs_patient_id, patient_dob, patient_email, patient_name, title, status, multiplier, total_euro, notes, expires_at)
+      VALUES (?, ?, ?, ?, ?, ?, 'draft', ?, ?, ?, datetime('now', '+7 days'))`).run(body.practiceId || null, body.pvsPatientId || null, body.patientDob || null, body.patientEmail ?? "", body.patientName ?? "", body.title || 'Kostenvoranschlag', body.multiplier || 2.3, body.totalEuro || 0, body.notes || null).lastInsertRowid;
+        const row = db.prepare("SELECT id FROM quotes WHERE rowid = ?").get(id) as any;
+        logAudit("QUOTE_CREATED", row.id, JSON.stringify({ pvs: body.pvsPatientId }), (request as any).user?.email, request.ip);
+        return { id: (row as any).id };
+    });
+
+    fastify.put("/admin/quotes/:id", { onRequest: requireAuth }, async (request, reply) => {
+        const { id } = request.params as any;
+        const body = request.body as any;
+        const quote = db.prepare("SELECT id FROM quotes WHERE id = ?").get(id) as any;
+        if (!quote)
+            return reply.status(404).send({ error: "Nicht gefunden" });
+        const now = new Date().toISOString();
+        if (body.title !== undefined || body.notes !== undefined || body.patientName !== undefined || body.patientEmail !== undefined || body.patientDob !== undefined) {
+            db.prepare("UPDATE quotes SET title = COALESCE(?, title), notes = COALESCE(?, notes), patient_name = COALESCE(NULLIF(?, ''), patient_name), patient_email = COALESCE(NULLIF(?, ''), patient_email), patient_dob = COALESCE(NULLIF(?, ''), patient_dob), updated_at = ? WHERE id = ?")
+                .run(body.title, body.notes, body.patientName, body.patientEmail, body.patientDob, now, id);
+        }
+        if (body.items != null) {
+            db.prepare("DELETE FROM quote_items WHERE quote_id = ?").run(id);
+            let total = 0, sort = 0;
+            for (const it of (body.items as any[])) {
+                const line = Math.round((it.unit_euro || 0) * (it.quantity || 1) * 100) / 100;
+                db.prepare(`INSERT INTO quote_items (quote_id, ziffer, title, description, quantity, unit_euro, line_euro, base_euro, sort_order) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+                    .run(id, it.ziffer, it.title, it.description || null, it.quantity || 1, it.unit_euro || 0, line, it.base_euro || 0, sort++);
+                total += line;
+            }
+            db.prepare("UPDATE quotes SET total_euro = ?, updated_at = ? WHERE id = ?").run(Math.round(total * 100) / 100, now, id);
+        }
+        logAudit("QUOTE_UPDATED", id, body.title || "items", (request as any).user?.email, request.ip);
+        return { success: true };
+    });
+
+    fastify.post("/admin/quotes/:id/finalize", { onRequest: requireAuth }, async (request, reply) => {
+        const { id } = request.params as any;
+        const quote = db.prepare("SELECT * FROM quotes WHERE id = ?").get(id) as any;
+        if (!quote)
+            return reply.status(404).send({ error: "Nicht gefunden" });
+        if ((quote as any).status !== 'draft')
+            return reply.status(400).send({ error: "Bereits abgeschlossen" });
+        const now = new Date().toISOString();
+        db.prepare("UPDATE quotes SET status = 'finalized', updated_at = ? WHERE id = ?").run(now, id);
+        logAudit("QUOTE_FINALIZED", id, undefined, (request as any).user?.email, request.ip);
+        return { success: true };
+    });
+
+    fastify.post("/admin/quotes/:id/send-link", { onRequest: requireAuth }, async (request, reply) => {
+        const { id } = request.params as any;
+        const body = request.body as any;
+        const quote = db.prepare("SELECT * FROM quotes WHERE id = ?").get(id) as any;
+        if (!quote)
+            return reply.status(404).send({ error: "Nicht gefunden" });
+        if ((quote as any).status !== 'finalized')
+            return reply.status(400).send({ error: "Erst finalisieren" });
+        const token = require("crypto").randomBytes(16).toString("hex");
+        const expiresAt = new Date();
+        expiresAt.setDate(expiresAt.getDate() + 7);
+        const patientDob = (quote as any).patient_dob || body.patientDob || null;
+        const patientEmail = (quote as any).patient_email || body.patientEmail || null;
+        db.prepare(`INSERT INTO patient_links (token, practice_id, pvs_patient_id, patient_dob, patient_email, status, expires_at, document_type, quote_id) VALUES (?, ?, ?, ?, ?, 'pending', ?, 'quote', ?)`)
+            .run(token, (quote as any).practice_id, (quote as any).pvs_patient_id, patientDob, patientEmail, expiresAt.toISOString(), id);
+        logAudit("QUOTE_LINK_CREATED", id, token, (request as any).user?.email, request.ip);
+        const practiceRow = db.prepare("SELECT name FROM practices WHERE id = ?").get(quote.practice_id) as any;
+        if (patientEmail) {
+            const mailRes = await sendQuoteLinkEmail(patientEmail, quote.patient_name, quote.title || "Kostenvoranschlag", `${request.protocol}://${request.hostname}/quote/${token}`, practiceRow?.name);
+            if (!mailRes.success) {
+                return { token, url: `/quote/${token}`, warning: "Link erstellt, aber E-Mail konnte nicht versendet werden: " + mailRes.error };
+            }
+            return { token, url: `/quote/${token}`, sent: true };
+        }
+        return { token, url: `/quote/${token}` };
+    });
+    /* ===== Quote Patient ===== */
+    function normalizeDob(dob: string | null) {
+        if (!dob)
+            return "";
+        const t = String(dob).trim();
+        if (/^\d{2}\.\d{2}\.\d{4}$/.test(t)) {
+            const [d, m, y] = t.split(".");
+            return `${y}-${m}-${d}`;
+        }
+        return t;
+    }
+
+    fastify.get("/quote/:token", async (request, reply) => {
+        const { token } = request.params as any;
+        const link = db.prepare("SELECT * FROM patient_links WHERE token = ?").get(token) as any;
+        if (!link)
+            return reply.status(404).send({ error: "Ungültiger Link" });
+        if ((link as any).status === 'expired' || ((link as any).expires_at && new Date((link as any).expires_at) < new Date())) {
+            return reply.status(410).send({ error: "Link abgelaufen" });
+        }
+        const quote = db.prepare("SELECT * FROM quotes WHERE id = ?").get(link.quote_id) as any;
+        if (!quote)
+            return reply.status(404).send({ error: "Nicht gefunden" });
+        const items = db.prepare("SELECT * FROM quote_items WHERE quote_id = ? ORDER BY sort_order, id").all(link.quote_id) as any[];
+        const practice = db.prepare("SELECT name, address, city, postal_code, phone, email FROM practices WHERE id = ?").get(quote.practice_id) as any;
+        return { quote, items, practice, requiresDob: !!(link as any).patient_dob };
+    });
+
+    fastify.post("/quote/:token/validate", async (request, reply) => {
+        const { token } = request.params as any;
+        const body = request.body as any;
+        const link = db.prepare("SELECT * FROM patient_links WHERE token = ?").get(token) as any;
+        if (!link)
+            return reply.status(404).send({ error: "Ungültiger Link" });
+        if ((link as any).status === 'expired' || ((link as any).expires_at && new Date((link as any).expires_at) < new Date())) {
+            return reply.status(410).send({ error: "Link abgelaufen" });
+        }
+        if ((link as any).patient_dob && (link as any).patient_dob !== normalizeDob(body.dob)) {
+            return reply.status(403).send({ error: "Falsches Geburtsdatum" });
+        }
+        return { valid: true, quoteId: (link as any).quote_id };
+    });
+
+    fastify.post("/quote/:token/sign", async (request, reply) => {
+        const { token } = request.params as any;
+        const body = request.body as any;
+        const link = db.prepare("SELECT * FROM patient_links WHERE token = ?").get(token) as any;
+        if (!link)
+            return reply.status(404).send({ error: "Ungültiger Link" });
+        if ((link as any).status !== 'pending')
+            return reply.status(400).send({ error: "Bereits bearbeitet" });
+        if ((link as any).expires_at && new Date((link as any).expires_at) < new Date())
+            return reply.status(410).send({ error: "Abgelaufen" });
+        if ((link as any).patient_dob && (link as any).patient_dob !== normalizeDob(body.dob))
+            return reply.status(403).send({ error: "Falsches Geburtsdatum" });
+        const name = String(body.name || "").trim();
+        if (!name || name.length < 2 || name.length > 100)
+            return reply.status(400).send({ error: "Name erforderlich" });
+        const sig = String(body.signatureSvg || "").trim();
+        if (!sig || sig.length < 50)
+            return reply.status(400).send({ error: "Unterschrift erforderlich" });
+        // XSS-inspect signature: only allow basic SVG paths
+        if (!sig.startsWith("<svg") || sig.includes("<script") || sig.includes("javascript:")) {
+            return reply.status(400).send({ error: "Ungültige Unterschrift" });
+        }
+        const now = new Date().toISOString();
+        db.prepare("UPDATE quotes SET signed_at = ?, signature_svg = ?, signature_name = ?, status = 'completed', updated_at = ? WHERE id = ?")
+            .run(now, sig, name, now, (link as any).quote_id);
+        db.prepare("UPDATE patient_links SET status = 'used', linked_at = ? WHERE token = ?").run(now, token);
+        logAudit("QUOTE_SIGNED", link.quote_id, name, undefined, request.ip);
+        return { success: true };
+    });
+    // ─── Quote Templates CRUD ─────────────────────────────────────────
+
+    fastify.get("/admin/quote-templates", { onRequest: requireAuth }, async (request) => {
+        const rows = db.prepare("SELECT id, slug, title, description, items_json, created_at, updated_at FROM quote_templates ORDER BY title").all() as any[];
+        return { templates: rows || [] };
+    });
+
+    fastify.get("/admin/quote-templates/:id", { onRequest: requireAuth }, async (request, reply) => {
+        const { id } = request.params as any;
+        const tpl = db.prepare("SELECT * FROM quote_templates WHERE id = ?").get(id) as any;
+        if (!tpl)
+            return reply.status(404).send({ error: "Nicht gefunden" });
+        try {
+            (tpl as any).items = JSON.parse((tpl as any).items_json || "[]");
+        }
+        catch (e) {
+            (tpl as any).items = [];
+        }
+        return tpl;
+    });
+
+    fastify.post("/admin/quote-templates", { onRequest: requireAuth }, async (request, reply) => {
+        const body = request.body as any;
+        if (!body.slug || !body.title)
+            return reply.status(400).send({ error: "Slug und Titel erforderlich" });
+        const existing = db.prepare("SELECT id FROM quote_templates WHERE slug = ?").get(body.slug) as any;
+        if (existing)
+            return reply.status(409).send({ error: "Slug bereits vergeben" });
+        const itemsJson = JSON.stringify(body.items || []);
+        const id = db.prepare("INSERT INTO quote_templates (slug, title, description, items_json) VALUES (?, ?, ?, ?)")
+            .run(body.slug.trim(), body.title.trim(), body.description || null, itemsJson).lastInsertRowid;
+        logAudit("QUOTE_TEMPLATE_CREATED", String(id), body.title, (request as any).user?.email, request.ip);
+        return { id };
+    });
+
+    fastify.put("/admin/quote-templates/:id", { onRequest: requireAuth }, async (request, reply) => {
+        const { id } = request.params as any;
+        const body = request.body as any;
+        const tpl = db.prepare("SELECT id FROM quote_templates WHERE id = ?").get(id) as any;
+        if (!tpl)
+            return reply.status(404).send({ error: "Nicht gefunden" });
+        if (body.slug) {
+            const dup = db.prepare("SELECT id FROM quote_templates WHERE slug = ? AND id != ?").get(body.slug, id) as any;
+            if (dup)
+                return reply.status(409).send({ error: "Slug bereits vergeben" });
+        }
+        const itemsJson = body.items != null ? JSON.stringify(body.items) : undefined;
+        const now = new Date().toISOString();
+        db.prepare("UPDATE quote_templates SET slug = COALESCE(?, slug), title = COALESCE(?, title), description = ?, items_json = COALESCE(?, items_json), updated_at = ? WHERE id = ?")
+            .run(body.slug || null, body.title || null, body.description !== undefined ? body.description : null, itemsJson, now, id);
+        logAudit("QUOTE_TEMPLATE_UPDATED", id, body.title, (request as any).user?.email, request.ip);
+        return { success: true };
+    });
+
+    fastify.delete("/admin/quote-templates/:id", { onRequest: requireAuth }, async (request, reply) => {
+        const { id } = request.params as any;
+        const tpl = db.prepare("SELECT id FROM quote_templates WHERE id = ?").get(id) as any;
+        if (!tpl)
+            return reply.status(404).send({ error: "Nicht gefunden" });
+        db.prepare("DELETE FROM quote_templates WHERE id = ?").run(id);
+        logAudit("QUOTE_TEMPLATE_DELETED", id, undefined, (request as any).user?.email, request.ip);
+        return { success: true };
+    });
 }
