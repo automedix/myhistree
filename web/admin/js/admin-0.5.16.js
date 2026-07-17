@@ -245,7 +245,7 @@ async function loadLinks() {
 }
 
 function copyLink(token, docType) {
-  const path = docType === 'consent_form' ? 'aufklaerung' : (docType === 'bloodpressure' ? 'blutdruck' : (docType === 'behandlungsvertrag' ? 'behandlungsvertrag' : 'anamnese'));
+  const path = docType === 'consent_form' ? 'aufklaerung' : (docType === 'bloodpressure' ? 'blutdruck' : (docType === 'behandlungsvertrag' ? 'behandlungsvertrag' : (docType === 'questionnaire' ? 'fragebogen' : 'anamnese')));
   const url = `${window.location.origin}/${path}/${token}`;
   navigator.clipboard.writeText(url).then(() => alert('Link kopiert!'));
 }

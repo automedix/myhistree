@@ -2,7 +2,7 @@ import { FastifyInstance } from "fastify";
 import { db, logAudit, getAuditLog, applyRetention } from "../db/index";
 import { randomUUID } from "crypto";
 import { z } from "zod";
-import { sendAnamneseLink, sendBloodpressureLink, sendConsentFormLink, sendVerificationCodeEmail, sendVerificationEmail, validateEmail, sendDeximedInfo, getRecallTemplates, sendRecallEmail, sendQuoteLinkEmail } from "../email/sender";
+import { sendAnamneseLink, sendBloodpressureLink, sendConsentFormLink, sendQuestionnaireLink, sendVerificationCodeEmail, sendVerificationEmail, validateEmail, sendDeximedInfo, getRecallTemplates, sendRecallEmail, sendQuoteLinkEmail } from "../email/sender";
 import { isValidEmailSyntax } from "../email/sender";
 
 const anamneseBody = z.record(z.any());
@@ -135,7 +135,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
     } else if (documentType === "behandlungsvertrag") {
       result = await sendConsentFormLink(to, pvsPatientId, linkUrl, undefined, pin, "Behandlungsvertrag", practiceName);
     } else if (documentType === "questionnaire") {
-      result = await sendAnamneseLink(to, pvsPatientId, linkUrl, patientDob, pin, practiceName);
+      result = await sendQuestionnaireLink(to, pvsPatientId, linkUrl, patientDob, pin, practiceName);
     } else {
       result = await sendAnamneseLink(to, pvsPatientId, linkUrl, patientDob, pin, practiceName);
     }
