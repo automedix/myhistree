@@ -496,11 +496,23 @@ async function viewEncounter(encounterId) {
           const times = pts.map(p => p.t), minT = Math.min(...times), maxT = Math.max(...times);
           const allY = pts.flatMap(p => [p.sys, p.dia, p.pul, p.weight != null ? p.weight : null].filter(v => v != null));
           let minY = Math.min(...allY) - 10, maxY = Math.max(...allY) + 10;
-          if (minY < 30) minY = 30; if (maxY > 250) maxY = 250;
+          if (minY < 30) minY = 30; if (maxY > 250) maxY = 250; if (maxY < 150) maxY = 150; if (minY > 70) minY = 70;
           const sx = (t) => pad.l + (maxT === minT ? 0.5 : (t - minT) / (maxT - minT)) * (w - pad.l - pad.r);
           const sy = (y) => pad.t + (maxY - y) / (maxY - minY) * (h - pad.t - pad.b);
           ctx.clearRect(0, 0, w, h); ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 1;
           for (let i = 0; i <= 5; i++) { const y = pad.t + (h - pad.t - pad.b) * (i / 5); ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(w - pad.r, y); ctx.stroke(); }
+          function drawThreshold(yVal, color, label) {
+            if (yVal < minY || yVal > maxY) return;
+            const y = sy(yVal);
+            ctx.save();
+            ctx.strokeStyle = color; ctx.lineWidth = 1;
+            ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(w - pad.r, y); ctx.stroke();
+            ctx.restore();
+            if (label) { ctx.fillStyle = color; ctx.font = '9px sans-serif'; ctx.textAlign = 'left'; ctx.fillText(label, w - pad.r + 4, y + 3); }
+          }
+          drawThreshold(140, '#ef4444', '140');
+          drawThreshold(130, '#fbbf24', '130');
+          drawThreshold(80, '#000000', '80');
           function drawLine(key, color) { ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.beginPath(); let started = false; pts.forEach(p => { if (p[key] == null) { started = false; return; } const x = sx(p.t), y = sy(p[key]); if (!started) { ctx.moveTo(x, y); started = true; } else ctx.lineTo(x, y); }); ctx.stroke(); ctx.fillStyle = color; pts.forEach(p => { if (p[key] == null) return; ctx.beginPath(); ctx.arc(sx(p.t), sy(p[key]), 3, 0, Math.PI * 2); ctx.fill(); }); }
           drawLine('sys', '#3366AA'); drawLine('dia', '#4DA6FF'); drawLine('pul', '#000000');
           if (pts.some(p => p.weight != null)) drawLine('weight', '#D32F2F');
