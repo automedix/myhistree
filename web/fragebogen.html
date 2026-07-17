@@ -155,7 +155,7 @@ async function startFlow(){
     const j = await r.json();
     if(!r.ok) throw new Error(j.error || 'Verifizierung fehlgeschlagen');
     encounterId = j.encounterId;
-    const qSlug = j.questionnaireSlug || 'phq-9';
+    const qSlug = j.questionnaireSlug || j.questionnaire_slug || 'phq-9';
     const tplR = await fetch(`${API}/api/questionnaire/template/${qSlug}`);
     if(!tplR.ok) throw new Error('Fragebogenvorlage konnte nicht geladen werden');
     templateData = await tplR.json();

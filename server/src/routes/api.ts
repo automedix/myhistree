@@ -24,24 +24,25 @@ export default async function apiRoutes(fastify: FastifyInstance) {
   // ─── Links ──────────────────────────────────────────────────────
   fastify.post("/link/create", { onRequest: requireAuth }, async (request, reply) => {
     const body = request.body as any;
-    const { practiceId, pvsPatientId, patientDob, patientEmail, mobileNumber, expiresHours = 24, pin, documentType = "anamnese", consentFormId } = body;
+    const { practiceId, pvsPatientId, patientDob, patientEmail, mobileNumber, expiresHours = 24, pin, documentType = "anamnese", consentFormId, questionnaireTemplate } = body;
 
     const practice = db.prepare("SELECT id FROM practices WHERE id = ?").get(practiceId) as { id: string } | undefined;
     if (!practice) return reply.status(404).send({ error: "Practice not found" });
 
     const token = randomUUID().replace(/-/g, "");
-    const expiresAt = new Date();
-    expiresAt.setHours(expiresAt.getHours() + (parseInt(expiresHours) || 24));
+    const isBloodpressure = documentType === "bloodpressure";
+    const expiresAt = isBloodpressure ? null : new Date();
+    if (expiresAt) expiresAt.setHours(expiresAt.getHours() + (parseInt(expiresHours) || 24));
     const pinHash = pin ? Buffer.from(pin).toString("base64") : null;
 
-    db.prepare(`INSERT INTO patient_links (id, token, practice_id, pvs_patient_id, patient_dob, patient_email, mobile_number, pin, status, expires_at, document_type, consent_form_id)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .run(randomUUID(), token, practiceId, pvsPatientId || null, patientDob || null, patientEmail || null, mobileNumber || null, pinHash, "pending", expiresAt.toISOString(), documentType, consentFormId || null);
+    db.prepare(`INSERT INTO patient_links (id, token, practice_id, pvs_patient_id, patient_dob, patient_email, mobile_number, pin, status, expires_at, document_type, consent_form_id, questionnaire_slug)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run(randomUUID(), token, practiceId, pvsPatientId || null, patientDob || null, patientEmail || null, mobileNumber || null, pinHash, "pending", expiresAt ? expiresAt.toISOString() : null, documentType, consentFormId || null, documentType === "questionnaire" ? (questionnaireTemplate || "phq-9") : null);
 
-    logAudit("CREATE_LINK", token, `PVS-ID: ${pvsPatientId}, Typ: ${documentType}, Email: ${patientEmail || "-"}`, undefined, request.ip);
+    logAudit("CREATE_LINK", token, `PVS-ID: ${pvsPatientId}, Typ: ${documentType}, Slug: ${questionnaireTemplate || consentFormId || "-"}, Email: ${patientEmail || "-"}`, undefined, request.ip);
 
-    const linkPath = documentType === "consent_form" ? "aufklaerung" : (documentType === "behandlungsvertrag" ? "behandlungsvertrag" : (documentType === "bloodpressure" ? "blutdruck" : "anamnese"));
-    return { token, expiresAt: expiresAt.toISOString(), link: `/${linkPath}/${token}`, pin: pin || null };
+    const linkPath = documentType === "consent_form" ? "aufklaerung" : (documentType === "behandlungsvertrag" ? "behandlungsvertrag" : (documentType === "bloodpressure" ? "blutdruck" : (documentType === "questionnaire" ? "fragebogen" : "anamnese")));
+    return { token, expiresAt: expiresAt ? expiresAt.toISOString() : null, link: `/${linkPath}/${token}`, pin: pin || null };
   });
 
   fastify.get("/link/list/:practiceId", { onRequest: requireAuth }, async (request) => {
@@ -56,7 +57,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
     const link = db.prepare(`SELECT l.*, p.name as practice_name, p.address, p.city, p.postal_code, p.phone, p.email as practice_email
       FROM patient_links l JOIN practices p ON l.practice_id = p.id WHERE l.token = ?`).get(token) as any;
     if (!link) return reply.status(404).send({ error: "Link not found" });
-    if (new Date((link as any).expires_at) < new Date()) {
+    if (link.expires_at && new Date((link as any).expires_at) < new Date()) {
       db.prepare("UPDATE patient_links SET status = 'expired' WHERE id = ?").run((link as any).id);
       return reply.status(410).send({ error: "Link expired" });
     }
@@ -112,7 +113,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
       .run((link as any).id);
 
     logAudit("START_ANAMNESE", link.token, `Encounter: ${encounterId}, Typ: ${link.document_type || "anamnese"}`, undefined, request.ip);
-    return { encounterId, patientId, practiceId: (link as any).practice_id, documentType: (link as any).document_type || "anamnese" };
+    return { encounterId, patientId, practiceId: (link as any).practice_id, documentType: (link as any).document_type || "anamnese", questionnaireSlug: (link as any).questionnaire_slug || (link as any).questionnaireSlug || null };
   });
 
   // ─── Email Send ─────────────────────────────────────────────────
@@ -133,6 +134,8 @@ export default async function apiRoutes(fastify: FastifyInstance) {
       result = await sendBloodpressureLink(to, pvsPatientId, linkUrl, patientDob, pin, practiceName);
     } else if (documentType === "behandlungsvertrag") {
       result = await sendConsentFormLink(to, pvsPatientId, linkUrl, undefined, pin, "Behandlungsvertrag", practiceName);
+    } else if (documentType === "questionnaire") {
+      result = await sendAnamneseLink(to, pvsPatientId, linkUrl, patientDob, pin, practiceName);
     } else {
       result = await sendAnamneseLink(to, pvsPatientId, linkUrl, patientDob, pin, practiceName);
     }
@@ -880,10 +883,15 @@ export default async function apiRoutes(fastify: FastifyInstance) {
         let sql = "SELECT ziffer, title, description, base_euro, multiplier FROM goa_tarife WHERE 1=1";
         const params = [];
         for (const t of terms) {
-            sql += " AND (LOWER(ziffer) LIKE ? OR LOWER(title) LIKE ? OR LOWER(description) LIKE ? OR LOWER(keywords) LIKE ?)";
-            params.push(`%${t}%`, `%${t}%`, `%${t}%`, `%${t}%`);
+            if (/^\d+$/.test(t)) {
+                sql += " AND (ziffer = ? OR LOWER(title) LIKE ? OR LOWER(description) LIKE ? OR LOWER(keywords) LIKE ?)";
+                params.push(t, `%${t}%`, `%${t}%`, `%${t}%`);
+            } else {
+                sql += " AND (LOWER(ziffer) LIKE ? OR LOWER(title) LIKE ? OR LOWER(description) LIKE ? OR LOWER(keywords) LIKE ?)";
+                params.push(`%${t}%`, `%${t}%`, `%${t}%`, `%${t}%`);
+            }
         }
-        sql += " ORDER BY ziffer LIMIT 20";
+        sql += " ORDER BY CAST(ziffer AS INTEGER) LIMIT 50";
         const items = db.prepare(sql).all(...params) as any[];
         return { items: items.map((it) => ({ ...it, base_euro: parseFloat(it.base_euro), multiplier: parseFloat(it.multiplier || 2.3), steiger_euro: Math.round(it.base_euro * (it.multiplier || 2.3) * 100) / 100 })) };
     });

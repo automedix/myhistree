@@ -1,5 +1,6 @@
 import Database from "better-sqlite3";
 import { join } from "path";
+import { readFileSync } from "fs";
 
 // Consent form template seeds (inline to ensure availability in Docker)
 const consentSeeds: { templates: Array<{ slug: string; title: string; content_html: string; version: string }> } = {
@@ -162,7 +163,61 @@ const MIGRATIONS = [
     updated_at TEXT DEFAULT CURRENT_TIMESTAMP
   );`,
   `CREATE INDEX IF NOT EXISTS idx_deximed_title ON deximed_articles(title);`,
-  `CREATE INDEX IF NOT EXISTS idx_deximed_slug ON deximed_articles(slug);`
+  `CREATE INDEX IF NOT EXISTS idx_deximed_slug ON deximed_articles(slug);`,
+  // GOA tables & quote tables
+  `CREATE TABLE IF NOT EXISTS goa_tarife (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ziffer TEXT NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT,
+    base_euro REAL NOT NULL DEFAULT 0,
+    multiplier REAL DEFAULT 2.3,
+    keywords TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP
+  );`,
+  `CREATE INDEX IF NOT EXISTS idx_goa_ziffer ON goa_tarife(ziffer);`,
+  `CREATE TABLE IF NOT EXISTS quotes (
+    id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+    practice_id TEXT REFERENCES practices(id),
+    pvs_patient_id TEXT,
+    patient_dob TEXT,
+    patient_email TEXT,
+    patient_name TEXT,
+    title TEXT NOT NULL DEFAULT 'Kostenvoranschlag',
+    status TEXT DEFAULT 'draft',
+    multiplier REAL DEFAULT 2.3,
+    total_euro REAL DEFAULT 0,
+    notes TEXT,
+    signature_svg TEXT,
+    signature_name TEXT,
+    signed_at TEXT,
+    expires_at TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+  );`,
+  `CREATE TABLE IF NOT EXISTS quote_items (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    quote_id TEXT REFERENCES quotes(id) ON DELETE CASCADE,
+    ziffer TEXT,
+    title TEXT NOT NULL,
+    description TEXT,
+    quantity INTEGER DEFAULT 1,
+    unit_euro REAL DEFAULT 0,
+    line_euro REAL DEFAULT 0,
+    base_euro REAL DEFAULT 0,
+    sort_order INTEGER DEFAULT 0
+  );`,
+  `CREATE TABLE IF NOT EXISTS quote_templates (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    slug TEXT UNIQUE NOT NULL,
+    title TEXT NOT NULL,
+    description TEXT,
+    items_json TEXT,
+    created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+    updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+  );`,
+  `ALTER TABLE practices ADD COLUMN recall_medflex_url TEXT;`,
+  `ALTER TABLE practices ADD COLUMN recall_medatixx_url TEXT;`
 ];
 export function initSchema() {
   db.exec(`
@@ -267,6 +322,7 @@ export function ensurePracticeDefaults() {
                         '01234 567890', 'praxis@example.com')`).run();
   }
   ensureConsentTemplates();
+  ensureGoaeDefaults();
 }
 
 function ensureConsentTemplates() {
@@ -274,6 +330,37 @@ function ensureConsentTemplates() {
     db.prepare(`INSERT OR IGNORE INTO consent_form_templates (slug, title, content_html, version) VALUES (?, ?, ?, ?)`).run(
       tpl.slug, tpl.title, tpl.content_html, tpl.version
     );
+  }
+}
+
+function ensureGoaeDefaults() {
+  const count = db.prepare("SELECT COUNT(*) as n FROM goa_tarife").get() as { n: number };
+  if (count && count.n > 0) return;
+  const jsonPaths = [
+    join(process.cwd(), "web", "goae-2013-ziffern-full.json"),
+    join(process.cwd(), "web", "goae-2013-ziffern.json")
+  ];
+  let records: any[] = [];
+  for (const p of jsonPaths) {
+    try {
+      const raw = readFileSync(p, "utf-8");
+      records = JSON.parse(raw);
+      if (records.length) break;
+    } catch (e) { /* try next */ }
+  }
+  if (!records.length) {
+    console.warn("GOAE default import: no JSON source found. Tabelle goa_tarife bleibt leer — bitte manuell befuellen.");
+    return;
+  }
+  const insert = db.prepare("INSERT INTO goa_tarife (ziffer, title, description, base_euro, multiplier, keywords) VALUES (?, ?, ?, ?, ?, ?)");
+  for (const rec of records) {
+    const ziffer = String(rec.ziffer || "") .trim();
+    const title = rec.bezeichnung || "";
+    const description = rec.hinweis || rec.bemerkung || "";
+    const keywords = [ziffer, title, description].join(" ").toLowerCase();
+    const regStr = String(rec.regelsatz_2_3 || "0").replace(",", ".").trim();
+    const baseEuro = parseFloat(regStr) || 0;
+    insert.run(ziffer, title, description, baseEuro, 2.3, keywords);
   }
 }
 

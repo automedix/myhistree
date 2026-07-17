@@ -84,6 +84,14 @@ app.get("/blutdruck/:token", async (request, reply) => {
     .sendFile("blutdruck.html");
 });
 
+app.get("/fragebogen/:token", async (request, reply) => {
+  return reply.sendFile("fragebogen.html");
+});
+
+app.get("/quote/:token", async (request, reply) => {
+  return reply.sendFile("quote.html");
+});
+
 app.get("/admin", async (request, reply) => {
   return reply.sendFile("admin/index.html");
 });

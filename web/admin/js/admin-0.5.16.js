@@ -1374,7 +1374,7 @@ if (isDraft) {
     html += '<div style="margin-bottom:12px;">';
     html += '<label>GOÄ-Ziffer suchen</label>';
     html += '<div style="display:flex;gap:8px;">';
-    html += '<input type="text" id="q-goa-search" placeholder="z.B. Impfung, Blutabnahme, EKG..." style="flex:1;" onkeydown="if(event.key===\'Enter\'){searchGOA();event.preventDefault();}" autocomplete="off">';
+    html += '<input type="text" id="q-goa-search" placeholder="z.B. Impfung, Blutabnahme, EKG... oder Ziffer (z.B. 250)" style="flex:1;" onkeydown="if(event.key===\'Enter\'){searchGOA();event.preventDefault();}" autocomplete="off">';
     html += '<button onclick="searchGOA()" style="padding:8px 16px;background:var(--primary);color:#fff;border:none;border-radius:8px;cursor:pointer;">Suchen</button>';
     html += '</div>';
     html += '<div id="q-goa-results" style="margin-top:8px;"></div>';
@@ -1853,8 +1853,8 @@ async function searchTemplateGOA() {
     if (!data.items || !data.items.length) { container.innerHTML = '<div style="font-size:0.85rem;color:#94a3b8;">Keine Treffer.</div>'; return; }
     let html = '<div style="display:flex;flex-wrap:wrap;gap:6px;">';
     for (const r of data.items) {
-      const euro = fmtEuro(r.euro || 0);
-      const itemStr = JSON.stringify({ziffer:String(r.ziffer), title:r.title, description:r.description||"", unit_euro:r.euro||0, base_euro:r.euro||0, quantity:1}).replace(/"/g, '&quot;');
+      const euro = fmtEuro(r.base_euro || 0);
+      const itemStr = JSON.stringify({ziffer:String(r.ziffer), title:r.title, description:r.description||"", unit_euro:r.base_euro||0, base_euro:r.base_euro||0, quantity:1}).replace(/"/g, '&quot;');
       html += '<button class="btn btn-sm btn-secondary" style="font-size:0.75rem;" onclick="addTemplateItem(\'' + itemStr + '\')">' + escapeHtml(String(r.ziffer)) + ' — ' + escapeHtml(r.title) + ' (' + euro + ')</button>';
     }
     html += '</div>';

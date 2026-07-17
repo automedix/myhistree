@@ -36,7 +36,7 @@ button { padding:12px 20px; border:none; border-radius:8px; font-size:1rem; font
 .btn-secondary { background:#e2e8f0; color:var(--text); }
 .btn-print { background:#16a34a; color:#fff; width:100%; }
 table { width:100%; border-collapse:collapse; font-size:0.8rem; table-layout:fixed; }
-th, td { text-align:left; padding:6px 4px; border-bottom:1px solid var(--border); white-space:normal; word-break:break-word; overflow-wrap:anywhere; }
+th, td { text-align:left; padding:6px 4px; border-bottom:1px solid var(--border); white-space:normal; } td:nth-child(2) { word-break:break-word; overflow-wrap:anywhere; }
 td:nth-child(1), th:nth-child(1) { width:14%; text-align:center; } td:nth-child(2), th:nth-child(2) { width:38%; } td:nth-child(3), th:nth-child(3) { width:14%; text-align:center; } td:nth-child(4), th:nth-child(4) { width:17%; text-align:right; } td:nth-child(5), th:nth-child(5) { width:17%; text-align:right; }
 th { background:#f8fafc; font-weight:600; color:var(--text-light); font-size:0.8rem; text-transform:uppercase; }
 .total-row { font-weight:700; font-size:1.1rem; text-align:right; padding-top:12px; }
@@ -46,7 +46,7 @@ th { background:#f8fafc; font-weight:600; color:var(--text-light); font-size:0.8
 .success { text-align:center; padding:40px 20px; }
 .success-icon { font-size:3rem; margin-bottom:12px; }
 .hidden { display:none; }
-@media (max-width:480px) { body { padding:8px; } .card { padding:16px 12px; margin-bottom:12px; overflow-x:hidden; } h1 { font-size:1.1rem; } table { font-size:0.75rem; table-layout:auto; width:100%; } th, td { padding:5px 4px; word-break:break-word; overflow-wrap:anywhere; } td:nth-child(1),th:nth-child(1),td:nth-child(2),th:nth-child(2),td:nth-child(3),th:nth-child(3),td:nth-child(4),th:nth-child(4),td:nth-child(5),th:nth-child(5) { width:auto; min-width:0; } .total-row { font-size:1rem; } .signature-box { width:100%; height:280px; touch-action:none; } }
+@media (max-width:480px) { body { padding:8px; } .card { padding:16px 12px; margin-bottom:12px; overflow-x:hidden; } h1 { font-size:1.1rem; } table { font-size:0.75rem; table-layout:auto; width:100%; } th, td { padding:5px 4px; } td:nth-child(1),th:nth-child(1),td:nth-child(3),th:nth-child(3),td:nth-child(4),th:nth-child(4),td:nth-child(5),th:nth-child(5) { white-space:nowrap; width:auto; min-width:0; } td:nth-child(2),th:nth-child(2) { word-break:break-word; overflow-wrap:anywhere; width:auto; min-width:0; } .total-row { font-size:1rem; } .signature-box { width:100%; height:280px; touch-action:none; } }
 @media print { body { background:#fff; padding:0; } .no-print { display:none!important; } .card { box-shadow:none; border:1px solid #ccc; } }
 </style>
 </head>
@@ -56,7 +56,7 @@ th { background:#f8fafc; font-weight:600; color:var(--text-light); font-size:0.8
   <h1>Kostenvoranschlag</h1>
   <p style="margin-bottom:12px;color:var(--text-light);">Bitte geben Sie Ihr Geburtsdatum ein, um den Kostenvoranschlag zu öffnen.</p>
   <label>Geburtsdatum *</label>
-  <input type="text" id="dob-input" placeholder="tt.mm.jjjj" maxlength="10" autocomplete="off" oninput="autoFormatDob(this)">
+  <input type="text" id="dob-input" placeholder="tt.mm.jjjj" maxlength="10" autocomplete="off" inputmode="numeric" oninput="autoFormatDob(this)">
   <button class="btn-primary" onclick="validateDob()" style="margin-top:12px;">Weiter</button>
   <div id="dob-error" class="error hidden"></div>
 </div>
@@ -75,7 +75,7 @@ th { background:#f8fafc; font-weight:600; color:var(--text-light); font-size:0.8
     <h2>Leistungen</h2>
     <div style="overflow-x:auto;-webkit-overflow-scrolling:touch;width:100%;box-sizing:border-box;">
     <table style="min-width:100%;">
-      <thead><tr><th>GOAE</th><th>Leistung</th><th style="text-align:center">Anz.</th><th style="text-align:right">Einzel</th><th style="text-align:right">Gesamt</th></tr></thead>
+      <thead><tr><th>GOÄ</th><th>Leistung</th><th style="text-align:center">Anz.</th><th style="text-align:right">Einzel</th><th style="text-align:right">Gesamt</th></tr></thead>
       <tbody id="q-items"></tbody>
     </table>
     </div>
@@ -83,7 +83,7 @@ th { background:#f8fafc; font-weight:600; color:var(--text-light); font-size:0.8
     <div class="hint">
       <strong>Hinweis:</strong>
       <ul style="margin-top:4px;padding-left:18px;">
-        <li>Die angegebenen Preise basieren auf der GOAE mit einem <span id="q-mult"></span>-fachen Steigerungssatz.</li>
+        <li>Die angegebenen Preise basieren auf der GOÄ mit einem <span id="q-mult"></span>-fachen Steigerungssatz.</li>
         <li>Dies ist eine Privatleistung (IGeL). Ihre gesetzliche Krankenkasse übernimmt diese Kosten nicht.</li>
         <li>Die tatsächlichen Kosten können je nach Behandlungsaufwand abweichen.</li>
         <li>Dieser Kostenvoranschlag ist 7 Tage gültig.</li>
@@ -130,6 +130,7 @@ function autoFormatDob(input) {
   if (v.length >= 5) v = v.slice(0,5) + '.' + v.slice(5,9);
   input.value = v;
 }
+window.autoFormatDob = autoFormatDob;
 function parseDobToISO(dob) {
   if (!dob) return '';
   var m = dob.match(/^(\d{2})\.(\d{2})\.(\d{4})$/);
