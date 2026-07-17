@@ -412,6 +412,40 @@ async function viewEncounter(encounterId) {
       const bpRes = await fetch(`${API}/admin/bloodpressure/${encounterId}`, { credentials: 'include' });
       if (!bpRes.ok) return;
       const bp = await bpRes.json();
+      // Build chart image offscreen for print
+      let chartImg = '';
+      if ((bp.readings || []).length) {
+        const oc = document.createElement('canvas');
+        oc.width = 600; oc.height = 220;
+        const ctx = oc.getContext('2d');
+        const w = 600, h = 220, pad = { l: 36, t: 10, r: 10, b: 24 };
+        const pts = (bp.readings || []).map(r => ({ t: new Date(r.recorded_at).getTime(), rec: r.recorded_at, sys: r.systolic, dia: r.diastolic, pul: r.pulse, weight: r.weight }));
+        const times = pts.map(p => p.t), minT = Math.min(...times), maxT = Math.max(...times);
+        const allY = pts.flatMap(p => [p.sys, p.dia, p.pul, p.weight != null ? p.weight : null].filter(v => v != null));
+        let minY = Math.min(...allY) - 10, maxY = Math.max(...allY) + 10;
+        if (minY < 30) minY = 30; if (maxY > 250) maxY = 250; if (maxY < 150) maxY = 150; if (minY > 70) minY = 70;
+        const sx = (t) => pad.l + (maxT === minT ? 0.5 : (t - minT) / (maxT - minT)) * (w - pad.l - pad.r);
+        const sy = (y) => pad.t + (maxY - y) / (maxY - minY) * (h - pad.t - pad.b);
+        ctx.clearRect(0, 0, w, h); ctx.strokeStyle = '#e2e8f0'; ctx.lineWidth = 1;
+        for (let i = 0; i <= 5; i++) { const y = pad.t + (h - pad.t - pad.b) * (i / 5); ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(w - pad.r, y); ctx.stroke(); }
+        function drawTh(yVal, color, label) {
+          if (yVal < minY || yVal > maxY) return;
+          const y = sy(yVal);
+          ctx.save(); ctx.strokeStyle = color; ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(w - pad.r, y); ctx.stroke(); ctx.restore();
+          if (label) { ctx.fillStyle = color; ctx.font = '9px sans-serif'; ctx.textAlign = 'left'; ctx.fillText(label, w - pad.r + 4, y + 3); }
+        }
+        drawTh(140, '#ef4444', '140'); drawTh(130, '#fbbf24', '130'); drawTh(80, '#000000', '80');
+        function drawLine(key, color) { ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.beginPath(); let started = false; pts.forEach(p => { if (p[key] == null) { started = false; return; } const x = sx(p.t), y = sy(p[key]); if (!started) { ctx.moveTo(x, y); started = true; } else ctx.lineTo(x, y); }); ctx.stroke(); ctx.fillStyle = color; pts.forEach(p => { if (p[key] == null) return; ctx.beginPath(); ctx.arc(sx(p.t), sy(p[key]), 3, 0, Math.PI * 2); ctx.fill(); }); }
+        drawLine('sys', '#3366AA'); drawLine('dia', '#4DA6FF'); drawLine('pul', '#000000');
+        if (pts.some(p => p.weight != null)) drawLine('weight', '#D32F2F');
+        ctx.fillStyle = '#475569'; ctx.font = '10px sans-serif'; ctx.textAlign = 'center';
+        pts.forEach(p => { const x = sx(p.t); const lbl = fmtDateTime(p.rec); ctx.fillText(lbl, x, h - 6); });
+        ctx.textAlign = 'right'; for (let i = 0; i <= 5; i++) { const v = maxY - (maxY - minY) * (i / 5); ctx.fillText(Math.round(v), pad.l - 4, pad.t + (h - pad.t - pad.b) * (i / 5) + 4); }
+        ctx.textAlign = 'left'; let lx = pad.l + 8, ly = pad.t + 14;
+        [{ c: '#3366AA', t: 'Systolisch' }, { c: '#4DA6FF', t: 'Diastolisch' }, { c: '#000000', t: 'Puls' }].forEach(item => { ctx.fillStyle = item.c; ctx.fillRect(lx, ly - 6, 8, 8); ctx.fillStyle = '#334155'; ctx.fillText(item.t, lx + 12, ly); lx += ctx.measureText(item.t).width + 28; });
+        chartImg = `<img src="${oc.toDataURL('image/png')}" style="width:100%;max-width:600px;margin-top:16px;border:1px solid #ccc;border-radius:8px;">`;
+      }
       let html = '<div class="print-view">';
       html += `<h2>Blutdruckmessung ${escapeHtml(enc.id.slice(0,8))}</h2>`;
       html += `<p><strong>Erstellt:</strong> ${fmtDateTime(enc.created_at)}</p>`;
@@ -419,7 +453,9 @@ async function viewEncounter(encounterId) {
       for (const r of bp.readings || []) {
         html += `<tr><td style="border:1px solid #ccc;padding:6px">${fmtDateTime(r.recorded_at)}</td><td style="border:1px solid #ccc;padding:6px">${r.systolic}</td><td style="border:1px solid #ccc;padding:6px">${r.diastolic}</td><td style="border:1px solid #ccc;padding:6px">${r.pulse}</td><td style="border:1px solid #ccc;padding:6px">${r.weight != null ? r.weight : '-'}</td></tr>`;
       }
-      html += '</tbody></table></div>';
+      html += '</tbody></table>';
+      if (chartImg) html += chartImg;
+      html += '</div>';
       const w = window.open('', '_blank');
       if (w) { w.document.write('<html><head><title>Blutdruckmessung</title><style>body{font-family:Arial;margin:20px}h2{margin-bottom:8px}table{width:100%;border-collapse:collapse;font-size:14px}th,td{border:1px solid #ccc;padding:6px}th{background:#f5f5f5}</style></head><body>' + html + '</body></html>'); w.document.close(); w.focus(); setTimeout(() => w.print(), 300); }
       return;
