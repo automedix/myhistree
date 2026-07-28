@@ -17,3 +17,5 @@ strfry/data/
 # OS
 .DS_Store
 Thumbs.db
+backups/
+*.bak.*
