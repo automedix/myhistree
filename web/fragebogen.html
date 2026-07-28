@@ -89,7 +89,29 @@ input:focus { outline:none; border-color:var(--primary); }
     <div class="card">
       <h1>Besonderheiten &amp; Abschluss</h1>
       <p>Fast geschafft! Bitte ergänzen Sie noch die folgenden Angaben.</p>
-      <label for="vin-freetext">Besonderheiten</label>
+      <label for="vin-weight" style="margin-top:16px;">Aktuelles Gewicht (kg) *</label>
+      <input type="text" id="vin-weight" placeholder="z.B. 70" maxlength="10" autocomplete="off" inputmode="decimal">
+      <label for="vin-weight-change" style="margin-top:16px;">Gewichtsveränderung (kg)</label>
+      <select id="vin-weight-change" style="width:100%;padding:10px 12px;border:2px solid var(--border);border-radius:8px;font-size:0.95rem;font-family:inherit;">
+        <option value="">-- Bitte wählen --</option>
+        <option value="-20">-20 kg</option><option value="-19">-19 kg</option><option value="-18">-18 kg</option><option value="-17">-17 kg</option><option value="-16">-16 kg</option>
+        <option value="-15">-15 kg</option><option value="-14">-14 kg</option><option value="-13">-13 kg</option><option value="-12">-12 kg</option><option value="-11">-11 kg</option>
+        <option value="-10">-10 kg</option><option value="-9">-9 kg</option><option value="-8">-8 kg</option><option value="-7">-7 kg</option><option value="-6">-6 kg</option>
+        <option value="-5">-5 kg</option><option value="-4">-4 kg</option><option value="-3">-3 kg</option><option value="-2">-2 kg</option><option value="-1">-1 kg</option>
+        <option value="0">0 kg</option><option value="1">+1 kg</option><option value="2">+2 kg</option><option value="3">+3 kg</option><option value="4">+4 kg</option>
+        <option value="5">+5 kg</option><option value="6">+6 kg</option><option value="7">+7 kg</option><option value="8">+8 kg</option><option value="9">+9 kg</option>
+        <option value="10">+10 kg</option><option value="11">+11 kg</option><option value="12">+12 kg</option><option value="13">+13 kg</option><option value="14">+14 kg</option>
+        <option value="15">+15 kg</option><option value="16">+16 kg</option><option value="17">+17 kg</option><option value="18">+18 kg</option><option value="19">+19 kg</option>
+        <option value="20">+20 kg</option>
+      </select>
+      <label for="vin-weight-period" style="margin-top:16px;">Zeitraum der Gewichtsveränderung</label>
+      <select id="vin-weight-period" style="width:100%;padding:10px 12px;border:2px solid var(--border);border-radius:8px;font-size:0.95rem;font-family:inherit;">
+        <option value="">-- Bitte wählen --</option>
+        <option value="1">1 Woche</option><option value="2">2 Wochen</option><option value="3">3 Wochen</option><option value="4">4 Wochen</option>
+        <option value="5">5 Wochen</option><option value="6">6 Wochen</option><option value="7">7 Wochen</option><option value="8">8 Wochen</option>
+        <option value="3">3 Monate</option><option value="6">6 Monate</option><option value="9">9 Monate</option><option value="12">12 Monate</option>
+      </select>
+      <label for="vin-freetext" style="margin-top:16px;">Besonderheiten</label>
       <textarea id="vin-freetext" rows="4" maxlength="2000" placeholder="Besondere Umstände oder Maßnahmen, die nicht in den vorherigen Punkten erfasst wurden" style="width:100%;padding:10px 12px;border:2px solid var(--border);border-radius:8px;font-size:0.95rem;font-family:inherit;resize:vertical;"></textarea>
       <label for="vin-collector-name" style="margin-top:16px;">Name des Ausfüllenden *</label>
       <input type="text" id="vin-collector-name" placeholder="Vor- und Nachname" maxlength="100" autocomplete="off">
@@ -132,7 +154,7 @@ input:focus { outline:none; border-color:var(--primary); }
 <script>
 const API = '';
 let token = null, encounterId = null, templateData = null, questions = [], answers = {}, currentQ = 0, patientName = '', collectorName = '', currentSlug = '';
-let vinFreetext = '', vinCollectorName = '', vinSignature = null;
+let vinFreetext = '', vinCollectorName = '', vinSignature = null, vinWeight = '', vinWeightChange = '', vinWeightPeriod = '';
 let vinCanvas = null, vinCtx = null, vinDrawing = false, vinHasStrokes = false;
 
 function escapeHtml(t){ if(t==null)return''; const d=document.createElement('div'); d.textContent=t; return d.innerHTML; }
@@ -333,6 +355,11 @@ function goToReviewVin(){
   errEl.textContent = '';
   vinFreetext = (document.getElementById('vin-freetext').value || '').trim();
   vinCollectorName = (document.getElementById('vin-collector-name').value || '').trim();
+  vinWeight = (document.getElementById('vin-weight').value || '').trim();
+  vinWeightChange = (document.getElementById('vin-weight-change').value || '').trim();
+  vinWeightPeriod = (document.getElementById('vin-weight-period').value || '').trim();
+  if(!vinWeight){ errEl.textContent = 'Bitte geben Sie das aktuelle Gewicht an. Dieses Feld ist erforderlich.'; errEl.style.display='block'; return; }
+  if(!/^\d+([.,]\d+)?$/.test(vinWeight)){ errEl.textContent = 'Bitte geben Sie ein gültiges Gewicht in kg an (z.B. 70 oder 70,5).'; errEl.style.display='block'; return; }
   if(!vinCollectorName){ errEl.textContent = 'Bitte geben Sie den Namen des Ausfüllenden an.'; return; }
   if(!vinHasStrokes){ errEl.textContent = 'Bitte unterschreiben Sie im Unterschriftsfeld.'; return; }
   vinSignature = vinCanvas ? vinCanvas.toDataURL('image/png') : null;
@@ -348,6 +375,16 @@ function showReview(){
   if(currentSlug === 'vin-enterale-ernaehrung'){
     if(patientName){
       html += `<div class="review-item"><div class="review-label">Patient*in</div><div class="review-value">${escapeHtml(patientName)}</div></div>`;
+    }
+    if(vinWeight){
+      html += `<div class="review-item"><div class="review-label">Aktuelles Gewicht</div><div class="review-value">${escapeHtml(vinWeight)} kg</div></div>`;
+    }
+    if(vinWeightChange){
+      html += `<div class="review-item"><div class="review-label">Gewichtsveränderung</div><div class="review-value">${escapeHtml(vinWeightChange)} kg</div></div>`;
+    }
+    if(vinWeightPeriod){
+      const periodLabels = {'1':'1 Woche','2':'2 Wochen','3':'3 Wochen','4':'4 Wochen','5':'5 Wochen','6':'6 Wochen','7':'7 Wochen','8':'8 Wochen','3':'3 Monate','6':'6 Monate','9':'9 Monate','12':'12 Monate'};
+      html += `<div class="review-item"><div class="review-label">Zeitraum</div><div class="review-value">${escapeHtml(periodLabels[vinWeightPeriod] || vinWeightPeriod)}</div></div>`;
     }
     if(vinFreetext){
       html += `<div class="review-item"><div class="review-label">Besonderheiten</div><div class="review-value">${escapeHtml(vinFreetext)}</div></div>`;
@@ -414,6 +451,9 @@ async function submitData(){
   });
   if(currentSlug === 'vin-enterale-ernaehrung'){
     if(patientName){ details.push(''); details.push('Patient*in: ' + patientName); }
+    if(vinWeight){ details.push('Aktuelles Gewicht: ' + vinWeight + ' kg'); }
+    if(vinWeightChange){ details.push('Gewichtsveränderung: ' + vinWeightChange + ' kg'); }
+    if(vinWeightPeriod){ const p = {'1':'1 Woche','2':'2 Wochen','3':'3 Wochen','4':'4 Wochen','5':'5 Wochen','6':'6 Wochen','7':'7 Wochen','8':'8 Wochen','3':'3 Monate','6':'6 Monate','9':'9 Monate','12':'12 Monate'}; details.push('Zeitraum: ' + (p[vinWeightPeriod] || vinWeightPeriod)); }
     if(vinFreetext){ details.push(''); details.push('Besonderheiten: ' + vinFreetext); }
     if(vinCollectorName){ details.push('Ausgefüllt von: ' + vinCollectorName); }
     if(vinSignature){ details.push('Unterschrift: vorhanden'); }
@@ -437,6 +477,9 @@ async function submitData(){
     payload.vinFreetext = vinFreetext;
     payload.vinCollectorName = vinCollectorName;
     payload.vinSignature = vinSignature;
+    payload.vinWeight = vinWeight;
+    payload.vinWeightChange = vinWeightChange;
+    payload.vinWeightPeriod = vinWeightPeriod;
   }
 
   try{
