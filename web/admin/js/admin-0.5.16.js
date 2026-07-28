@@ -224,7 +224,7 @@ async function loadLinks() {
     let html = '<table><thead><tr><th>Token</th><th>PVS-ID</th><th>DOB</th><th>Typ</th><th>E-Mail</th><th>Status</th><th>Erstellt</th><th>Ablauf</th><th>PIN</th><th>Aktion</th></tr></thead><tbody>';
     for (const r of rows) {
       const statusClass = r.status === 'pending' ? 'badge-pending' : (r.status === 'used' ? 'badge-used' : 'badge-expired');
-      const typeLabel = r.document_type === 'consent_form' ? 'Aufklärung' : (r.document_type === 'bloodpressure' ? 'Blutdruck' : (r.document_type === 'behandlungsvertrag' ? 'Behandlungsvertrag' : 'Anamnese'));
+      const typeLabel = r.document_type === 'consent_form' ? 'Aufklärung' : (r.document_type === 'bloodpressure' ? 'Blutdruck' : (r.document_type === 'behandlungsvertrag' ? 'Behandlungsvertrag' : (r.questionnaire_slug === 'vin-enterale-ernaehrung' ? 'Trinknahrung' : 'Anamnese')));
       const typeTitle = r.document_type === 'consent_form' ? (r.consent_form_title || 'Aufklärung') : 'Patienten-Anamnese';
       html += `<tr>
         <td><code>${r.token.slice(0,16)}...</code></td>
@@ -919,7 +919,7 @@ function closeModal() { document.getElementById('modal').classList.remove('activ
 
 // ─── Audit Log ──────────────────────────────────────────────────
 async function loadAuditLog() {
-  const container = document.getElementById('audit-table');
+  const container = document.getElementById('audit-table-container');
   container.innerHTML = '<div class="spinner"></div>';
   try {
     const res = await fetch(`${API}/audit/log`, { credentials: 'include' });

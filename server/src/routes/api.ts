@@ -952,6 +952,9 @@ export default async function apiRoutes(fastify: FastifyInstance) {
                 reviewed_at: sub.reviewed_at,
                 details: sub.details || null,
                 answers: sub.answers_json ? JSON.parse(sub.answers_json) : null,
+                vin_freetext: sub.vin_freetext || null,
+                vin_collector_name: sub.vin_collector_name || null,
+                vin_signature: sub.vin_signature || null,
             } : null,
         };
     });
@@ -983,8 +986,17 @@ export default async function apiRoutes(fastify: FastifyInstance) {
             return reply.status(404).send({ error: "Encounter not found" });
         const link = encounter.source_link_id ? db.prepare("SELECT questionnaire_slug FROM patient_links WHERE token = ?").get(encounter.source_link_id) as any : null;
         const questionnaireSlug = link?.questionnaire_slug || "phq-9";
-        db.prepare("INSERT OR REPLACE INTO questionnaire_submissions (encounter_id, questionnaire_slug, answers_json, score, severity, signed_at, ip_address, user_agent, patient_name, collector_name, details) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
-            .run(encounterId, questionnaireSlug, JSON.stringify(body.answers || {}), body.score ?? null, body.severity ?? null, body.completedAt || new Date().toISOString(), request.ip || null, request.headers["user-agent"] || null, body.patientName ?? "", body.collectorName || null, body.details || null);
+        // Sanitize VIN freetext inputs (strip control chars, cap length)
+        const sanitizeVinText = (t: any, maxLen: number) => {
+            if (typeof t !== "string") return null;
+            return t.replace(/[\x00-\x08\x0B\x0C\x0E-\x1F\x7F]/g, "").slice(0, maxLen) || null;
+        };
+        const vinFreetext = sanitizeVinText(body.vinFreetext, 2000);
+        const vinCollectorName = sanitizeVinText(body.vinCollectorName, 100);
+        const vinSignature = (typeof body.vinSignature === "string" && body.vinSignature.startsWith("data:image/png")) ? body.vinSignature.slice(0, 500000) : null;
+
+        db.prepare("INSERT OR REPLACE INTO questionnaire_submissions (encounter_id, questionnaire_slug, answers_json, score, severity, signed_at, ip_address, user_agent, patient_name, collector_name, details, vin_freetext, vin_collector_name, vin_signature) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
+            .run(encounterId, questionnaireSlug, JSON.stringify(body.answers || {}), body.score ?? null, body.severity ?? null, body.completedAt || new Date().toISOString(), request.ip || null, request.headers["user-agent"] || null, body.patientName ?? "", body.collectorName || null, body.details || null, vinFreetext, vinCollectorName, vinSignature);
         db.prepare("UPDATE encounters SET status = 'completed', completed_at = datetime('now') WHERE id = ?").run(encounterId);
         return { success: true };
     });

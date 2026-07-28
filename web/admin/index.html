@@ -50,6 +50,11 @@ th, td { text-align:left; padding:10px; border-bottom:1px solid var(--border); }
 th { font-weight:600; color:var(--text-light); font-size:0.8rem; text-transform:uppercase; letter-spacing:0.5px; }
 tr:hover { background:#f8fafc; }
 #links-table-container { overflow-x:auto; }
+#audit-table-container { overflow-x:auto; }
+#audit-table-container table { table-layout:auto; min-width:100%; }
+#audit-table-container td { word-break:break-word; overflow-wrap:anywhere; max-width:220px; }
+#audit-table-container td:first-child, #audit-table-container th:first-child { white-space:nowrap; }
+#audit-table-container td:nth-child(6) { font-family:ui-monospace,monospace; font-size:0.78rem; }
 .badge { display:inline-block; padding:3px 8px; border-radius:4px; font-size:0.75rem; font-weight:600; }
 .badge-pending { background:#dbeafe; color:#3366AA; }
 .badge-used { background:#dcfce7; color:#166534; }
@@ -64,10 +69,14 @@ tr:hover { background:#f8fafc; }
     .btn-warning { background:#f59e0b; color:#fff; }
     .btn-warning:hover { background:#f59e0b; color:#fff; }
 .url-box { background:#f1f5f9; padding:12px; border-radius:8px; font-family:ui-monospace,monospace; font-size:0.85rem; word-break:break-all; margin:8px 0; }
-.tabs { display:flex; gap:4px; margin-bottom:20px; border-bottom:2px solid var(--border); }
-.tab { padding:10px 16px; border:none; background:none; font-size:0.95rem; cursor:pointer; color:var(--text-light); border-bottom:2px solid transparent; margin-bottom:-2px; }
-.tab.active { color:var(--primary); border-bottom-color:var(--primary); font-weight:600; }
-.tab:hover { color:var(--primary); }
+.tabs { display:flex; gap:8px; margin-bottom:20px; flex-wrap:wrap; }
+.tab { padding:10px 18px; border:none; background:var(--primary); color:#fff; font-size:0.95rem; font-weight:600; cursor:pointer; border-radius:8px; transition:background 0.15s ease; }
+.tab:hover { background:var(--primary-dark); }
+.tab.active { text-decoration:underline; text-underline-offset:4px; text-decoration-thickness:2px; }
+.tabs-sub { margin-top:-12px; padding-left:12px; border-left:3px solid var(--primary); }
+.tab-sub { background:var(--primary-dark); font-size:0.88rem; padding:8px 14px; }
+.tab-sub:hover { background:#2a5388; }
+.tab-admin-toggle.open { background:var(--primary-dark); }
 .tab-content { display:none; }
 .tab-content.active { display:block; }
 .empty { text-align:center; padding:40px; color:var(--text-light); }
@@ -112,17 +121,20 @@ pre.json { background:#1e293b; color:#e2e8f0; padding:16px; border-radius:8px; o
   <div class="tabs">
     <button class="tab active" data-tab="links" onclick="switchTab('links')">Einladungslinks</button>
     <button class="tab" data-tab="encounters" onclick="switchTab('encounters')">Dokumente</button>
-    <button class="tab" data-tab="audit" onclick="switchTab('audit')">Audit-Log</button>
-    <button class="tab" data-tab="users" onclick="switchTab('users')">Nutzer</button>
-    <button class="tab" data-tab="settings" onclick="switchTab('settings')">Einstellungen</button>
     <button class="tab" data-tab="quotes" onclick="switchTab('quotes')">Kostenvoranschläge</button>
     <button class="tab" data-tab="questionnaires" onclick="switchTab('questionnaires')">Fragebögen</button>
+    <button class="tab tab-admin-toggle" id="admin-toggle" onclick="toggleAdminSubtabs()">Administration ▾</button>
+  </div>
+  <div class="tabs tabs-sub" id="admin-subtabs" style="display:none;">
+    <button class="tab tab-sub" data-tab="audit" onclick="switchTab('audit')">Audit-Log</button>
+    <button class="tab tab-sub" data-tab="users" onclick="switchTab('users')">Nutzer</button>
+    <button class="tab tab-sub" data-tab="settings" onclick="switchTab('settings')">Einstellungen</button>
   </div>
 
   <!-- TAB: Links -->
   <div id="tab-links" class="tab-content active">
-    <div class="card">
-      <h2>Neuen Link erstellen</h2>
+    <div class="card" style="border-left:4px solid #7aa4e6;">
+      <h2>Anamnese / Aufklärung / Behandlungsvertrag / Blutdruck</h2>
       <div class="form-row">
         <div>
           <label>PVS Patienten-ID *</label>
@@ -183,6 +195,7 @@ pre.json { background:#1e293b; color:#e2e8f0; padding:16px; border-radius:8px; o
           <div id="result-pin" style="margin-top:8px;font-weight:600;color:#4477BB;"></div>
         </div>
       </div>
+    </div>
    <!-- Recall Card -->
   <div class="card" id="recall-card" style="margin-top:16px;border-left:4px solid #7aa4e6;">
     <h2>Recall / Erinnerung</h2>
@@ -206,7 +219,7 @@ pre.json { background:#1e293b; color:#e2e8f0; padding:16px; border-radius:8px; o
 
    <div style="height:40px;"></div>
   <!-- Deximed Card -->
-  <div class="card" id="deximed-card">
+  <div class="card" id="deximed-card" style="border-left:4px solid #7aa4e6;">
     <h2>Deximed Patienteninformation</h2>
     <p>Anzahl Artikel: <span id="deximed-count">-</span></p>
     <input type="text" id="deximed-search" placeholder="Suche nach Begriff..." style="width:100%;padding:8px;margin-bottom:10px;" />
@@ -294,7 +307,6 @@ pre.json { background:#1e293b; color:#e2e8f0; padding:16px; border-radius:8px; o
     });
   })();
 </script>
-    </div>
     <div class="card">
       <h2>Erstellte Links</h2>
       <div id="links-table-container"><div class="spinner"></div></div>
@@ -377,6 +389,7 @@ pre.json { background:#1e293b; color:#e2e8f0; padding:16px; border-radius:8px; o
         <select id="q-template">
           <option value="phq-9" selected>PHQ-9 Depressionsscreening</option>
           <option value="barthel-index">Barthel Index (ADL-Skala)</option>
+          <option value="vin-enterale-ernaehrung">Alternative Maßnahmen zur enteralen Ernährung</option>
         </select>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
@@ -438,7 +451,7 @@ pre.json { background:#1e293b; color:#e2e8f0; padding:16px; border-radius:8px; o
 </div>
 
 <script src="/admin/js/qrcode.min.js"></script>
-<script src="/admin/js/admin-0.5.16.js?v=78c9ff5"></script>
+<script src="/admin/js/admin-0.5.16.js?v=1784357112"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
   var ids = ['new-pvs-id','new-patient-dob','new-patient-email','new-pin'];
@@ -609,7 +622,7 @@ async function loadQuestionnaireSubmissions(){
     let html = '<table><thead><tr><th>PVS-ID</th><th>Typ</th><th>Eingereicht</th><th>Aktion</th></tr></thead><tbody>';
     for(const row of rows){
       const date = row.signed_at ? new Date(row.signed_at).toLocaleString('de-DE') : (row.created_at ? new Date(row.created_at).toLocaleString('de-DE') : '-');
-      const typeLabel = row.questionnaire_slug === 'barthel-index' ? 'Barthel Index' : 'PHQ-9';
+      const typeLabel = row.questionnaire_slug === 'barthel-index' ? 'Barthel Index' : (row.questionnaire_slug === 'vin-enterale-ernaehrung' ? 'Trinknahrung' : 'PHQ-9');
       html += `<tr>
         <td>${row.pvs_patient_id||'-'}</td>
         <td><span class="badge badge-pending">${typeLabel}</span></td>
@@ -633,7 +646,7 @@ async function loadArchivedSubmissions(){
     let html = '<table><thead><tr><th>PVS-ID</th><th>Typ</th><th>Übernommen</th><th>Aktion</th></tr></thead><tbody>';
     for(const row of rows){
       const date = row.reviewed_at ? new Date(row.reviewed_at).toLocaleString('de-DE') : '-';
-      const typeLabel = row.questionnaire_slug === 'barthel-index' ? 'Barthel Index' : 'PHQ-9';
+      const typeLabel = row.questionnaire_slug === 'barthel-index' ? 'Barthel Index' : (row.questionnaire_slug === 'vin-enterale-ernaehrung' ? 'Trinknahrung' : 'PHQ-9');
       html += `<tr>
         <td>${row.pvs_patient_id||'-'}</td>
         <td><span class="badge badge-completed">${typeLabel}</span></td>
@@ -669,7 +682,7 @@ async function loadQuestionnaireDetail(encounterId){
     const r = await fetch('/api/questionnaire/submission/'+encounterId, { credentials:'include' });
     if(!r.ok) throw new Error('Nicht gefunden');
     const j = await r.json();
-    const typeLabel = j.encounter?.questionnaire_slug === 'barthel-index' ? 'Barthel Index (ADL-Skala)' : 'PHQ-9 Depressionsscreening';
+    const typeLabel = j.encounter?.questionnaire_slug === 'barthel-index' ? 'Barthel Index (ADL-Skala)' : (j.encounter?.questionnaire_slug === 'vin-enterale-ernaehrung' ? 'Alternative Maßnahmen zur enteralen Ernährung' : 'PHQ-9 Depressionsscreening');
     const maxScore = j.encounter?.questionnaire_slug === 'barthel-index' ? '100' : '27';
     let printHtml = '<div style="font-family:Arial,Helvetica,sans-serif;max-width:700px;margin:0 auto;padding:20px;color:#1e293b;">';
     printHtml += '<h2 style="color:#4477BB;border-bottom:2px solid #4477BB;padding-bottom:6px;margin-top:0;">Fragebogen-Ergebnis</h2>';
@@ -681,17 +694,54 @@ async function loadQuestionnaireDetail(encounterId){
     if(j.data?.collector_name){
       printHtml += '<p><strong>Erheber:</strong> '+j.data.collector_name+'</p>';
     }
-    printHtml += '<p><strong>Score:</strong> '+(j.data?.score||'-')+' / '+maxScore+'</p>';
-    printHtml += '<p><strong>Schweregrad:</strong> '+(j.data?.severity||'-')+'</p>';
+    if(j.data?.vin_collector_name){
+      printHtml += '<p><strong>Ausgefüllt von:</strong> '+j.data.vin_collector_name+'</p>';
+    }
+    if(j.data?.vin_freetext){
+      printHtml += '<p><strong>Besonderheiten:</strong> '+j.data.vin_freetext+'</p>';
+    }
+    if(j.data?.vin_signature){
+      printHtml += '<p><strong>Unterschrift:</strong></p>';
+      printHtml += '<div style="border:1px solid #cbd5e1;border-radius:6px;padding:8px;background:#fff;max-width:400px;"><img src="'+j.data.vin_signature+'" style="max-width:100%;height:auto;display:block;" alt="Unterschrift"></div>';
+    }
+    if(j.encounter?.questionnaire_slug !== 'vin-enterale-ernaehrung'){
+      printHtml += '<p><strong>Score:</strong> '+(j.data?.score||'-')+' / '+maxScore+'</p>';
+    }
+    if(j.data?.severity){
+      printHtml += '<p><strong>Schweregrad:</strong> '+j.data.severity+'</p>';
+    }
     printHtml += '<p><strong>Eingereicht:</strong> '+(j.data?.signed_at ? new Date(j.data.signed_at).toLocaleString('de-DE') : '-')+'</p>';
     if(j.data?.reviewed_at){
       printHtml += '<p><strong>In Akte übernommen:</strong> '+new Date(j.data.reviewed_at).toLocaleString('de-DE')+'</p>';
     }
     if(j.data?.details){
       printHtml += '<h3 style="color:#4477BB;border-bottom:1px solid #e2e8f0;padding-bottom:4px;margin-top:24px;">Details</h3>';
+      // Load template to get question subtitles
+      let templateQuestions = [];
+      if(j.encounter?.questionnaire_slug){
+        try{
+          const tplRes = await fetch('/api/questionnaire/template/'+j.encounter.questionnaire_slug, { credentials:'include' });
+          if(tplRes.ok){
+            const tpl = await tplRes.json();
+            templateQuestions = tpl.questions || [];
+          }
+        }catch(e){ console.log('Template load failed', e); }
+      }
       const lines = j.data.details.split('\n');
       for(const line of lines){
         if(line.trim() === ''){ printHtml += '<br>'; continue; }
+        // Try to find matching question by number prefix (e.g. "1. Unzureichende Energiezufuhr")
+        const match = line.match(/^(\d+)\.\s+(.+?)(:|$)/);
+        if(match && templateQuestions.length){
+          const qNum = parseInt(match[1]);
+          const qText = match[2].trim();
+          const q = templateQuestions.find((tq, idx) => idx+1 === qNum || tq.text === qText);
+          if(q && q.subtitle){
+            printHtml += '<p><strong>'+line+'</strong></p>';
+            printHtml += '<p style="font-size:0.85rem;color:#64748b;margin-top:2px;margin-bottom:12px;padding-left:16px;border-left:3px solid #e2e8f0;">'+q.subtitle+'</p>';
+            continue;
+          }
+        }
         printHtml += '<p>'+line+'</p>';
       }
     } else if(j.data?.answers){
@@ -716,6 +766,25 @@ function printQuestionnaireReport(){
   w.document.write('</body></html>');
   w.document.close();
   setTimeout(function(){ w.print(); }, 300);
+}
+
+// Toggle administration sub-tabs
+function toggleAdminSubtabs(){
+  const sub = document.getElementById('admin-subtabs');
+  const btn = document.getElementById('admin-toggle');
+  const isOpen = sub.style.display !== 'none';
+  if(isOpen){
+    // If currently active tab is one of the admin tabs, switch back to links first
+    const activeAdmin = sub.querySelector('.tab.active');
+    if(activeAdmin){ switchTab('links'); }
+    sub.style.display = 'none';
+    btn.classList.remove('open');
+    btn.innerHTML = 'Administration ▾';
+  } else {
+    sub.style.display = 'flex';
+    btn.classList.add('open');
+    btn.innerHTML = 'Administration ▴';
+  }
 }
 
 // Hook into switchTab to load submissions
