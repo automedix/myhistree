@@ -74,13 +74,7 @@ cd myhistree
 
 ```bash
 cp .env.example .env
-# .env anpassen:
-#   JWT_SECRET=***
-#   SMTP_HOST=smtp.example.com
-#   SMTP_USER=mail@example.com
-#   SMTP_PASS=password
-#   EMAIL_FROM_NAME="Myhistree Anamnese"
-#   EMAIL_REPLY_TO=praxis@example.com
+# .env anpassen (siehe .env.example)
 ```
 
 ### 3. Starten
