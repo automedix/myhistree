@@ -19,3 +19,4 @@ strfry/data/
 Thumbs.db
 backups/
 *.bak.*
+server/dist/

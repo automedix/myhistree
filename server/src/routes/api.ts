@@ -310,14 +310,14 @@ export default async function apiRoutes(fastify: FastifyInstance) {
 
   fastify.get("/practice/:practiceId/settings", { onRequest: requireAuth }, async (request, reply) => {
     const { practiceId } = request.params as { practiceId: string };
-    const row = db.prepare("SELECT name, address, city, postal_code, phone, email, ki_provider_name, ki_product_name, ki_manufacturer, ki_model_provider, ki_processing_location, ki_third_country_transfer, smtp_host, smtp_port, smtp_user, smtp_pass, email_from_name, email_reply_to FROM practices WHERE id = ?").get(practiceId) as any;
+    const row = db.prepare("SELECT name, address, city, postal_code, phone, email, ki_provider_name, ki_product_name, ki_manufacturer, ki_model_provider, ki_processing_location, ki_third_country_transfer, smtp_host, smtp_port, smtp_user, smtp_pass, email_from_name, email_reply_to, kim_address FROM practices WHERE id = ?").get(practiceId) as any;
     if (!row) return reply.status(404).send({ error: "Practice not found" });
     return row;
   });
 
   fastify.post("/practice/:practiceId/settings", { onRequest: requireAuth }, async (request, reply) => {
     const { practiceId } = request.params as { practiceId: string };
-    const { name, email, address, phone, postalCode, city, smtpHost, smtpPort, smtpUser, smtpPass, fromName, replyTo, kiProviderName, kiProductName, kiManufacturer, kiModelProvider, kiProcessingLocation, kiThirdCountryTransfer } = request.body as any;
+    const { name, email, address, phone, postalCode, city, smtpHost, smtpPort, smtpUser, smtpPass, fromName, replyTo, kiProviderName, kiProductName, kiManufacturer, kiModelProvider, kiProcessingLocation, kiThirdCountryTransfer, kimAddress } = request.body as any;
     db.prepare(`UPDATE practices SET
       name = ?,
       email = ?,
@@ -336,9 +336,10 @@ export default async function apiRoutes(fastify: FastifyInstance) {
       ki_manufacturer = ?,
       ki_model_provider = ?,
       ki_processing_location = ?,
-      ki_third_country_transfer = ?
+      ki_third_country_transfer = ?,
+      kim_address = ?
       WHERE id = ?`)
-    .run(name, email, address, phone, postalCode, city, smtpHost, smtpPort, smtpUser, smtpPass, fromName, replyTo, kiProviderName, kiProductName, kiManufacturer, kiModelProvider, kiProcessingLocation, kiThirdCountryTransfer, practiceId);
+    .run(name, email, address, phone, postalCode, city, smtpHost, smtpPort, smtpUser, smtpPass, fromName, replyTo, kiProviderName, kiProductName, kiManufacturer, kiModelProvider, kiProcessingLocation, kiThirdCountryTransfer, kimAddress, practiceId);
     logAudit("UPDATE_SETTINGS", practiceId, undefined, undefined, request.ip);
     return { success: true };
   });
@@ -446,7 +447,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
     if (!row) return reply.status(404).send({ error: "Not found" });
     const existing = db.prepare("SELECT patient_name, signed_at FROM consent_submissions WHERE encounter_id = ?").get(row.id) as any;
     if ((row as any).consent_html && (row as any).practice_id) {
-      const practice = db.prepare("SELECT name, address, city, postal_code, phone, email, ki_provider_name, ki_product_name, ki_manufacturer, ki_model_provider, ki_processing_location, ki_third_country_transfer FROM practices WHERE id = ?").get(row.practice_id) as any;
+      const practice = db.prepare("SELECT name, address, city, postal_code, phone, email, ki_provider_name, ki_product_name, ki_manufacturer, ki_model_provider, ki_processing_location, ki_third_country_transfer, kim_address FROM practices WHERE id = ?").get(row.practice_id) as any;
       if (practice) {
         const fullAddr = [practice.address, ((practice.postal_code && practice.city) ? `${practice.postal_code} ${practice.city}` : practice.city || practice.postal_code)].filter(Boolean).join(', ');
         function esc(s: string | null | undefined): string {
@@ -484,6 +485,36 @@ export default async function apiRoutes(fastify: FastifyInstance) {
         (row as any).consent_html = (row as any).consent_html.replace(
           /<li><strong>Drittlandübermittlung:<\/strong> {{KI_DRITTLANDUEBERMITTLUNG}}<\/li>/,
           `<li><strong>Drittlandübermittlung:</strong> ${val(kiTransfer)}</li>`
+        );
+        // KIM-Adresse der Praxis (eEB)
+        (row as any).consent_html = (row as any).consent_html.replace(
+          /<li><strong>KIM-Adresse der Praxis:<\/strong> {{KIM_ADRESSE}}<\/li>/,
+          `<li><strong>KIM-Adresse der Praxis:</strong> ${val(practice.kim_address)}</li>`
+        );
+        // Praxis-Stammdaten (eEB)
+        (row as any).consent_html = (row as any).consent_html.replace(
+          /{{PRAXIS_NAME}}/g,
+          val(practice.name)
+        );
+        (row as any).consent_html = (row as any).consent_html.replace(
+          /{{PRAXIS_ADRESSE}}/g,
+          val(practice.address)
+        );
+        (row as any).consent_html = (row as any).consent_html.replace(
+          /{{PRAXIS_PLZ_ORT}}/g,
+          val(fullAddr)
+        );
+        (row as any).consent_html = (row as any).consent_html.replace(
+          /{{PRAXIS_TELEFON}}/g,
+          val(practice.phone)
+        );
+        (row as any).consent_html = (row as any).consent_html.replace(
+          /{{PRAXIS_EMAIL}}/g,
+          val(practice.email)
+        );
+        (row as any).consent_html = (row as any).consent_html.replace(
+          /{{KIM_ADRESSE}}/g,
+          val(practice.kim_address)
         );
       }
     }
@@ -524,15 +555,38 @@ export default async function apiRoutes(fastify: FastifyInstance) {
     const now = new Date().toISOString();
     const consentItemsJson = consentItems ? JSON.stringify(consentItems) : null;
 
-    db.prepare(`INSERT INTO consent_submissions (encounter_id, patient_name, signature_svg, signed_at, ip_address, user_agent, consent_items)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+    // Render HTML with practice data (persistent, no runtime replacement needed)
+    const encounterFull = db.prepare("SELECT practice_id, consent_form_id FROM encounters WHERE id = ?").get(encounterId) as any;
+    const template = db.prepare("SELECT content_html FROM consent_form_templates WHERE slug = ?").get(encounterFull?.consent_form_id || "standard-datenschutz") as any;
+    let renderedHtml = template?.content_html || "";
+    if (renderedHtml && encounterFull?.practice_id) {
+      const practice = db.prepare("SELECT name, address, city, postal_code, phone, email, kim_address FROM practices WHERE id = ?").get(encounterFull.practice_id) as any;
+      function esc(s: string | null | undefined): string {
+        if (!s) return "";
+        return String(s).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\"/g, "&quot;");
+      }
+      function val(s: string | null | undefined): string {
+        return esc(s && s.trim() ? s.trim() : "Keine Angabe");
+      }
+      const fullAddr = [practice?.address, practice?.postal_code && practice?.city ? `${practice.postal_code} ${practice.city}` : practice?.city || practice?.postal_code].filter(Boolean).join(", ");
+      renderedHtml = renderedHtml.replace(/{{PRAXIS_NAME}}/g, val(practice?.name));
+      renderedHtml = renderedHtml.replace(/{{PRAXIS_ADRESSE}}/g, val(practice?.address));
+      renderedHtml = renderedHtml.replace(/{{PRAXIS_PLZ_ORT}}/g, val(fullAddr));
+      renderedHtml = renderedHtml.replace(/{{PRAXIS_TELEFON}}/g, val(practice?.phone));
+      renderedHtml = renderedHtml.replace(/{{PRAXIS_EMAIL}}/g, val(practice?.email));
+      renderedHtml = renderedHtml.replace(/{{KIM_ADRESSE}}/g, val(practice?.kim_address));
+    }
+
+    db.prepare(`INSERT INTO consent_submissions (encounter_id, patient_name, signature_svg, signed_at, ip_address, user_agent, consent_items, rendered_html)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT(encounter_id) DO UPDATE SET
                   patient_name = excluded.patient_name,
                   signature_svg = excluded.signature_svg,
                   signed_at = excluded.signed_at,
                   ip_address = excluded.ip_address,
                   user_agent = excluded.user_agent,
-                  consent_items = excluded.consent_items`).run(encounterId, patientName.trim(), signatureSvg, now, ip, ua, consentItemsJson);
+                  consent_items = excluded.consent_items,
+                  rendered_html = excluded.rendered_html`).run(encounterId, patientName.trim(), signatureSvg, now, ip, ua, consentItemsJson, renderedHtml);
 
     db.prepare("UPDATE encounters SET status = 'completed', completed_at = ? WHERE id = ?").run(now, encounterId);
     logAudit("CONSENT_SUBMIT", encounterId, patientName.trim(), undefined, request.ip);
@@ -633,8 +687,13 @@ export default async function apiRoutes(fastify: FastifyInstance) {
 
     const template = db.prepare("SELECT * FROM consent_form_templates WHERE slug = ?")
       .get(encounter.consent_form_id || "standard-datenschutz") as any;
+    // Use rendered_html from submission if available (persistent, no runtime replacement)
+    const submission = db.prepare("SELECT rendered_html FROM consent_submissions WHERE encounter_id = ?").get(encounterId) as any;
+    if (submission?.rendered_html && template) {
+      template.content_html = submission.rendered_html;
+    }
     if (template && template.content_html && encounter.practice_id) {
-      const practice = db.prepare("SELECT ki_provider_name, ki_product_name, ki_manufacturer, ki_model_provider, ki_processing_location, ki_third_country_transfer FROM practices WHERE id = ?").get(encounter.practice_id) as any;
+      const practice = db.prepare("SELECT name, address, city, postal_code, phone, email, kim_address, ki_provider_name, ki_product_name, ki_manufacturer, ki_model_provider, ki_processing_location, ki_third_country_transfer FROM practices WHERE id = ?").get(encounter.practice_id) as any;
       function esc(s: string | null | undefined): string {
         if (!s) return '';
         return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -665,6 +724,31 @@ export default async function apiRoutes(fastify: FastifyInstance) {
         template.content_html = template.content_html.replace(
           /<li><strong>Verarbeitungsort:<\/strong> {{KI_VERARBEITUNGSORT}}<\/li>/,
           `<li><strong>Verarbeitungsort:</strong> ${val(practice?.ki_processing_location)}</li>`
+        );
+        // eEB: Praxis-Stammdaten und KIM-Adresse
+        template.content_html = template.content_html.replace(
+          /{{PRAXIS_NAME}}/g,
+          val(practice?.name)
+        );
+        template.content_html = template.content_html.replace(
+          /{{PRAXIS_ADRESSE}}/g,
+          val(practice?.address)
+        );
+        template.content_html = template.content_html.replace(
+          /{{PRAXIS_PLZ_ORT}}/g,
+          val(practice?.postal_code && practice?.city ? `${practice.postal_code} ${practice.city}` : practice?.city || practice?.postal_code)
+        );
+        template.content_html = template.content_html.replace(
+          /{{PRAXIS_TELEFON}}/g,
+          val(practice?.phone)
+        );
+        template.content_html = template.content_html.replace(
+          /{{PRAXIS_EMAIL}}/g,
+          val(practice?.email)
+        );
+        template.content_html = template.content_html.replace(
+          /{{KIM_ADRESSE}}/g,
+          val(practice?.kim_address)
         );
         template.content_html = template.content_html.replace(
           /<li><strong>Drittlandübermittlung:<\/strong> {{KI_DRITTLANDUEBERMITTLUNG}}<\/li>/,

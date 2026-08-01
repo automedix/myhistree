@@ -989,6 +989,7 @@ async function loadSettings() {
   html += `<div class="form-row"><div><label>Praxisname</label><input type="text" id="s-name" value="${escapeHtml(settings.name || '')}" placeholder="z.B. Praxis Dr. Mustermann"></div><div><label>Für myhistree verwendete E-Mail Adresse</label><input type="email" id="s-email" value="${escapeHtml(settings.email || '')}" placeholder="praxis@example.de"></div></div>`;
   html += `<div class="form-row"><div><label>Adresse</label><input type="text" id="s-address" value="${escapeHtml(settings.address || '')}" placeholder="Musterstraße 123"></div><div><label>Telefon</label><input type="text" id="s-phone" value="${escapeHtml(settings.phone || '')}" placeholder="+49 30 1234567"></div></div>`;
   html += `<div class="form-row"><div><label>PLZ</label><input type="text" id="s-postal" value="${escapeHtml(settings.postal_code || '')}" placeholder="10115"></div><div><label>Ort</label><input type="text" id="s-city" value="${escapeHtml(settings.city || '')}" placeholder="Berlin"></div></div>`;
+  html += `<div class="form-row"><div><label>KIM Adresse der Praxis</label><input type="text" id="s-kim-address" value="${escapeHtml(settings.kim_address || '')}" placeholder="z.B. praxis@kim.dmg.de"></div><div></div></div>`;
   html += `<div style="margin-top:12px;"><button class="btn btn-primary" onclick="saveSettings()">Speichern</button><span id="settings-msg-stammdaten" style="margin-left:10px;font-size:0.9rem;"></span></div>`;
   html += `</div>`;
 
@@ -1059,6 +1060,7 @@ async function saveSettings() {
     phone: document.getElementById('s-phone').value.trim(),
     postalCode: document.getElementById('s-postal').value.trim(),
     city: document.getElementById('s-city').value.trim(),
+    kimAddress: document.getElementById('s-kim-address').value.trim(),
     smtpHost: document.getElementById('s-smtp-host').value.trim(),
     smtpPort: document.getElementById('s-smtp-port').value.trim(),
     smtpUser: document.getElementById('s-smtp-user').value.trim(),

@@ -56,6 +56,64 @@ const consentSeeds: { templates: Array<{ slug: string; title: string; content_ht
 <li>dass ich die Einwilligung jederzeit widerrufen kann.</li>
 </ul>`
     }
+    ,
+    {
+      slug: "eeb-einwilligung",
+      title: "Einwilligung zur elektronischen Ersatzbescheinigung (eEB)",
+      version: "1.0",
+      content_html: `<div class="practice-header" style="margin-bottom:20px;padding-bottom:12px;border-bottom:2px solid #4477BB;">
+  <h1 style="font-size:1.3rem;color:#4477BB;margin:0;">{{PRAXIS_NAME}}</h1>
+  <p style="margin:4px 0;font-size:0.9rem;color:#64748b;">{{PRAXIS_ADRESSE}}<br>{{PRAXIS_PLZ_ORT}}<br>Tel: {{PRAXIS_TELEFON}} | E-Mail: {{PRAXIS_EMAIL}}<br>KIM: {{KIM_ADRESSE}}</p>
+</div>
+
+<h2>1. Worum geht es?</h2>
+<p>Wenn Sie Ihre elektronische Gesundheitskarte (eGK) nicht dabei haben oder diese in unserer Praxis nicht eingelesen werden kann (z. B. wegen eines technischen Defekts), können wir mit Ihrer Einwilligung an Ihrer Stelle eine sogenannte elektronische Ersatzbescheinigung (eEB) bei Ihrer Krankenkasse anfordern. Die eEB bestätigt elektronisch, dass Sie zum Zeitpunkt der Behandlung versichert sind, und ersetzt das bisherige papierbasierte Ersatzverfahren.</p>
+<p>Der Datenaustausch erfolgt dabei über den zertifizierten Kommunikationsdienst KIM („Kommunikation im Medizinwesen“) direkt zwischen unserer Praxis und Ihrer Krankenkasse.</p>
+<p>Diese Anforderung durch die Praxis ist ein freiwilliges Angebot. Wir sind hierzu gesetzlich nicht verpflichtet, und Sie sind nicht verpflichtet, diesem Verfahren zuzustimmen.</p>
+
+<h2>2. Informationen zur Datenverarbeitung (Art. 13 DSGVO)</h2>
+<h3>Verantwortlicher</h3>
+<p>Verantwortlich für diese Datenverarbeitung ist unsere Praxis (Kontaktdaten siehe Briefkopf). Kontaktdaten unseres/unserer Datenschutzbeauftragten – sofern bestellt – entnehmen Sie bitte unserem Aushang bzw. unserer Praxis-Website.</p>
+
+<h3>Zweck der Verarbeitung</h3>
+<p>Feststellung und Nachweis Ihres Versicherungsstatus zur ordnungsgemäßen Abrechnung der Behandlung mit Ihrer gesetzlichen Krankenkasse, wenn die eGK nicht vorliegt oder nicht eingelesen werden kann.</p>
+
+<h3>Rechtsgrundlage</h3>
+<p>Die Verarbeitung erfolgt auf Grundlage Ihrer freiwilligen Einwilligung gemäß Art. 9 Abs. 2 lit. a i. V. m. Art. 6 Abs. 1 lit. a DSGVO, da es sich bei den übermittelten Daten (Versichertenstatus, Versichertennummer) um Gesundheits- bzw. sozialdaten-nahe Angaben im Sinne des § 291a SGB V handelt. Die verfahrensrechtlichen Grundlagen der eEB sind in Anlage 4a/4b zum Bundesmantelvertrag-Ärzte (BMV-Ä) geregelt.</p>
+
+<h3>Kategorien betroffener Daten</h3>
+<ul>
+<li>Versichertenstammdaten nach § 291a Abs. 2 und 3 SGB V (u. a. Name, Geburtsdatum, Anschrift, Krankenkasse, Versichertennummer, Versichertenstatus)</li>
+<li>KIM-Adresse der Praxis (zur technischen Zustellung, keine personenbezogene Angabe zu Ihrer Person)</li>
+</ul>
+
+<h3>Empfänger</h3>
+<p>Ihre gesetzliche Krankenkasse (elektronischer Abruf/Übermittlung über den KIM-Dienst). Eine Weitergabe an sonstige Dritte erfolgt nicht.</p>
+
+<h3>Speicherdauer</h3>
+<p>Die übermittelten Daten werden im Rahmen der gesetzlichen Aufbewahrungsfristen für Behandlungs- und Abrechnungsunterlagen (i. d. R. 10 Jahre, ärztliche Dokumentation nach § 630f BGB) in unserem Praxisverwaltungssystem gespeichert. Die Dokumentation Ihrer Einwilligung wird für denselben Zeitraum aufbewahrt, um sie auf Nachfrage vorlegen zu können.</p>
+
+<h3>Freiwilligkeit und Widerruf</h3>
+<ul>
+<li>Ihre Einwilligung ist freiwillig. Ihre Behandlung wird nicht von der Erteilung dieser Einwilligung abhängig gemacht.</li>
+<li>Sie können Ihre Einwilligung jederzeit ohne Angabe von Gründen mit Wirkung für die Zukunft widerrufen, ohne dass Ihnen daraus Nachteile entstehen. Die Rechtmäßigkeit der bis zum Widerruf erfolgten Verarbeitung bleibt hiervon unberührt.</li>
+<li>Alternativ können Sie Ihren Versichertenstatus jederzeit auf andere Weise nachweisen, z. B. durch Nachreichen der eGK im laufenden Quartal oder über das bisherige papierbasierte Ersatzverfahren.</li>
+</ul>
+
+<h3>Ihre Rechte</h3>
+<p>Ihnen stehen nach Maßgabe der gesetzlichen Voraussetzungen das Recht auf Auskunft (Art. 15 DSGVO), Berichtigung (Art. 16 DSGVO), Löschung (Art. 17 DSGVO), Einschränkung der Verarbeitung (Art. 18 DSGVO), Datenübertragbarkeit (Art. 20 DSGVO) sowie das Recht auf Beschwerde bei einer Datenschutzaufsichtsbehörde (Art. 77 DSGVO) zu.</p>
+
+<h2>3. Einwilligungserklärung</h2>
+<p>Hiermit willige ich, nachfolgend genannte(r) Patient/in, ausdrücklich und freiwillig ein, dass die Praxis in meinem Auftrag eine elektronische Ersatzbescheinigung (eEB) bei meiner gesetzlichen Krankenkasse anfordert, sofern meine elektronische Gesundheitskarte nicht vorliegt oder nicht eingelesen werden kann. Ich bestätige, dass ich über den Zweck, den Ablauf und die Datenverarbeitung gemäß Abschnitt 2 dieses Dokuments informiert wurde und diese Information verstanden habe.</p>
+
+<div class="consent-check-wrap">
+  <label><input type="checkbox" class="consent-check" data-item="einwilligung"> <strong>Ich willige ein</strong>, dass die Praxis in meinem Auftrag eine elektronische Ersatzbescheinigung (eEB) bei meiner gesetzlichen Krankenkasse anfordert.</label>
+</div>
+
+<h2>4. Widerruf (durch die Praxis auszufüllen, falls erklärt)</h2>
+<p>Der/Die Patient/in hat die vorstehende Einwilligung am ____________________ widerrufen. Der Widerruf wurde im PVS dokumentiert.</p>
+<p><em>Hinweis für das Praxisteam: Dieses Dokument ist im PVS zu hinterlegen bzw. in Papierform in der Patientenakte aufzubewahren, um die Einwilligung auf Nachfrage vorlegen zu können (Empfehlung der KBV, Anlage 4a/4b BMV-Ä).</em></p>`
+    }
   ]
 };
 

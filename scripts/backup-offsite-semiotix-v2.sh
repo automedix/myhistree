@@ -1,7 +1,7 @@
 #!/bin/bash
 # myhistree Offsite Backup → Semiotix.net (WebDAV)
 # .237: täglich volles Backup (Code + DB)
-# .190: täglich Code-Backup (keine DB, keine Patientendaten)
+# .190: täglich Code-Backup (keine DB, keine Patientendaten) — via SSH tunnel
 set -euo pipefail
 
 BACKUP_BASE="/opt/myhistree/backups"
@@ -9,6 +9,7 @@ SEMIOTIX_URL="https://semiotix.net:5006/home/russo/myhistoree-backups"
 SEMIOTIX_USER="russo"
 SEMIOTIX_PASS="26sPss27="
 RETENTION_DAYS=14
+MIN_BACKUP_SIZE=100000  # 100KB minimum for valid backup
 TS=$(date +%Y%m%d_%H%M%S)
 
 mkdir -p "$BACKUP_BASE"
@@ -36,10 +37,13 @@ else
     echo "[$TS] WARN: Prod health check failed!"
 fi
 
-# ─── 2. Backup STAGING (.190) — CODE ONLY (keine DB, keine Patientendaten) ───
-echo "[$TS] [5/6] Code backup staging (.190)..."
+# ─── 2. Backup STAGING (.190) — CODE ONLY via SSH tunnel ───
+echo "[$TS] [5/6] Code backup staging (.190 via tunnel)..."
 STAGING_CODE_TAR="/tmp/myhistoree_staging_code_$TS.tar.gz"
-tar czf "$STAGING_CODE_TAR" \
+
+# Create tar on .190 and copy back
+ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o BatchMode=yes -i /root/.ssh/id_ed25519 -p 8823 root@localhost \
+    "tar czf /tmp/staging_code_$TS.tar.gz \
     -C /opt/myhistoree \
     --exclude='data' \
     --exclude='node_modules' \
@@ -48,7 +52,10 @@ tar czf "$STAGING_CODE_TAR" \
     --exclude='*.db-shm' \
     --exclude='*.db-wal' \
     --exclude='.env' \
-    web/ server/src/ server/package.json server/tsconfig.json Dockerfile docker-compose.yml 2>/dev/null || true
+    web/ server/src/ server/package.json server/tsconfig.json Dockerfile docker-compose.yml 2>/dev/null || true"
+
+scp -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -i /root/.ssh/id_ed25519 -P 8823 \
+    root@localhost:/tmp/staging_code_$TS.tar.gz "$STAGING_CODE_TAR" 2>/dev/null || true
 
 echo "[$TS] [6/6] Uploading to Semiotix..."
 # Upload prod full backup (Code + DB)
@@ -62,6 +69,22 @@ tar czf "$PROD_FULL_TAR" \
     --exclude='.env' \
     web/ server/src/ server/package.json server/tsconfig.json Dockerfile docker-compose.yml \
     -C "$BACKUP_BASE" "myhistoree_prod_$TS.db" 2>/dev/null || true
+
+# Verify backup size before upload
+PROD_SIZE=$(stat -c%s "$PROD_FULL_TAR" 2>/dev/null || echo 0)
+STAGING_SIZE=$(stat -c%s "$STAGING_CODE_TAR" 2>/dev/null || echo 0)
+
+if [ "$PROD_SIZE" -lt "$MIN_BACKUP_SIZE" ]; then
+    echo "[$TS] ERROR: Prod backup too small ($PROD_SIZE bytes < $MIN_BACKUP_SIZE) — aborting!"
+    exit 1
+fi
+if [ "$STAGING_SIZE" -lt "$MIN_BACKUP_SIZE" ]; then
+    echo "[$TS] ERROR: Staging backup too small ($STAGING_SIZE bytes < $MIN_BACKUP_SIZE) — aborting!"
+    exit 1
+fi
+
+echo "[$TS] Prod backup size OK: $(du -h "$PROD_FULL_TAR" | cut -f1)"
+echo "[$TS] Staging backup size OK: $(du -h "$STAGING_CODE_TAR" | cut -f1)"
 
 curl -s -k --max-time 120 -u "$SEMIOTIX_USER:$SEMIOTIX_PASS" -T "$PROD_FULL_TAR" "$SEMIOTIX_URL/myhistoree_prod_full_$TS.tar.gz"
 PROD_UPLOAD=$?
