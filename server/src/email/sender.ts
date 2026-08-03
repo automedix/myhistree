@@ -634,3 +634,57 @@ h1{font-size:1.1rem;color:#1e293b;margin-bottom:12px}
     return { success: false, error: err.message || "E-Mail konnte nicht gesendet werden" };
   }
 }
+
+// ─── Send eEB Link ────────────────────────────────────────────
+export async function sendEebLinkEmail(
+  to: string,
+  pvsPatientId: string,
+  linkUrl: string,
+  patientDob: string,
+  pin?: string | null,
+  practiceName?: string,
+): Promise<{ success: boolean; messageId?: string; error?: string }> {
+  const validate = await validateEmail(to);
+  if (!validate.valid) {
+    return { success: false, error: validate.error };
+  }
+  const brand = practiceName || PRACTICE_NAME;
+
+  const pinBlock = pin
+    ? `\nSicherheit: Bitte geben Sie zusätzlich die folgende PIN ein: ${pin}\n`
+    : "";
+
+  const textBody = `Guten Tag,\n\nSie haben bei uns die elektronische Ersatzbescheinigung (eEB) angefordert. Damit wir diese in Ihrem Auftrag bei Ihrer Krankenkasse digital beantragen dürfen, benötigen wir Ihre schriftliche Einwilligung.\n\nLink zum Formular:\n${linkUrl}\n${pinBlock}\nDer Link ist für Sie persönlich bestimmt und kann nur mit Ihrem Geburtsdatum${pin ? " und der PIN" : ""} geöffnet werden.\n\nDas Formular können Sie bequem auf Ihrem Smartphone oder Computer lesen und digital unterschreiben.\n\nMit freundlichen Grüßen\nIhr Praxis-Team\n${brand}\n\n--\nDiese Nachricht wurde automatisch erstellt.\nAntworten bitte an: ${REPLY_TO}`;
+
+  const htmlBody = `<!DOCTYPE html><html lang="de"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;background:#f8fafc;margin:0;padding:20px;color:#1e293b}
+.container{max-width:480px;margin:0 auto;background:#fff;border-radius:16px;padding:32px;box-shadow:0 4px 20px rgba(0,0,0,0.08)}
+.logo{font-size:1.3rem;font-weight:700;color:#4477BB;margin-bottom:24px}
+h1{font-size:1.1rem;color:#1e293b;margin-bottom:12px}
+p{font-size:.95rem;line-height:1.6;color:#475569;margin:8px 0}
+.link-box{background:#eff6ff;border-left:4px solid #4477BB;padding:16px;border-radius:0 8px 8px 0;margin:16px 0;word-break:break-all}
+.link-box a{color:#4477BB;font-weight:600;text-decoration:none}
+.footer{margin-top:24px;padding-top:16px;border-top:1px solid #e2e8f0;font-size:.8rem;color:#94a3b8}</style></head>
+<body><div class="container"><div class="logo">${brand}</div><h1>Einwilligungserklärung eEB</h1>
+<p>Guten Tag,</p><p>Sie haben bei uns die elektronische Ersatzbescheinigung (eEB) angefordert. Damit wir diese in Ihrem Auftrag bei Ihrer Krankenkasse digital beantragen dürfen, benötigen wir Ihre schriftliche Einwilligung.</p>
+<div class="link-box"><a href="${linkUrl}">${linkUrl}</a></div>
+${pin ? `<p>Bitte geben Sie zusätzlich folgende PIN ein: <strong>${pin}</strong></p>` : ""}
+<p>Der Link ist für Sie persönlich bestimmt und kann nur mit Ihrem Geburtsdatum${pin ? " und der PIN" : ""} geöffnet werden.</p>
+<p>Das Formular können Sie bequem auf Ihrem Smartphone oder Computer lesen und digital unterschreiben.</p>
+<div class="footer"><p>Mit freundlichen Grüßen<br>Ihr Praxis-Team<br><strong>${brand}</strong></p>
+<p style="font-size:.75rem;color:#94a3b8">Diese Nachricht wurde automatisch erstellt.<br>Antworten bitte an: ${REPLY_TO}</p></div></div></body></html>`;
+
+  try {
+    const info = await transporter.sendMail({
+      from: `${FROM_NAME} <${SMTP_USER}>`,
+      to,
+      replyTo: REPLY_TO,
+      subject: `Einwilligungserklärung eEB – ${brand}`,
+      text: textBody,
+      html: htmlBody,
+    });
+    return { success: true, messageId: info.messageId };
+  } catch (err: any) {
+    return { success: false, error: err.message };
+  }
+}

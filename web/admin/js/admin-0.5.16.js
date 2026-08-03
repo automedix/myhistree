@@ -151,6 +151,9 @@ async function switchTab(tab) {
   if (tab === 'settings') loadSettings();
   if (tab === 'users') await loadUsers();
   if (tab === 'quotes') { await loadQuotes(); await loadQuoteTemplates(); }
+  if (tab === 'questionnaires') { await loadQuestionnaires(); loadQSubmissions(); }
+  if (tab === 'eeb-requests') await loadEebRequests();
+  updateEebBadge();
 }
 
 // ─── Link erstellen ─────────────────────────────────────────────
@@ -947,6 +950,9 @@ function _parseAsUTC(d) {
   if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(d)) {
     return new Date(d.replace(' ', 'T') + 'Z');
   }
+  if (/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(d)) {
+    return new Date(d.endsWith('Z') ? d : d + 'Z');
+  }
   return new Date(d);
 }
 function fmtDate(d) {
@@ -990,8 +996,7 @@ async function loadSettings() {
   html += `<div class="form-row"><div><label>Adresse</label><input type="text" id="s-address" value="${escapeHtml(settings.address || '')}" placeholder="Musterstraße 123"></div><div><label>Telefon</label><input type="text" id="s-phone" value="${escapeHtml(settings.phone || '')}" placeholder="+49 30 1234567"></div></div>`;
   html += `<div class="form-row"><div><label>PLZ</label><input type="text" id="s-postal" value="${escapeHtml(settings.postal_code || '')}" placeholder="10115"></div><div><label>Ort</label><input type="text" id="s-city" value="${escapeHtml(settings.city || '')}" placeholder="Berlin"></div></div>`;
   html += `<div class="form-row"><div><label>KIM Adresse der Praxis</label><input type="text" id="s-kim-address" value="${escapeHtml(settings.kim_address || '')}" placeholder="z.B. praxis@kim.dmg.de"></div><div></div></div>`;
-  html += `<div style="margin-top:12px;"><button class="btn btn-primary" onclick="saveSettings()">Speichern</button><span id="settings-msg-stammdaten" style="margin-left:10px;font-size:0.9rem;"></span></div>`;
-  html += `</div>`;
+ html += `</div>`;
 
   // --- SMTP-Konfiguration ---
   html += `<div class="card" style="margin-bottom:20px;">`;
@@ -1000,7 +1005,6 @@ async function loadSettings() {
   html += `<div class="form-row"><div><label>SMTP-Benutzer</label><input type="text" id="s-smtp-user" value="${escapeHtml(settings.smtp_user || '')}" placeholder="mail@praxis.de"></div><div><label>SMTP-Passwort</label><input type="password" id="s-smtp-pass" value="${escapeHtml(settings.smtp_pass || '')}"></div></div>`;
   html += `<div class="form-row"><div><label>Absendername</label><input type="text" id="s-from-name" value="${escapeHtml(settings.email_from_name || '')}" placeholder="z.B. Praxis Dr. Mustermann"></div><div><label>Reply-To</label><input type="email" id="s-reply-to" value="${escapeHtml(settings.email_reply_to || '')}" placeholder="antwort@praxis.de"></div></div>`;
   html += `<div style="margin-top:12px;display:flex;gap:12px;align-items:center;flex-wrap:wrap;">`;
-  html += `<button class="btn btn-primary" id="btn-save-settings" onclick="saveSettings()">Speichern</button>`;
   html += `<button class="btn btn-secondary" id="btn-test-email" onclick="sendTestEmail()">Test-E-Mail senden</button>`;
   html += `<span id="settings-msg" style="font-size:0.9rem;"></span>`;
   html += `</div>`;
@@ -1013,7 +1017,6 @@ async function loadSettings() {
   html += `<div class="form-row"><div><label>Name des KI-Anbieters</label><input type="text" id="s-ki-provider" value="${escapeHtml(settings.ki_provider_name || '')}" placeholder="z.B. Transkriptor"></div><div><label>KI-Produkt / Software</label><input type="text" id="s-ki-product" value="${escapeHtml(settings.ki_product_name || '')}" placeholder="z.B. Kassenaerztl. Notdienst-Shield"></div></div>`;
   html += `<div class="form-row"><div><label>Hersteller</label><input type="text" id="s-ki-manufacturer" value="${escapeHtml(settings.ki_manufacturer || '')}" placeholder="z.B. Acme Health GmbH"></div><div><label>KI-Modellanbieter</label><input type="text" id="s-ki-model" value="${escapeHtml(settings.ki_model_provider || '')}" placeholder="z.B. OpenAI Ireland Ltd."></div></div>`;
   html += `<div class="form-row"><div><label>Verarbeitungsort</label><input type="text" id="s-ki-location" value="${escapeHtml(settings.ki_processing_location || '')}" placeholder="z.B. EU-Datenzentren (Irland, Deutschland)"></div><div><label>Drittstaaten-Transfer</label><select id="s-ki-third-country"><option value="">-- Bitte waehlen --</option><option value="no" ${settings.ki_third_country_transfer === 'no' ? 'selected' : ''}>Ausserhalb EU Nein</option><option value="yes" ${settings.ki_third_country_transfer === 'yes' ? 'selected' : ''}>Ausserhalb EU Ja</option></select></div></div>`;
-  html += `<div style="margin-top:12px;"><button class="btn btn-primary" onclick="saveSettings()">Speichern</button><span id="settings-msg-ki" style="margin-left:10px;font-size:0.9rem;"></span></div>`;
   html += `</div>`;
 
   // --- Recall-Einstellungen ---
@@ -1021,10 +1024,9 @@ async function loadSettings() {
   html += `<h2>Recall-Einstellungen</h2>`;
   html += `<p style="font-size:0.85rem;color:#64748b;margin-bottom:12px;">Links, die in Recall-E-Mails eingefuegt werden.</p>`;
   html += `<div class="form-row"><div><label>Online-Rezeption URL</label><input type="url" id="s-recall-medflex" value="${escapeHtml(settings.recall_medflex_url || '')}" placeholder="https://"></div><div><label>Terminbuchungsportal URL</label><input type="url" id="s-recall-medatixx" value="${escapeHtml(settings.recall_medatixx_url || '')}" placeholder="https://"></div></div>`;
-  html += `<div style="margin-top:12px;"><button class="btn btn-primary" onclick="saveSettings()">Speichern</button><span id="settings-msg-recall" style="margin-left:10px;font-size:0.9rem;"></span></div>`;
   html += `</div>`;
 
-  // --- Passwort / TOTP ---
+  // --- Sicherheit ---
   html += `<div class="card" style="margin-bottom:20px;">`;
   html += `<h2>Sicherheit</h2>`;
   html += `<h3 style="margin-top:16px;">Passwort aendern</h3>`;
@@ -1044,15 +1046,14 @@ async function loadSettings() {
   html += `</div>`;
 
   container.innerHTML = html;
+  // Ein zentraler Speichern-Button für alle Kacheln
+  const saveBtn = document.createElement('div');
+  saveBtn.style = 'margin-top:20px;text-align:center;grid-column:1 / -1;';
+  saveBtn.innerHTML = '<button class="btn btn-primary" style="padding:12px 32px;font-size:1.1rem;" onclick="saveSettings()">Alle Einstellungen speichern</button>';
+  container.appendChild(saveBtn);
 }
 
 async function saveSettings() {
-  const btn = document.getElementById('btn-save-settings');
-  const msg = document.getElementById('settings-msg');
-  btn.disabled = true;
-  msg.textContent = 'Speichere...';
-  msg.style.color = 'var(--text-light)';
-
   const payload = {
     name: document.getElementById('s-name').value.trim(),
     email: document.getElementById('s-email').value.trim(),
@@ -1076,7 +1077,6 @@ async function saveSettings() {
     recallMedflexUrl: document.getElementById('s-recall-medflex').value.trim(),
     recallMedatixxUrl: document.getElementById('s-recall-medatixx').value.trim()
   };
-
   try {
     const res = await fetch(`${API}/practice/${CURRENT_PRACTICE}/settings`, {
       method: 'POST',
@@ -1086,18 +1086,12 @@ async function saveSettings() {
     });
     const data = await res.json();
     if (!res.ok) {
-      msg.textContent = data.error || 'Fehler beim Speichern';
-      msg.style.color = '#ef4444';
+      alert(data.error || 'Fehler beim Speichern');
     } else {
-      msg.textContent = 'Gespeichert.';
-      msg.style.color = '#16a34a';
-      setTimeout(() => { msg.textContent = ''; }, 3000);
+      alert('Gespeichert.');
     }
   } catch (e) {
-    msg.textContent = 'Netzwerkfehler.';
-    msg.style.color = '#ef4444';
-  } finally {
-    btn.disabled = false;
+    alert('Netzwerkfehler.');
   }
 }
 
@@ -1971,3 +1965,124 @@ async function deleteTemplate(id) {
     closeTemplateEditor();
   } catch(e) { alert('Fehler beim Löschen.'); }
 }
+
+// ─── eEB Anfragen ───────────────────────────────────────────────
+async function loadEebRequests() {
+  const container = document.getElementById('eeb-requests-container');
+  container.innerHTML = '<div class="spinner"></div>';
+  try {
+    const res = await fetch(`${API}/admin/eeb-requests`, { credentials: 'include' });
+    if (!res.ok) { container.innerHTML = '<div class="empty">Zugriff verweigert</div>'; return; }
+    const data = await res.json();
+    const rows = data.requests || [];
+    if (!rows.length) { container.innerHTML = '<div class="empty">Keine offenen Anfragen.</div>'; return; }
+
+    let html = '<table><thead><tr><th>Datum</th><th>Name</th><th>Geburtsdatum</th><th>Aktionen</th></tr></thead><tbody>';
+    for (const r of rows) {
+      html += '<tr>';
+      html += '<td>' + fmtDateTime(r.requested_at) + '</td>';
+      html += '<td>' + escapeHtml(r.patient_name) + '</td>';
+      html += '<td>' + escapeHtml(r.patient_dob) + '</td>';
+      html += '<td>';
+      html += '<button class="btn btn-sm btn-primary eeb-link-btn" data-request-id="' + r.id + '" data-dob="' + escapeHtml(r.patient_dob) + '">Link erstellen</button>';
+      html += ' ';
+      html += '<button class="btn btn-sm btn-secondary eeb-done-btn" data-request-id="' + r.id + '">Erledigt</button>';
+      html += '</td></tr>';
+    }
+    html += '</tbody></table>';
+    container.innerHTML = html;
+    window._eebData = data.requests || data;
+    // Event Delegation auf dem Container
+    container.addEventListener('click', function(e) {
+      const linkBtn = e.target.closest('.eeb-link-btn');
+      if (linkBtn) {
+        e.preventDefault(); e.stopPropagation();
+        createLinkFromEeb(linkBtn.getAttribute('data-request-id'), linkBtn.getAttribute('data-dob'));
+        return;
+      }
+      const doneBtn = e.target.closest('.eeb-done-btn');
+      if (doneBtn) {
+        e.preventDefault(); e.stopPropagation();
+        markEebDone(doneBtn.getAttribute('data-request-id'));
+        return;
+      }
+    });
+  } catch(e) { container.innerHTML = '<div class="empty">Fehler: ' + (e.message || e) + '</div>'; }
+}
+
+async function createLinkFromEeb(requestId, dob) {
+  const req = window._eebData && window._eebData.find(r => r.id == requestId);
+  if (!req) { alert('Anfrage nicht gefunden'); return; }
+  const pvsId = req.pvs_patient_id || prompt('PVS Patienten-ID eingeben:');
+  if (!pvsId) return;
+  const email = req.patient_email || prompt('E-Mail-Adresse eingeben:');
+  if (!email) return;
+  const res = await fetch(`${API}/link/create`, {
+    method: 'POST', headers: {'Content-Type':'application/json'}, credentials: 'include',
+    body: JSON.stringify({ practiceId: CURRENT_PRACTICE, pvsPatientId: pvsId, patientDob: dob, patientEmail: email, expiresHours: 72, documentType: 'consent_form', consentFormId: 'eeb-einwilligung' })
+  });
+  const data = await res.json();
+  if (!res.ok) { alert(data.error || 'Fehler'); return; }
+  const base = window.location.origin;
+  const url = `${base}${data.link}`;
+  const emailRes = await fetch(`${API}/link/send-email`, {
+    method: 'POST', headers: {'Content-Type':'application/json'}, credentials: 'include',
+    body: JSON.stringify({ to: email, pvsPatientId: pvsId, linkUrl: url, patientDob: dob, pin: data.pin, documentType: 'consent_form', consentFormId: 'eeb-einwilligung', practiceId: CURRENT_PRACTICE })
+  });
+  if (!emailRes.ok) { alert('Link erstellt, aber E-Mail nicht gesendet'); }
+  else { alert('eEB-Link erstellt und versendet!'); }
+  await fetch(`${API}/admin/eeb-request/${requestId}/process`, {
+    method: 'POST', headers: {'Content-Type':'application/json'}, credentials: 'include', body: '{}'
+  });
+  await loadEebRequests();
+  await updateEebBadge();
+}
+
+async function markEebDone(id) {
+  if (!confirm('Als erledigt markieren?')) return;
+  try {
+    await fetch(`${API}/admin/eeb-request/${id}/process`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, credentials: 'include', body: '{}'
+    });
+    await loadEebRequests();
+    await updateEebBadge();
+  } catch(e) { alert('Fehler'); }
+}
+
+async function updateEebBadge() {
+  try {
+    const res = await fetch(`${API}/admin/eeb-requests/count`, { credentials: 'include' });
+    if (!res.ok) return;
+    const data = await res.json();
+    const badge = document.getElementById('eeb-badge');
+    if (!badge) return;
+    if (data.count > 0) {
+      badge.textContent = data.count > 99 ? '99+' : data.count;
+      badge.classList.remove('hidden');
+    } else {
+      badge.classList.add('hidden');
+    }
+  } catch(e) { /* silent */ }
+}
+
+// Badge beim Laden aktualisieren und zyklisch prüfen
+updateEebBadge();
+setInterval(updateEebBadge, 30000);
+
+async function updateEncBadge() {
+  try {
+    const res = await fetch(`${API}/admin/encounters/count`, { credentials: 'include' });
+    if (!res.ok) return;
+    const data = await res.json();
+    const badge = document.getElementById('enc-badge-active');
+    if (!badge) return;
+    if (data.count > 0) {
+      badge.textContent = data.count > 99 ? '99+' : data.count;
+      badge.classList.remove('hidden');
+    } else {
+      badge.classList.add('hidden');
+    }
+  } catch(e) { /* silent */ }
+}
+updateEncBadge();
+setInterval(updateEncBadge, 30000);

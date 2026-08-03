@@ -2,7 +2,7 @@ import { FastifyInstance } from "fastify";
 import { db, logAudit, getAuditLog, applyRetention } from "../db/index";
 import { randomUUID } from "crypto";
 import { z } from "zod";
-import { sendAnamneseLink, sendBloodpressureLink, sendConsentFormLink, sendQuestionnaireLink, sendVerificationCodeEmail, sendVerificationEmail, validateEmail, sendDeximedInfo, getRecallTemplates, sendRecallEmail, sendQuoteLinkEmail } from "../email/sender";
+import { sendAnamneseLink, sendBloodpressureLink, sendConsentFormLink, sendQuestionnaireLink, sendVerificationCodeEmail, sendVerificationEmail, validateEmail, sendDeximedInfo, getRecallTemplates, sendRecallEmail, sendQuoteLinkEmail, sendEebLinkEmail } from "../email/sender";
 import { isValidEmailSyntax } from "../email/sender";
 
 const anamneseBody = z.record(z.any());
@@ -34,10 +34,16 @@ export default async function apiRoutes(fastify: FastifyInstance) {
     const expiresAt = isBloodpressure ? null : new Date();
     if (expiresAt) expiresAt.setHours(expiresAt.getHours() + (parseInt(expiresHours) || 24));
     const pinHash = pin ? Buffer.from(pin).toString("base64") : null;
+    // Normalize DOB to YYYY-MM-DD for consistent comparison
+    let dobNormalized = patientDob || null;
+    if (patientDob && /^\d{2}\.\d{2}\.\d{4}$/.test(patientDob)) {
+      const parts = patientDob.split('.');
+      dobNormalized = `${parts[2]}-${parts[1]}-${parts[0]}`;
+    }
 
     db.prepare(`INSERT INTO patient_links (id, token, practice_id, pvs_patient_id, patient_dob, patient_email, mobile_number, pin, status, expires_at, document_type, consent_form_id, questionnaire_slug)
                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .run(randomUUID(), token, practiceId, pvsPatientId || null, patientDob || null, patientEmail || null, mobileNumber || null, pinHash, "pending", expiresAt ? expiresAt.toISOString() : null, documentType, consentFormId || null, documentType === "questionnaire" ? (questionnaireTemplate || "phq-9") : null);
+      .run(randomUUID(), token, practiceId, pvsPatientId || null, dobNormalized, patientEmail || null, mobileNumber || null, pinHash, "pending", expiresAt ? expiresAt.toISOString() : null, documentType, consentFormId || null, documentType === "questionnaire" ? (questionnaireTemplate || "phq-9") : null);
 
     logAudit("CREATE_LINK", token, `PVS-ID: ${pvsPatientId}, Typ: ${documentType}, Slug: ${questionnaireTemplate || consentFormId || "-"}, Email: ${patientEmail || "-"}`, undefined, request.ip);
 
@@ -125,8 +131,10 @@ export default async function apiRoutes(fastify: FastifyInstance) {
     let result;
     const practiceRow = db.prepare("SELECT name FROM practices ORDER BY id ASC LIMIT 1").get() as any;
     const practiceName = practiceRow?.name || "";
-    if (documentType === "consent_form") {
-      const template = consentFormId 
+    if (documentType === "consent_form" && consentFormId === "eeb-einwilligung") {
+      result = await sendEebLinkEmail(to, pvsPatientId, linkUrl, patientDob, pin, practiceName);
+    } else if (documentType === "consent_form") {
+      const template = consentFormId
         ? db.prepare("SELECT title FROM consent_form_templates WHERE slug = ?").get(consentFormId) as any
         : null;
       result = await sendConsentFormLink(to, pvsPatientId, linkUrl, undefined, pin, template?.title, practiceName);
@@ -432,6 +440,52 @@ export default async function apiRoutes(fastify: FastifyInstance) {
   fastify.get("/consent-forms", async () => {
     const templates = db.prepare("SELECT id, slug, title, version FROM consent_form_templates ORDER BY title").all() as any[];
     return { templates };
+  });
+
+  // ─── eEB Request (Patient) ──────────────────────────────────────
+  fastify.get("/practice", async () => {
+    const practice = db.prepare("SELECT name, email, phone, address, city, postal_code, kim_address FROM practices LIMIT 1").get() as any;
+    return { practice: practice || null };
+  });
+
+  fastify.post("/eeb/request", async (request, reply) => {
+    const body = request.body as any;
+    const { patientName, patientDob } = body;
+    if (!patientName || patientName.trim().length < 3) return reply.status(400).send({ error: "Name erforderlich" });
+    if (!/^\d{2}\.\d{2}\.\d{4}$/.test(patientDob || "")) return reply.status(400).send({ error: "Geburtsdatum ungültig" });
+    // Find the first practice (for staging this is fine)
+    const practice = db.prepare("SELECT id FROM practices LIMIT 1").get() as any;
+    const practiceId = practice?.id || null;
+    db.prepare("INSERT INTO eeb_requests (patient_name, patient_dob, practice_id, requested_at) VALUES (?, ?, ?, datetime('now'))").run(
+      patientName.trim(), patientDob.trim(), practiceId
+    );
+    return { success: true };
+  });
+
+  // ─── eEB Requests (Admin) ───────────────────────────────────────
+  fastify.get("/admin/eeb-requests", { onRequest: requireAuth }, async (request, reply) => {
+    const rows = db.prepare("SELECT * FROM eeb_requests WHERE status = 'pending' ORDER BY requested_at DESC").all() as any[];
+    return { requests: rows };
+  });
+
+  fastify.get("/admin/eeb-requests/count", { onRequest: requireAuth }, async () => {
+    const count = db.prepare("SELECT COUNT(*) as c FROM eeb_requests WHERE status = 'pending'").get() as any;
+    return { count: count?.c || 0 };
+  });
+
+  fastify.get("/admin/encounters/count", { onRequest: requireAuth }, async () => {
+    const row = db.prepare("SELECT COUNT(*) as c FROM encounters WHERE status = 'completed'").get() as any;
+    return { count: row?.c || 0 };
+  });
+
+  fastify.post("/admin/eeb-request/:id/process", { onRequest: requireAuth }, async (request, reply) => {
+    const { id } = request.params as { id: string };
+    const body = request.body as any;
+    const { pvsPatientId, patientEmail, encounterId, note } = body;
+    db.prepare("UPDATE eeb_requests SET status = 'processed', pvs_patient_id = COALESCE(?, pvs_patient_id), patient_email = COALESCE(?, patient_email), encounter_id = COALESCE(?, encounter_id), note = COALESCE(?, note), processed_at = datetime('now') WHERE id = ?").run(
+      pvsPatientId || null, patientEmail || null, encounterId || null, note || null, id
+    );
+    return { success: true };
   });
 
   fastify.get("/encounter-by-token/:token", async (request, reply) => {
@@ -950,10 +1004,10 @@ export default async function apiRoutes(fastify: FastifyInstance) {
         const encounter = db.prepare("SELECT id, status FROM encounters WHERE id = ?").get(encounterId) as any;
         if (!encounter)
             return reply.status(404).send({ error: "Encounter not found" });
-        if (encounter.status === 'completed' || encounter.status === 'processed') {
+        if (encounter.status === 'processed') {
             return { success: true, message: "Already finished" };
         }
-        db.prepare("UPDATE encounters SET status = 'completed', completed_at = datetime('now') WHERE id = ?").run(encounterId);
+        db.prepare("UPDATE encounters SET status = 'processed', processed_at = datetime('now') WHERE id = ?").run(encounterId);
         logAudit("ENCOUNTER_FINISH", encounterId, "Manual finish", (request as any).user?.email, request.ip);
         return { success: true };
     });
