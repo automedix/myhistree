@@ -153,6 +153,7 @@ async function switchTab(tab) {
   if (tab === 'quotes') { await loadQuotes(); await loadQuoteTemplates(); }
   if (tab === 'questionnaires') { await loadQuestionnaires(); loadQSubmissions(); }
   if (tab === 'eeb-requests') await loadEebRequests();
+  if (tab === 'attests') await loadAttests();
   updateEebBadge();
 }
 

@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>myhistree – Atteste-Verwaltung</title>
+<style>
+  :root { --primary:#4477BB; --primary-dark:#3366AA; --bg:#f1f5f9; --card:#fff; --text:#1e293b; --text-light:#64748b; --border:#e2e8f0; --success:#22c55e; --danger:#ef4444; --radius:12px; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  html, body { overflow-x:hidden; }
+  body { font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif; background:var(--bg); color:var(--text); line-height:1.5; }
+  .container { max-width:1200px; margin:0 auto; padding:20px; }
+  header { background:var(--primary); color:#fff; padding:16px 20px; border-radius:var(--radius); margin-bottom:24px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px; }
+  header h1 { font-size:1.3rem; }
+  header a { color:#fff; text-decoration:none; font-size:0.9rem; opacity:0.9; }
+  header a:hover { opacity:1; text-decoration:underline; }
+  .card { background:var(--card); border-radius:var(--radius); padding:20px; margin-bottom:20px; box-shadow:0 2px 8px rgba(0,0,0,0.04); border:1px solid var(--border); }
+  .card h2 { font-size:1.1rem; margin-bottom:16px; color:var(--text); }
+  .form-row { display:grid; grid-template-columns:1fr 1fr; gap:12px; margin-bottom:12px; }
+  @media(max-width:600px){ .form-row { grid-template-columns:1fr; } }
+  label { font-size:0.9rem; font-weight:600; color:var(--text-light); display:block; margin-bottom:4px; }
+  input, select { width:100%; padding:10px 12px; border:2px solid var(--border); border-radius:8px; font-size:0.95rem; font-family:inherit; }
+  input:focus, select:focus { outline:none; border-color:var(--primary); }
+  .btn { padding:10px 18px; border-radius:8px; font-size:0.95rem; font-weight:600; border:none; cursor:pointer; }
+  .btn-primary { background:var(--primary); color:#fff; }
+  .btn-primary:hover { background:var(--primary-dark); }
+  .btn-secondary { background:var(--bg); color:var(--text); border:2px solid var(--border); }
+  .btn-sm { padding:6px 12px; font-size:0.8rem; }
+  .badge { display:inline-block; padding:3px 8px; border-radius:4px; font-size:0.75rem; font-weight:600; }
+  .badge-completed { background:#dcfce7; color:#166534; }
+  .badge-pending { background:#fee2e2; color:#991b1b; }
+  table { width:100%; border-collapse:collapse; font-size:0.9rem; }
+  th, td { text-align:left; padding:10px; border-bottom:1px solid var(--border); }
+  th { font-weight:600; color:var(--text-light); font-size:0.8rem; text-transform:uppercase; letter-spacing:0.5px; }
+  tr:hover { background:#f8fafc; }
+  .empty { text-align:center; padding:40px; color:var(--text-light); }
+  .spinner { width:24px; height:24px; border:3px solid var(--border); border-top-color:var(--primary); border-radius:50%; animation:spin .8s linear infinite; margin:20px auto; }
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .toast { position:fixed; bottom:20px; right:20px; background:#1e293b; color:#fff; padding:10px 16px; border-radius:6px; font-size:0.85rem; opacity:0; transition:opacity 0.3s; z-index:1000; }
+  .toast.show { opacity:1; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h1>Atteste-Verwaltung</h1>
+    <div>
+      <a href="/admin/">← Zurück zum Dashboard</a>
+    </div>
+  </header>
+
+  <div class="card">
+    <h2>Attest hochladen</h2>
+    <div class="form-row">
+      <div><label>Titel / Beschreibung</label><input type="text" id="attest-title" placeholder="z.B. Arbeitsunfähigkeitsbescheinigung"></div>
+      <div><label>Betrag (Cent)</label><input type="number" id="attest-amount" placeholder="2500 = 25,00 €" min="0"></div>
+    </div>
+    <div class="form-row">
+      <div><label>Vorname *</label><input type="text" id="attest-firstname" placeholder="Vorname"></div>
+      <div><label>Nachname *</label><input type="text" id="attest-lastname" placeholder="Nachname"></div>
+    </div>
+    <div class="form-row">
+      <div><label>Geburtsdatum *</label><input type="text" id="attest-dob" placeholder="tt.mm.jjjj" maxlength="10" autocomplete="off"></div>
+      <div><label>PDF-Datei *</label><input type="file" id="attest-file" accept="application/pdf"></div>
+    </div>
+    <button class="btn btn-primary" onclick="submitAttest()">Speichern</button>
+  </div>
+
+  <div class="card">
+    <h2>Vorhandene Atteste</h2>
+    <div id="attests-table-container"><div class="spinner"></div></div>
+  </div>
+</div>
+
+<div id="toast" class="toast"></div>
+
+<script src="attests.js"></script>
+</body>
+</html>

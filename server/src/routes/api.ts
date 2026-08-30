@@ -1391,4 +1391,114 @@ export default async function apiRoutes(fastify: FastifyInstance) {
         logAudit("QUOTE_TEMPLATE_DELETED", id, undefined, (request as any).user?.email, request.ip);
         return { success: true };
     });
+
+    // === ATTESTS ======================================================
+    fastify.post("/admin/attests", { onRequest: requireAuth }, async (request, reply) => {
+        const body = request.body as any;
+        const practice = db.prepare("SELECT id FROM practices WHERE id = ?").get(body.practiceId || 1) as { id: number } | undefined;
+        if (!practice) return reply.status(404).send({ error: "Practice not found" });
+
+        const id = randomUUID().replace(/-/g, "");
+        const fileKey = randomUUID().replace(/-/g, "");
+        const status = (body.amountCents || 0) === 0 ? "free" : "pending_payment";
+
+        db.prepare(`INSERT INTO attests (id, practice_id, title, amount_cents, currency, encrypted_key, blob_path, status, patient_dob, patient_firstname, patient_lastname, patient_address, attest_content, signer_name, signature_data, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`)
+            .run(id, practice.id, body.title || "Attest", body.amountCents || 0, body.currency || "EUR",
+                fileKey, "/app/data/blobs/" + id + ".bin", status,
+                body.patientDob || null, body.patientFirstname || null, body.patientLastname || null,
+                body.patientAddress || null, body.attestContent || null, body.signerName || null, body.signatureData || null);
+
+        // Store blob if file_b64 provided
+        if (body.file_b64) {
+            const fs = require("fs");
+            const path = require("path");
+            const blobDir = "/app/data/blobs";
+            if (!fs.existsSync(blobDir)) fs.mkdirSync(blobDir, { recursive: true });
+            const raw = Buffer.from(body.file_b64, "base64");
+            const keyBuf = Buffer.from(fileKey, "hex");
+            const encrypted = raw.map((b: number, i: number) => b ^ keyBuf[i % keyBuf.length]);
+            fs.writeFileSync("/app/data/blobs/" + id + ".bin", encrypted);
+        }
+
+        logAudit("ATTEST_CREATED", id, body.title, (request as any).user?.email, request.ip);
+        return { id, status, checkoutUrl: null };
+    });
+
+    fastify.get("/admin/attests", { onRequest: requireAuth }, async (request) => {
+        const rows = db.prepare("SELECT id, title, amount_cents, status, patient_firstname, patient_lastname, created_at FROM attests ORDER BY created_at DESC LIMIT 200").all();
+        return { items: rows };
+    });
+
+    fastify.get("/admin/attests/:id", { onRequest: requireAuth }, async (request, reply) => {
+        const { id } = request.params as any;
+        const row = db.prepare("SELECT id, title, amount_cents, status, patient_dob, patient_firstname, patient_lastname, patient_address, attest_content, signer_name, signature_data, created_at, paid_at, checkout_id, checkout_url, checkout_status FROM attests WHERE id = ?").get(id) as any;
+        if (!row) return reply.status(404).send({ error: "Attest not found" });
+        return row;
+    });
+
+    fastify.get("/admin/attests/:id/download", { onRequest: requireAuth }, async (request, reply) => {
+        const { id } = request.params as any;
+        const row = db.prepare("SELECT blob_path, encrypted_key FROM attests WHERE id = ?").get(id) as any;
+        if (!row || !row.blob_path) return reply.status(404).send({ error: "Attest file not found" });
+        const fs = require("fs");
+        const path = require("path");
+        if (!fs.existsSync(row.blob_path)) return reply.status(404).send({ error: "Blob file missing" });
+        const encrypted = fs.readFileSync(row.blob_path);
+        const keyBuf = Buffer.from(row.encrypted_key, "hex");
+        const decrypted = encrypted.map((b: number, i: number) => b ^ keyBuf[i % keyBuf.length]);
+        reply.header("Content-Type", "application/pdf");
+        reply.header("Content-Disposition", `inline; filename="attest_${id}.pdf"`);
+        return reply.send(decrypted);
+    });
+
+    fastify.post("/attests/:id/verify-dob", async (request, reply) => {
+        const { id } = request.params as any;
+        const body = request.body as any;
+        const row = db.prepare("SELECT patient_dob FROM attests WHERE id = ?").get(id) as any;
+        if (!row) return reply.status(404).send({ error: "Not found" });
+        if (!row.patient_dob || !body.dob) return reply.status(400).send({ error: "DOB required" });
+        const normalizeDob = (d: string) => d.replace(/\./g, "-");
+        if (normalizeDob(row.patient_dob) !== normalizeDob(body.dob)) return reply.status(403).send({ error: "Incorrect DOB" });
+        return { ok: true };
+    });
+
+    fastify.get("/attests/:id/status", async (request, reply) => {
+        const { id } = request.params as any;
+        const row = db.prepare("SELECT status FROM attests WHERE id = ?").get(id) as any;
+        if (!row) return reply.status(404).send({ error: "Not found" });
+        return { status: row.status };
+    });
+
+    fastify.post("/attests/:id/simulate-pay", async (request, reply) => {
+        const { id } = request.params as any;
+        db.prepare("UPDATE attests SET status = 'paid', paid_at = datetime('now') WHERE id = ?").run(id);
+        return { ok: true };
+    });
+
+    fastify.post("/attests/:id/unlock", async (request, reply) => {
+        const { id } = request.params as any;
+        const row = db.prepare("SELECT encrypted_key, blob_path FROM attests WHERE id = ? AND status IN ('paid','free')").get(id) as any;
+        if (!row) return reply.status(403).send({ error: "Payment required" });
+        const token = randomUUID().replace(/-/g, "");
+        db.prepare("INSERT INTO download_tokens (token, doc_id, doc_type, file_key) VALUES (?, ?, 'attest', ?)").run(token, id, row.encrypted_key);
+        return { ok: true, downloadUrl: `/api/attests/${id}/download?token=${token}` };
+    });
+
+    fastify.get("/attests/:id/download", async (request, reply) => {
+        const { id } = request.params as any;
+        const { token } = request.query as any;
+        const trow = db.prepare("SELECT file_key FROM download_tokens WHERE token = ? AND doc_id = ? AND doc_type = 'attest'").get(token, id) as any;
+        if (!trow) return reply.status(403).send({ error: "Invalid or expired token" });
+        const row = db.prepare("SELECT blob_path, encrypted_key FROM attests WHERE id = ?").get(id) as any;
+        if (!row || !row.blob_path) return reply.status(404).send({ error: "File not found" });
+        const fs = require("fs");
+        if (!fs.existsSync(row.blob_path)) return reply.status(404).send({ error: "Blob missing" });
+        const encrypted = fs.readFileSync(row.blob_path);
+        const keyBuf = Buffer.from(row.encrypted_key, "hex");
+        const decrypted = encrypted.map((b: number, i: number) => b ^ keyBuf[i % keyBuf.length]);
+        reply.header("Content-Type", "application/pdf");
+        reply.header("Content-Disposition", `attachment; filename="attest_${id}.pdf"`);
+        return reply.send(decrypted);
+    });
 }
