@@ -45,6 +45,23 @@
       <div id="sumup-button"></div>
     </div>
     <div id="payment-error" class="error hidden"></div>
+    
+    <!-- Fallback for adblockers / Brave -->
+    <div id="payment-fallback" class="hidden" style="margin-top:1.5rem;padding-top:1rem;border-top:1px solid #e5e7eb;">
+      <p style="font-size:0.875rem;color:#6b7280;text-align:center;">
+        Falls die Zahlung nicht lädt, deaktivieren Sie bitte Ihren Adblocker (Brave Shields, uBlock Origin) für diese Seite und laden neu.
+      </p>
+      <p style="font-size:0.875rem;color:#6b7280;text-align:center;margin-top:0.5rem;">
+        Alternativ können Sie auch per Überweisung zahlen:
+      </p>
+      <div style="background:#f9fafb;padding:0.75rem;border-radius:8px;margin-top:0.5rem;font-size:0.875rem;">
+        <strong>Betrag:</strong> <span id="fallback-amount">5,00 EUR</span><br>
+        <strong>Verwendungszweck:</strong> <span id="fallback-ref">Attest</span>
+      </div>
+      <button onclick="checkPaymentStatusManual()" style="margin-top:1rem;background:#6b7280;">
+        Ich habe bereits bezahlt — Status prüfen
+      </button>
+    </div>
   </div>
   
   <!-- Step 3: Download -->
@@ -301,6 +318,25 @@ async function downloadAttest() {
   } catch (e) {
     show('step-error');
     document.getElementById('error-message').textContent = e.message;
+  }
+}
+
+async function checkPaymentStatusManual() {
+  show('step-loading');
+  try {
+    const res = await fetch(`${API}/attests/${ATTEST_ID}/public`);
+    const data = await res.json().catch(() => ({}));
+    if (!data.requiresPayment) {
+      show('step-download');
+    } else {
+      show('step-payment');
+      document.getElementById('payment-error').textContent = 'Zahlung noch nicht bestätigt. Bitte versuchen Sie es in wenigen Minuten erneut.';
+      document.getElementById('payment-error').classList.remove('hidden');
+    }
+  } catch (e) {
+    show('step-payment');
+    document.getElementById('payment-error').textContent = 'Status konnte nicht geprüft werden.';
+    document.getElementById('payment-error').classList.remove('hidden');
   }
 }
 
