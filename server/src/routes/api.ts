@@ -1395,7 +1395,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
     // === ATTESTS ======================================================
     fastify.post("/admin/attests", { onRequest: requireAuth }, async (request, reply) => {
         const body = request.body as any;
-        const practice = db.prepare("SELECT id FROM practices WHERE id = ?").get(body.practiceId || 1) as { id: number } | undefined;
+        const practice = db.prepare("SELECT id FROM practices WHERE id = ?").get(body.practiceId || 'demo-practice') as { id: number } | undefined;
         if (!practice) return reply.status(404).send({ error: "Practice not found" });
 
         const id = randomUUID().replace(/-/g, "");

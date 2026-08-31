@@ -8,7 +8,7 @@ import { initSchema, ensurePracticeDefaults } from "./db/index";
 import apiRoutes from "./routes/api";
 import { registerAuthRoutes, ensureDefaultAdmin } from "./routes/auth";
 
-const app = fastify({ logger: true });
+const app = fastify({ logger: true, bodyLimit: 10 * 1024 * 1024 });
 const PORT = Number(process.env.PORT || 3456);
 
 initSchema();
