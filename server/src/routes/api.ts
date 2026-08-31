@@ -1491,7 +1491,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
     // ─── Patient-Facing Attest Flow ─────────────────────────────────
 
     // Step 1: Get public attest info (no auth)
-    fastify.get("/attests/:id/public", async (request, reply) => {
+    fastify.get("/patient/attests/:id/public", async (request, reply) => {
         const { id } = request.params as any;
         const row = db.prepare("SELECT id, title, amount_cents, currency, status, patient_dob, patient_firstname, patient_lastname FROM attests WHERE id = ?").get(id) as any;
         if (!row) return reply.status(404).send({ error: "Attest not found" });
@@ -1507,7 +1507,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
     });
 
     // Step 2: Verify DOB → get a patient session token
-    fastify.post("/attests/:id/verify", async (request, reply) => {
+    fastify.post("/patient/attests/:id/verify", async (request, reply) => {
         const { id } = request.params as any;
         const { dob } = request.body as any;
         if (!dob) return reply.status(400).send({ error: "DOB required" });
@@ -1536,7 +1536,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
     });
 
     // Step 3: Create SumUp checkout (requires patient session)
-    fastify.post("/attests/:id/checkout", async (request, reply) => {
+    fastify.post("/patient/attests/:id/checkout", async (request, reply) => {
         const { id } = request.params as any;
         const { sessionToken } = request.body as any;
         
@@ -1576,7 +1576,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
                     currency,
                     description: row.title || "Attest",
                     return_url: returnUrl,
-                    merchant_code: process.env.SUMUP_MERCHANT_CODE || undefined
+                    merchant_code: 'MFQZSVGU',
                 })
             });
             const sumupData = await sumupRes.json().catch(() => ({})) as any;
@@ -1622,7 +1622,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
     });
 
     // Step 5: Patient download after payment (with session token)
-    fastify.post("/attests/:id/download", async (request, reply) => {
+    fastify.post("/patient/attests/:id/download", async (request, reply) => {
         const { id } = request.params as any;
         const { sessionToken } = request.body as any;
         
