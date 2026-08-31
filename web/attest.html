@@ -78,6 +78,26 @@ let sessionToken = localStorage.getItem(SESSION_KEY) || params.get('token');
 let attestData = null;
 let checkoutId = null;
 
+// Load SumUp SDK with retry
+function loadSumUpSDK(retries = 50) {
+  return new Promise((resolve, reject) => {
+    if (window.SumUp && window.SumUp.SwiftCheckout) {
+      resolve(window.SumUp);
+      return;
+    }
+    let attempts = 0;
+    const interval = setInterval(() => {
+      if (window.SumUp && window.SumUp.SwiftCheckout) {
+        clearInterval(interval);
+        resolve(window.SumUp);
+      } else if (++attempts >= retries) {
+        clearInterval(interval);
+        reject(new Error('SumUp SDK nicht geladen. Mögliche Ursachen: Script-Blocker (Brave Shields, Adblocker) oder langsame Verbindung.'));
+      }
+    }, 100);
+  });
+}
+
 function show(id) {
   document.querySelectorAll('#card > div').forEach(el => el.classList.add('hidden'));
   document.getElementById(id).classList.remove('hidden');
@@ -170,14 +190,10 @@ async function checkPaymentAndShow(verifyData) {
 async function showPayment(data) {
   show('step-payment');
   
-  // Initialize SumUp Swift Checkout
-  if (!window.SumUp || !window.SumUp.SwiftCheckout) {
-    document.getElementById('payment-error').textContent = 'Zahlungs-Widget nicht verfügbar. Bitte laden Sie die Seite neu.';
-    document.getElementById('payment-error').classList.remove('hidden');
-    return;
-  }
-  
   try {
+    // Wait for SumUp SDK to load (with retry)
+    const SumUp = await loadSumUpSDK(100); // 10 seconds max
+    
     // Create checkout on backend
     const checkoutRes = await fetch(`${API}/attests/${ATTEST_ID}/checkout`, {
       method: 'POST',
@@ -200,7 +216,7 @@ async function showPayment(data) {
     checkoutId = checkoutData.checkoutId;
     
     // Initialize SumUp SDK
-    const swiftCheckoutClient = new window.SumUp.SwiftCheckout(PUBLIC_SUMUP_KEY);
+    const swiftCheckoutClient = new SumUp.SwiftCheckout(PUBLIC_SUMUP_KEY);
     
     // Create payment request
     const amount = ((data.amountCents || 500) / 100).toFixed(2);
@@ -245,7 +261,14 @@ async function showPayment(data) {
       .mount("#sumup-button");
       
   } catch (e) {
-    document.getElementById('payment-error').textContent = 'Fehler beim Initialisieren: ' + e.message;
+    document.getElementById('payment-error').innerHTML = 
+      '<strong>Fehler:</strong> ' + e.message + 
+      '<br><br>Tipp: <ul style="text-align:left;font-size:0.875rem;">' +
+      '<li>Brave Browser: SumUp-Script wird blockiert</li>' +
+      '<li>Firefox: Privacy-Badger oder uBlock Origin deaktivieren</li>' +
+      '<li>Chrome: Adblocker prüfen</li>' +
+      '</ul>' +
+      '<button onclick="location.reload()" style="margin-top:0.5rem;">Seite neu laden</button>';
     document.getElementById('payment-error').classList.remove('hidden');
   }
 }
