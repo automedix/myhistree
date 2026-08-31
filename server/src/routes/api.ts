@@ -1651,6 +1651,35 @@ export default async function apiRoutes(fastify: FastifyInstance) {
         }
     });
 
+    // Step 3c: Simulate payment (Staging/Test only)
+    fastify.post("/patient/attests/:id/simulate-payment", async (request, reply) => {
+        const { id } = request.params as any;
+        const { sessionToken } = request.body as any;
+        
+        // Only allow on staging/development
+        const allowedHosts = ['localhost', '127.0.0.1', 'myhistree.automedix.de', 'staging'];
+        const host = request.headers.host || '';
+        const isStaging = allowedHosts.some(h => host.includes(h));
+        if (!isStaging) {
+            return reply.status(403).send({ error: "Simulation only allowed on staging" });
+        }
+        
+        // Validate session
+        const session = db.prepare("SELECT * FROM download_tokens WHERE token = ? AND doc_id = ? AND doc_type = 'patient_session'").get(sessionToken, id) as any;
+        if (!session) return reply.status(403).send({ error: "Invalid or expired session" });
+        
+        const row = db.prepare("SELECT id, status FROM attests WHERE id = ?").get(id) as any;
+        if (!row) return reply.status(404).send({ error: "Attest not found" });
+        if (row.status === 'paid' || row.status === 'free') {
+            return { ok: true, paid: true, simulated: true };
+        }
+        
+        // Simulate payment: update DB directly
+        db.prepare("UPDATE attests SET status = 'paid', paid_at = datetime('now'), checkout_status = 'simulated' WHERE id = ?").run(id);
+        
+        return { ok: true, paid: true, simulated: true };
+    });
+
     // Step 4: SumUp webhook
     fastify.post("/attests/sumup-webhook", async (request, reply) => {
         const body = request.body as any;

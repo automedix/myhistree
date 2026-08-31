@@ -47,6 +47,17 @@
     </div>
     <div id="payment-error" class="error hidden"></div>
     
+    <!-- Staging: Simulierte Zahlung -->
+    <div id="staging-simulate" class="hidden" style="margin-top:1.5rem;padding-top:1rem;border-top:2px dashed #f59e0b;">
+      <p style="font-size:0.875rem;color:#92400e;text-align:center;font-weight:600;">🧪 Test-Modus (Staging)</p>
+      <p style="font-size:0.875rem;color:#6b7280;text-align:center;margin-top:0.5rem;">
+        Apple Pay / Google Pay sind erst nach Domain-Verifikation auf Prod verfügbar.
+      </p>
+      <button onclick="simulatePayment()" style="margin-top:0.75rem;background:#f59e0b;color:#fff;border:none;">
+        🧪 Zahlung simulieren (Test)
+      </button>
+    </div>
+    
     <!-- Fallback for adblockers / Brave -->
     <div id="payment-fallback" class="hidden" style="margin-top:1.5rem;padding-top:1rem;border-top:1px solid #e5e7eb;">
       <p style="font-size:0.875rem;color:#6b7280;text-align:center;">
@@ -207,6 +218,12 @@ async function checkPaymentAndShow(verifyData) {
 
 async function showPayment(data) {
   show('step-payment');
+  
+  // Staging: Show test simulation button
+  if (window.location.hostname.includes('automedix') || window.location.hostname.includes('staging')) {
+    const simDiv = document.getElementById('staging-simulate');
+    if (simDiv) simDiv.classList.remove('hidden');
+  }
 }
 
 async function startSumUpPayment() {
@@ -336,6 +353,28 @@ async function processPayment(paymentMethod, checkoutId) {
   } catch (e) {
     show('step-payment');
     document.getElementById('payment-error').textContent = 'Zahlung fehlgeschlagen: ' + e.message;
+    document.getElementById('payment-error').classList.remove('hidden');
+  }
+}
+
+async function simulatePayment() {
+  show('step-loading');
+  try {
+    const res = await fetch(`${API}/attests/${ATTEST_ID}/simulate-payment`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sessionToken })
+    });
+    const data = await res.json().catch(() => ({}));
+    
+    if (res.ok && data.ok) {
+      show('step-download');
+    } else {
+      throw new Error(data.error || 'Simulation fehlgeschlagen');
+    }
+  } catch (e) {
+    show('step-payment');
+    document.getElementById('payment-error').textContent = 'Test-Zahlung fehlgeschlagen: ' + e.message;
     document.getElementById('payment-error').classList.remove('hidden');
   }
 }
