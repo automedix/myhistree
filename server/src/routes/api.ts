@@ -1488,6 +1488,165 @@ export default async function apiRoutes(fastify: FastifyInstance) {
         return { ok: true, downloadUrl: `/api/attests/${id}/download?token=${token}` };
     });
 
+    // ─── Patient-Facing Attest Flow ─────────────────────────────────
+
+    // Step 1: Get public attest info (no auth)
+    fastify.get("/attests/:id/public", async (request, reply) => {
+        const { id } = request.params as any;
+        const row = db.prepare("SELECT id, title, amount_cents, currency, status, patient_dob, patient_firstname, patient_lastname FROM attests WHERE id = ?").get(id) as any;
+        if (!row) return reply.status(404).send({ error: "Attest not found" });
+        return {
+            id: row.id,
+            title: row.title,
+            amountCents: row.amount_cents,
+            currency: row.currency,
+            requiresPayment: row.status !== 'free' && row.amount_cents > 0,
+            patientFirstname: row.patient_firstname,
+            patientLastname: row.patient_lastname
+        };
+    });
+
+    // Step 2: Verify DOB → get a patient session token
+    fastify.post("/attests/:id/verify", async (request, reply) => {
+        const { id } = request.params as any;
+        const { dob } = request.body as any;
+        if (!dob) return reply.status(400).send({ error: "DOB required" });
+        
+        const row = db.prepare("SELECT patient_dob, status, amount_cents FROM attests WHERE id = ?").get(id) as any;
+        if (!row) return reply.status(404).send({ error: "Attest not found" });
+        
+        // Normalize DOB comparison (accept DD.MM.YYYY or YYYY-MM-DD)
+        const normalizeDob = (d: string) => d.replace(/\D/g, '');
+        if (normalizeDob(row.patient_dob) !== normalizeDob(dob)) {
+            return reply.status(403).send({ error: "Incorrect date of birth" });
+        }
+        
+        // Create a time-limited patient session
+        const sessionToken = randomUUID().replace(/-/g, "");
+        const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString(); // 30 min
+        db.prepare("INSERT INTO download_tokens (token, doc_id, doc_type, file_key, created_at) VALUES (?, ?, 'patient_session', ?, ?)")
+            .run(sessionToken, id, '', expiresAt);
+        
+        return {
+            sessionToken,
+            requiresPayment: row.status !== 'free' && row.amount_cents > 0,
+            amountCents: row.amount_cents,
+            currency: row.currency || 'EUR'
+        };
+    });
+
+    // Step 3: Create SumUp checkout (requires patient session)
+    fastify.post("/attests/:id/checkout", async (request, reply) => {
+        const { id } = request.params as any;
+        const { sessionToken } = request.body as any;
+        
+        // Validate session
+        const session = db.prepare("SELECT * FROM download_tokens WHERE token = ? AND doc_id = ? AND doc_type = 'patient_session'").get(sessionToken, id) as any;
+        if (!session) return reply.status(403).send({ error: "Invalid or expired session" });
+        
+        const row = db.prepare("SELECT id, title, amount_cents, currency, status FROM attests WHERE id = ?").get(id) as any;
+        if (!row) return reply.status(404).send({ error: "Attest not found" });
+        if (row.status === 'free' || row.amount_cents === 0) {
+            // No payment needed, mark as paid
+            db.prepare("UPDATE attests SET status = 'free', paid_at = datetime('now') WHERE id = ?").run(id);
+            return { ok: true, paid: true };
+        }
+        if (row.status === 'paid') {
+            return { ok: true, paid: true };
+        }
+        
+        const sumupKey = process.env.SUMUP_PRIVATE_KEY || '';
+        if (!sumupKey) return reply.status(500).send({ error: "Payment provider not configured" });
+        
+        const checkoutRef = `attest-${id}-${Date.now()}`;
+        const amount = (row.amount_cents / 100).toFixed(2);
+        const currency = row.currency || 'EUR';
+        const returnUrl = `${process.env.URL_BASE || ''}/attest.html?id=${id}`;
+        
+        try {
+            const sumupRes = await fetch("https://api.sumup.com/v0/checkouts", {
+                method: "POST",
+                headers: {
+                    "Authorization": `Bearer ${sumupKey}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    checkout_reference: checkoutRef,
+                    amount,
+                    currency,
+                    description: row.title || "Attest",
+                    return_url: returnUrl,
+                    merchant_code: process.env.SUMUP_MERCHANT_CODE || undefined
+                })
+            });
+            const sumupData = await sumupRes.json().catch(() => ({}));
+            if (!sumupRes.ok) {
+                console.error("SumUp error:", sumupData);
+                return reply.status(502).send({ error: "Payment provider error", detail: sumupData });
+            }
+            
+            // Store checkout info
+            db.prepare("UPDATE attests SET checkout_id = ?, checkout_url = ?, checkout_status = 'pending' WHERE id = ?")
+                .run(sumupData.id || checkoutRef, sumupData.checkout_url || null, id);
+            
+            return {
+                ok: true,
+                paid: false,
+                checkoutUrl: sumupData.checkout_url || null,
+                checkoutId: sumupData.id || checkoutRef
+            };
+        } catch (e: any) {
+            console.error("SumUp request failed:", e);
+            return reply.status(502).send({ error: "Payment request failed" });
+        }
+    });
+
+    // Step 4: SumUp webhook
+    fastify.post("/attests/sumup-webhook", async (request, reply) => {
+        const body = request.body as any;
+        const checkoutId = body?.checkout_id || body?.id;
+        const status = body?.status;
+        
+        if (!checkoutId) return reply.status(400).send({ error: "Missing checkout_id" });
+        
+        const row = db.prepare("SELECT id FROM attests WHERE checkout_id = ?").get(checkoutId) as any;
+        if (!row) return reply.status(404).send({ error: "Checkout not found" });
+        
+        if (status === 'PAID' || status === 'paid' || status === 'SUCCESS') {
+            db.prepare("UPDATE attests SET status = 'paid', paid_at = datetime('now'), checkout_status = 'paid' WHERE id = ?").run(row.id);
+        } else {
+            db.prepare("UPDATE attests SET checkout_status = ? WHERE id = ?").run(status, row.id);
+        }
+        
+        return { ok: true };
+    });
+
+    // Step 5: Patient download after payment (with session token)
+    fastify.post("/attests/:id/download", async (request, reply) => {
+        const { id } = request.params as any;
+        const { sessionToken } = request.body as any;
+        
+        // Validate patient session
+        const session = db.prepare("SELECT * FROM download_tokens WHERE token = ? AND doc_id = ? AND doc_type = 'patient_session'").get(sessionToken, id) as any;
+        if (!session) return reply.status(403).send({ error: "Invalid or expired session" });
+        
+        const row = db.prepare("SELECT blob_path, encrypted_key, status FROM attests WHERE id = ?").get(id) as any;
+        if (!row || !row.blob_path) return reply.status(404).send({ error: "File not found" });
+        if (row.status !== 'paid' && row.status !== 'free') {
+            return reply.status(402).send({ error: "Payment required" });
+        }
+        
+        const fs = require("fs");
+        if (!fs.existsSync(row.blob_path)) return reply.status(404).send({ error: "Blob missing" });
+        const encrypted = fs.readFileSync(row.blob_path);
+        const keyBuf = Buffer.from(row.encrypted_key, "hex");
+        const decrypted = encrypted.map((b: number, i: number) => b ^ keyBuf[i % keyBuf.length]);
+        reply.header("Content-Type", "application/pdf");
+        reply.header("Content-Disposition", `inline; filename="attest_${id}.pdf"`);
+        return reply.send(decrypted);
+    });
+
+
     fastify.get("/attests/:id/download", async (request, reply) => {
         const { id } = request.params as any;
         const { token } = request.query as any;
@@ -1505,14 +1664,12 @@ export default async function apiRoutes(fastify: FastifyInstance) {
         return reply.send(decrypted);
     });
 
-    // Admin: create token-based download link for patient sharing
+    // Admin: create patient-facing link for attest
     fastify.post("/admin/attests/:id/link", { onRequest: requireAuth }, async (request, reply) => {
         const { id } = request.params as any;
-        const row = db.prepare("SELECT encrypted_key FROM attests WHERE id = ?").get(id) as any;
+        const row = db.prepare("SELECT encrypted_key, amount_cents, status FROM attests WHERE id = ?").get(id) as any;
         if (!row) return reply.status(404).send({ error: "Attest not found" });
-        const token = randomUUID().replace(/-/g, "");
-        db.prepare("INSERT INTO download_tokens (token, doc_id, doc_type, file_key) VALUES (?, ?, 'attest', ?)").run(token, id, row.encrypted_key);
-        const url = `${process.env.BASE_URL || process.env.URL_BASE || ''}/api/attests/${id}/download?token=${token}`;
-        return { url, token };
+        const url = `${process.env.BASE_URL || process.env.URL_BASE || ''}/attest.html?id=${id}`;
+        return { url };
     });
 }
