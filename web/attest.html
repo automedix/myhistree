@@ -41,8 +41,9 @@
     <p class="pay-info">Um das Attest herunterzuladen, bezahlen Sie bitte:</p>
     <div class="amount" id="amount-display">5,00 EUR</div>
     <div id="sumup-container">
-      <!-- SumUp Button will be rendered here -->
-      <div id="sumup-button"></div>
+      <button id="btn-pay" onclick="startSumUpPayment()" style="background:#000;color:#fff;font-size:1.125rem;padding:1rem;">
+        💳 Jetzt bezahlen
+      </button>
     </div>
     <div id="payment-error" class="error hidden"></div>
     
@@ -206,6 +207,11 @@ async function checkPaymentAndShow(verifyData) {
 
 async function showPayment(data) {
   show('step-payment');
+}
+
+async function startSumUpPayment() {
+  const btn = document.getElementById('btn-pay');
+  if (btn) btn.disabled = true;
   
   try {
     // Wait for SumUp SDK to load (with retry)
@@ -227,6 +233,7 @@ async function showPayment(data) {
     if (!checkoutData.checkoutId) {
       document.getElementById('payment-error').textContent = checkoutData.error || 'Checkout konnte nicht erstellt werden.';
       document.getElementById('payment-error').classList.remove('hidden');
+      if (btn) btn.disabled = false;
       return;
     }
     
@@ -236,29 +243,32 @@ async function showPayment(data) {
     const swiftCheckoutClient = new SumUp.SwiftCheckout(PUBLIC_SUMUP_KEY);
     
     // Create payment request
-    const amount = ((data.amountCents || 500) / 100).toFixed(2);
+    const amount = ((attestData.amountCents || 500) / 100).toFixed(2);
     const paymentRequest = swiftCheckoutClient.paymentRequest({
       countryCode: "DE",
       locale: "de-DE",
       total: {
-        label: data.title || "Attest",
-        amount: { currency: data.currency || "EUR", value: amount },
+        label: attestData.title || "Attest",
+        amount: { currency: attestData.currency || "EUR", value: amount },
       },
     });
     
-    // Build and mount payment element
-    const paymentElement = swiftCheckoutClient.elements()
-      .create('payment', {
-        paymentRequest: paymentRequest,
-        onChange: (event) => {
-          if (event.complete) {
-            // Payment authorized, send to backend
-            processPayment(event.paymentMethod, checkoutId);
-          }
-        }
-      })
-      .mount("#sumup-button");
-      
+    // Check if payment is possible
+    const canPay = await paymentRequest.canMakePayment();
+    if (!canPay) {
+      document.getElementById('payment-error').innerHTML = 
+        'Keine Zahlungsmethode verfügbar.<br>Bitte stellen Sie sicher, dass Apple Pay oder Google Pay eingerichtet ist.';
+      document.getElementById('payment-error').classList.remove('hidden');
+      if (btn) btn.disabled = false;
+      return;
+    }
+    
+    // Show payment dialog
+    const paymentResponse = await paymentRequest.show();
+    
+    // Process payment
+    await processPayment(paymentResponse, checkoutId);
+    
   } catch (e) {
     document.getElementById('payment-error').innerHTML = 
       '<strong>Fehler:</strong> ' + e.message + 
@@ -269,6 +279,7 @@ async function showPayment(data) {
       '</ul>' +
       '<button onclick="location.reload()" style="margin-top:0.5rem;">Seite neu laden</button>';
     document.getElementById('payment-error').classList.remove('hidden');
+    if (btn) btn.disabled = false;
   }
 }
 
