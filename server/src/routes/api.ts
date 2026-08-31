@@ -1504,4 +1504,15 @@ export default async function apiRoutes(fastify: FastifyInstance) {
         reply.header("Content-Disposition", `attachment; filename="attest_${id}.pdf"`);
         return reply.send(decrypted);
     });
+
+    // Admin: create token-based download link for patient sharing
+    fastify.post("/admin/attests/:id/link", { onRequest: requireAuth }, async (request, reply) => {
+        const { id } = request.params as any;
+        const row = db.prepare("SELECT encrypted_key FROM attests WHERE id = ?").get(id) as any;
+        if (!row) return reply.status(404).send({ error: "Attest not found" });
+        const token = randomUUID().replace(/-/g, "");
+        db.prepare("INSERT INTO download_tokens (token, doc_id, doc_type, file_key) VALUES (?, ?, 'attest', ?)").run(token, id, row.encrypted_key);
+        const url = `${process.env.BASE_URL || ''}/api/attests/${id}/download?token=${token}`;
+        return { url, token };
+    });
 }

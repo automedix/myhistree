@@ -171,15 +171,20 @@ function downloadAttest(id) {
 
 async function copyAttestLink(id) {
   try {
-    const res = await fetch(`${API}/admin/attests/${id}`, { credentials: 'include' });
+    const res = await fetch(`${API}/admin/attests/${id}/link`, {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' }
+    });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) { toast('Fehler: ' + (data.error || res.status)); return; }
-    const url = `${window.location.origin}/attest/${id}`;
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      await navigator.clipboard.writeText(url);
-      toast('Link kopiert!');
-    } else {
-      toast('Clipboard nicht verfügbar.');
+    if (data.url) {
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        await navigator.clipboard.writeText(data.url);
+        toast('Link kopiert!');
+      } else {
+        toast('Clipboard nicht verfügbar.');
+      }
     }
   } catch (e) {
     toast('Fehler: ' + (e && e.message ? e.message : String(e)));
