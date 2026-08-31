@@ -1402,24 +1402,27 @@ export default async function apiRoutes(fastify: FastifyInstance) {
         const fileKey = randomUUID().replace(/-/g, "");
         const status = (body.amountCents || 0) === 0 ? "free" : "pending_payment";
 
-        db.prepare(`INSERT INTO attests (id, practice_id, title, amount_cents, currency, encrypted_key, blob_path, status, patient_dob, patient_firstname, patient_lastname, patient_address, attest_content, signer_name, signature_data, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`)
-            .run(id, practice.id, body.title || "Attest", body.amountCents || 0, body.currency || "EUR",
-                fileKey, "/app/data/blobs/" + id + ".bin", status,
-                body.patientDob || null, body.patientFirstname || null, body.patientLastname || null,
-                body.patientAddress || null, body.attestContent || null, body.signerName || null, body.signatureData || null);
-
         // Store blob if file_b64 provided
+        let blobSha256 = "";
         if (body.file_b64) {
             const fs = require("fs");
             const path = require("path");
+            const crypto = require("crypto");
             const blobDir = "/app/data/blobs";
             if (!fs.existsSync(blobDir)) fs.mkdirSync(blobDir, { recursive: true });
             const raw = Buffer.from(body.file_b64, "base64");
             const keyBuf = Buffer.from(fileKey, "hex");
             const encrypted = raw.map((b: number, i: number) => b ^ keyBuf[i % keyBuf.length]);
             fs.writeFileSync("/app/data/blobs/" + id + ".bin", encrypted);
+            blobSha256 = crypto.createHash("sha256").update(encrypted).digest("hex");
         }
+
+        db.prepare(`INSERT INTO attests (id, practice_id, title, amount_cents, currency, encrypted_key, blob_path, blob_sha256, status, patient_dob, patient_firstname, patient_lastname, patient_address, attest_content, signer_name, signature_data, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))`)
+            .run(id, practice.id, body.title || "Attest", body.amountCents || 0, body.currency || "EUR",
+                fileKey, "/app/data/blobs/" + id + ".bin", blobSha256, status,
+                body.patientDob || null, body.patientFirstname || null, body.patientLastname || null,
+                body.patientAddress || null, body.attestContent || null, body.signerName || null, body.signatureData || null);
 
         logAudit("ATTEST_CREATED", id, body.title, (request as any).user?.email, request.ip);
         return { id, status, checkoutUrl: null };
