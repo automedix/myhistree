@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Attest-Download</title>
 <style>
-  :root { --primary: #2563eb; --bg: #f3f4f6; --card: #fff; --text: #1f2937; }
+  :root { --primary: #2563eb; --bg: #f3f4f6; --card: #fff; --text: #1f2937; --success: #16a34a; --error: #dc2626; }
   * { box-sizing: border-box; }
   body { font-family: system-ui,-apple-system,sans-serif; margin: 0; background: var(--bg); color: var(--text); display: flex; justify-content: center; align-items: center; min-height: 100vh; }
   .card { background: var(--card); padding: 2rem; border-radius: 12px; box-shadow: 0 2px 8px rgba(0,0,0,0.1); width: 100%; max-width: 420px; }
@@ -15,10 +15,12 @@
   button { width: 100%; padding: 0.875rem; border: none; border-radius: 8px; background: var(--primary); color: #fff; font-size: 1rem; cursor: pointer; margin-top: 1rem; }
   button:disabled { background: #9ca3af; cursor: not-allowed; }
   .hidden { display: none; }
-  .error { color: #dc2626; font-size: 0.875rem; margin-top: 0.5rem; }
-  .success { color: #16a34a; font-size: 0.875rem; margin-top: 0.5rem; }
+  .error { color: var(--error); font-size: 0.875rem; margin-top: 0.5rem; }
+  .success { color: var(--success); font-size: 0.875rem; margin-top: 0.5rem; }
   .spinner { width: 24px; height: 24px; border: 3px solid #e5e7eb; border-top-color: var(--primary); border-radius: 50%; animation: spin 1s linear infinite; margin: 1rem auto; }
   @keyframes spin { to { transform: rotate(360deg); } }
+  .amount { font-size: 2rem; font-weight: bold; text-align: center; margin: 1rem 0; }
+  .pay-info { text-align: center; color: #6b7280; font-size: 0.875rem; margin-bottom: 1rem; }
 </style>
 </head>
 <body>
@@ -36,8 +38,10 @@
   
   <!-- Step 2: Payment -->
   <div id="step-payment" class="hidden">
-    <p id="payment-text">Bitte bezahlen Sie das Attest, um es herunterzuladen.</p>
+    <p class="pay-info">Um das Attest herunterzuladen, bezahlen Sie bitte:</p>
+    <div class="amount" id="amount-display">5,00 EUR</div>
     <div id="sumup-container">
+      <!-- SumUp Button will be rendered here -->
       <div id="sumup-button"></div>
     </div>
     <div id="payment-error" class="error hidden"></div>
@@ -45,7 +49,7 @@
   
   <!-- Step 3: Download -->
   <div id="step-download" class="hidden">
-    <p class="success">Verifizierung erfolgreich!</p>
+    <p class="success">Zahlung erfolgreich! Das Attest ist jetzt verfügbar.</p>
     <button id="btn-download" onclick="downloadAttest()">Attest herunterladen</button>
   </div>
   
@@ -65,13 +69,14 @@
 <script src="https://js.sumup.com/swift-checkout/v1/sdk.js"></script>
 <script>
 const API = '/api/patient';
+const PUBLIC_SUMUP_KEY = 'sup_pk_1kdy52CMs1PHq6zfyUzOyAFCeq6BJiAcZ';
 const params = new URLSearchParams(window.location.search);
 const ATTEST_ID = params.get('id');
 const SESSION_KEY = 'attest_session_' + ATTEST_ID;
 
-// Get session from localStorage (or URL param for testing)
 let sessionToken = localStorage.getItem(SESSION_KEY) || params.get('token');
 let attestData = null;
+let checkoutId = null;
 
 function show(id) {
   document.querySelectorAll('#card > div').forEach(el => el.classList.add('hidden'));
@@ -94,9 +99,15 @@ async function init() {
     if (!res.ok) throw new Error('Attest nicht gefunden');
     attestData = await res.json();
     
-    // If already has session token, skip DOB
+    // Update amount display
+    if (attestData.amountCents) {
+      document.getElementById('amount-display').textContent = 
+        (attestData.amountCents / 100).toFixed(2).replace('.', ',') + ' ' + (attestData.currency || 'EUR');
+    }
+    
+    // If already has session token, check payment status
     if (sessionToken) {
-      checkPaymentStatus();
+      await checkPaymentAndShow();
       return;
     }
     
@@ -128,20 +139,36 @@ async function verifyDob() {
     sessionToken = data.sessionToken;
     localStorage.setItem(SESSION_KEY, sessionToken);
     
-    if (data.requiresPayment) {
-      showPayment(data);
-    } else {
-      show('step-download');
-    }
+    await checkPaymentAndShow(data);
   } catch (e) {
     show('step-error');
     document.getElementById('error-message').textContent = e.message;
   }
 }
 
+async function checkPaymentAndShow(verifyData) {
+  show('step-loading');
+  
+  // Re-fetch public info to check current status
+  try {
+    const res = await fetch(`${API}/attests/${ATTEST_ID}/public`);
+    const data = await res.json().catch(() => ({}));
+    
+    // If no payment required or already paid
+    if (!data.requiresPayment) {
+      show('step-download');
+      return;
+    }
+    
+    // Need to pay - show SumUp
+    showPayment(data);
+  } catch (e) {
+    showPayment(verifyData || attestData);
+  }
+}
+
 async function showPayment(data) {
   show('step-payment');
-  document.getElementById('payment-text').textContent = `Bitte bezahlen Sie ${(data.amountCents / 100).toFixed(2).replace('.', ',')} EUR, um das Attest herunterzuladen.`;
   
   // Initialize SumUp Swift Checkout
   if (!window.SumUp || !window.SumUp.SwiftCheckout) {
@@ -151,7 +178,7 @@ async function showPayment(data) {
   }
   
   try {
-    // Create checkout on backend first
+    // Create checkout on backend
     const checkoutRes = await fetch(`${API}/attests/${ATTEST_ID}/checkout`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -164,34 +191,62 @@ async function showPayment(data) {
       return;
     }
     
-    if (checkoutData.checkoutUrl) {
-      // Redirect to SumUp hosted checkout
-      window.location.href = checkoutData.checkoutUrl;
+    if (!checkoutData.checkoutId) {
+      document.getElementById('payment-error').textContent = checkoutData.error || 'Checkout konnte nicht erstellt werden.';
+      document.getElementById('payment-error').classList.remove('hidden');
       return;
     }
     
-    document.getElementById('payment-error').textContent = checkoutData.error || 'Checkout konnte nicht erstellt werden.';
-    document.getElementById('payment-error').classList.remove('hidden');
+    checkoutId = checkoutData.checkoutId;
+    
+    // Initialize SumUp SDK
+    const swiftCheckoutClient = new window.SumUp.SwiftCheckout(PUBLIC_SUMUP_KEY);
+    
+    // Create payment request
+    const amount = ((data.amountCents || 500) / 100).toFixed(2);
+    const paymentRequest = swiftCheckoutClient.paymentRequest({
+      countryCode: "DE",
+      locale: "de-DE",
+      total: {
+        label: data.title || "Attest",
+        amount: { currency: data.currency || "EUR", value: amount },
+      },
+    });
+    
+    // Build and mount payment element
+    const paymentElement = swiftCheckoutClient.paymentElementBuilder()
+      .paymentRequest(paymentRequest)
+      .on("click", async () => {
+        try {
+          const paymentToken = await paymentRequest.requestPaymentToken();
+          
+          // Send to backend for processing
+          const processRes = await fetch(`${API}/attests/${ATTEST_ID}/process-payment`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ 
+              sessionToken, 
+              paymentToken,
+              checkoutId 
+            })
+          });
+          const processData = await processRes.json().catch(() => ({}));
+          
+          if (processRes.ok && processData.ok) {
+            show('step-download');
+          } else {
+            throw new Error(processData.error || 'Zahlung fehlgeschlagen');
+          }
+        } catch (e) {
+          document.getElementById('payment-error').textContent = 'Zahlung fehlgeschlagen: ' + e.message;
+          document.getElementById('payment-error').classList.remove('hidden');
+        }
+      })
+      .mount("#sumup-button");
+      
   } catch (e) {
-    document.getElementById('payment-error').textContent = 'Fehler beim Erstellen des Checkouts: ' + e.message;
+    document.getElementById('payment-error').textContent = 'Fehler beim Initialisieren: ' + e.message;
     document.getElementById('payment-error').classList.remove('hidden');
-  }
-}
-
-async function checkPaymentStatus() {
-  // After returning from SumUp, check if paid
-  show('step-loading');
-  try {
-    const res = await fetch(`${API}/attests/${ATTEST_ID}/public`);
-    const data = await res.json().catch(() => ({}));
-    if (data.status === 'paid' || data.status === 'free') {
-      show('step-download');
-    } else {
-      showPayment(data);
-    }
-  } catch (e) {
-    show('step-error');
-    document.getElementById('error-message').textContent = e.message;
   }
 }
 
@@ -205,7 +260,10 @@ async function downloadAttest() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ sessionToken })
     });
-    if (!res.ok) throw new Error('Download fehlgeschlagen');
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error || 'Download fehlgeschlagen');
+    }
     
     const blob = await res.blob();
     const url = URL.createObjectURL(blob);

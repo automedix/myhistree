@@ -1601,6 +1601,56 @@ export default async function apiRoutes(fastify: FastifyInstance) {
         }
     });
 
+    // Step 3b: Process Swift Checkout payment
+    fastify.post("/patient/attests/:id/process-payment", async (request, reply) => {
+        const { id } = request.params as any;
+        const { sessionToken, paymentToken, checkoutId } = request.body as any;
+        
+        // Validate session
+        const session = db.prepare("SELECT * FROM download_tokens WHERE token = ? AND doc_id = ? AND doc_type = 'patient_session'").get(sessionToken, id) as any;
+        if (!session) return reply.status(403).send({ error: "Invalid or expired session" });
+        
+        const row = db.prepare("SELECT id, amount_cents, currency, status FROM attests WHERE id = ?").get(id) as any;
+        if (!row) return reply.status(404).send({ error: "Attest not found" });
+        if (row.status === 'paid' || row.status === 'free') {
+            return { ok: true, paid: true };
+        }
+        
+        const sumupKey = process.env.SUMUP_PRIVATE_KEY || '';
+        if (!sumupKey) return reply.status(500).send({ error: "Payment provider not configured" });
+        
+        try {
+            // Process payment with SumUp
+            const sumupRes = await fetch(`https://api.sumup.com/v0.1/checkouts/${checkoutId}`, {
+                method: "PUT",
+                headers: {
+                    "Authorization": `Bearer ${sumupKey}`,
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    payment_type: "card",
+                    token: paymentToken
+                })
+            });
+            const sumupData = await sumupRes.json().catch(() => ({})) as any;
+            
+            if (!sumupRes.ok) {
+                console.error("SumUp payment error:", sumupData);
+                return reply.status(502).send({ error: "Payment failed", detail: sumupData });
+            }
+            
+            if (sumupData.status === 'PAID' || sumupData.status === 'SUCCESS') {
+                db.prepare("UPDATE attests SET status = 'paid', paid_at = datetime('now'), checkout_status = 'paid' WHERE id = ?").run(id);
+                return { ok: true, paid: true };
+            }
+            
+            return { ok: true, paid: false, status: sumupData.status };
+        } catch (e: any) {
+            console.error("SumUp payment processing failed:", e);
+            return reply.status(502).send({ error: "Payment processing failed" });
+        }
+    });
+
     // Step 4: SumUp webhook
     fastify.post("/attests/sumup-webhook", async (request, reply) => {
         const body = request.body as any;
