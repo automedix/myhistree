@@ -1564,7 +1564,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
         const returnUrl = `${process.env.URL_BASE || ''}/attest.html?id=${id}`;
         
         try {
-            const sumupRes = await fetch("https://api.sumup.com/v0/checkouts", {
+            const sumupRes = await fetch("https://api.sumup.com/v0.1/checkouts", {
                 method: "POST",
                 headers: {
                     "Authorization": `Bearer ${sumupKey}`,
