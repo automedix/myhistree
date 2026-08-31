@@ -1512,7 +1512,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
         if (!row) return reply.status(404).send({ error: "Attest not found" });
         const token = randomUUID().replace(/-/g, "");
         db.prepare("INSERT INTO download_tokens (token, doc_id, doc_type, file_key) VALUES (?, ?, 'attest', ?)").run(token, id, row.encrypted_key);
-        const url = `${process.env.BASE_URL || ''}/api/attests/${id}/download?token=${token}`;
+        const url = `${process.env.BASE_URL || process.env.URL_BASE || ''}/api/attests/${id}/download?token=${token}`;
         return { url, token };
     });
 }
