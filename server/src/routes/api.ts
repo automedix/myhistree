@@ -1579,7 +1579,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
                     merchant_code: process.env.SUMUP_MERCHANT_CODE || undefined
                 })
             });
-            const sumupData = await sumupRes.json().catch(() => ({}));
+            const sumupData = await sumupRes.json().catch(() => ({})) as any;
             if (!sumupRes.ok) {
                 console.error("SumUp error:", sumupData);
                 return reply.status(502).send({ error: "Payment provider error", detail: sumupData });
