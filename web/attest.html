@@ -247,32 +247,14 @@ async function showPayment(data) {
     });
     
     // Build and mount payment element
-    const paymentElement = swiftCheckoutClient.paymentElementBuilder()
-      .paymentRequest(paymentRequest)
-      .on("click", async () => {
-        try {
-          const paymentToken = await paymentRequest.requestPaymentToken();
-          
-          // Send to backend for processing
-          const processRes = await fetch(`${API}/attests/${ATTEST_ID}/process-payment`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ 
-              sessionToken, 
-              paymentToken,
-              checkoutId 
-            })
-          });
-          const processData = await processRes.json().catch(() => ({}));
-          
-          if (processRes.ok && processData.ok) {
-            show('step-download');
-          } else {
-            throw new Error(processData.error || 'Zahlung fehlgeschlagen');
+    const paymentElement = swiftCheckoutClient.elements()
+      .create('payment', {
+        paymentRequest: paymentRequest,
+        onChange: (event) => {
+          if (event.complete) {
+            // Payment authorized, send to backend
+            processPayment(event.paymentMethod, checkoutId);
           }
-        } catch (e) {
-          document.getElementById('payment-error').textContent = 'Zahlung fehlgeschlagen: ' + e.message;
-          document.getElementById('payment-error').classList.remove('hidden');
         }
       })
       .mount("#sumup-button");
@@ -318,6 +300,32 @@ async function downloadAttest() {
   } catch (e) {
     show('step-error');
     document.getElementById('error-message').textContent = e.message;
+  }
+}
+
+async function processPayment(paymentMethod, checkoutId) {
+  show('step-loading');
+  try {
+    const processRes = await fetch(`${API}/attests/${ATTEST_ID}/process-payment`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ 
+        sessionToken, 
+        paymentToken: paymentMethod.token || paymentMethod.id,
+        checkoutId 
+      })
+    });
+    const processData = await processRes.json().catch(() => ({}));
+    
+    if (processRes.ok && processData.ok) {
+      show('step-download');
+    } else {
+      throw new Error(processData.error || 'Zahlung fehlgeschlagen');
+    }
+  } catch (e) {
+    show('step-payment');
+    document.getElementById('payment-error').textContent = 'Zahlung fehlgeschlagen: ' + e.message;
+    document.getElementById('payment-error').classList.remove('hidden');
   }
 }
 
