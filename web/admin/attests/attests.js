@@ -174,7 +174,8 @@ async function copyAttestLink(id) {
     const res = await fetch(`${API}/admin/attests/${id}/link`, {
       method: 'POST',
       credentials: 'include',
-      headers: { 'Content-Type': 'application/json' }
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({})
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) { toast('Fehler: ' + (data.error || res.status)); return; }
