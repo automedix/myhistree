@@ -1501,7 +1501,7 @@ export default async function apiRoutes(fastify: FastifyInstance) {
         const keyBuf = Buffer.from(row.encrypted_key, "hex");
         const decrypted = encrypted.map((b: number, i: number) => b ^ keyBuf[i % keyBuf.length]);
         reply.header("Content-Type", "application/pdf");
-        reply.header("Content-Disposition", `attachment; filename="attest_${id}.pdf"`);
+        reply.header("Content-Disposition", `inline; filename="attest_${id}.pdf"`);
         return reply.send(decrypted);
     });
 
