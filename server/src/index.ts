@@ -21,7 +21,7 @@ app.addHook("onSend", async (request, reply, payload) => {
   reply.header("X-Frame-Options", "DENY");
   reply.header("X-XSS-Protection", "1; mode=block");
   reply.header("Referrer-Policy", "strict-origin-when-cross-origin");
-  reply.header("Permissions-Policy", "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()");
+  reply.header("Permissions-Policy", "accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(*), usb=()");
   reply.header("Strict-Transport-Security", "max-age=63072000; includeSubDomains; preload");
   reply.header("Content-Security-Policy",
     "default-src 'self'; " +
