@@ -46,7 +46,7 @@ header p{font-size:0.875rem;opacity:0.9;}
     <input type="text" id="searchInput" placeholder="Leistung suchen... (z.B. Blutbild, Vitamin D, TSH)" autofocus>
   </div>
   
-  <div class="stats" id="stats">210 Leistungen verfügbar</div>
+  <div class="stats" id="stats">214 Leistungen verfügbar</div>
   
   <div class="results" id="results"></div>
 </div>
@@ -74,6 +74,7 @@ const LABOR_DATA = [
   {"name":"Anti-HBe","material":"S","price":13.99},
   {"name":"Anti-HBs","material":"S","price":13.99},
   {"name":"Anti-SARS-CoV2 IgG Serum *","material":"S","price":13.99},
+  {"name":"Anti-SARS-CoV2 IgA Serum *","material":"S","price":null},
   {"name":"Anti-Müller-Hormon *","material":"S","price":33.52},
   {"name":"Apolipoprotein A1*","material":"S","price":13.41},
   {"name":"Apolipoprotein B*","material":"S","price":13.41},
@@ -107,6 +108,7 @@ const LABOR_DATA = [
   {"name":"Cholesterin HDL","material":"LH,S","price":2.33},
   {"name":"Cholesterin LDL","material":"LH,S","price":2.33},
   {"name":"Chrom *","material":"S,E,LH,U","price":27.48},
+  {"name":"Chromosomenanalyse (z.B. Trisomie 21)*","material":"10ml LH","price":null},
   {"name":"CK","material":"LH,S","price":2.33},
   {"name":"CKMB Aktivität","material":"S,LH","price":2.91},
   {"name":"CKMB Masse *","material":"S","price":27.98},
@@ -124,6 +126,7 @@ const LABOR_DATA = [
   {"name":"Drogenscrenning","material":"U","price":222.92},
   {"name":"kleines Drogenscreening im Urin *","material":"U","price":67.04},
   {"name":"Eisen","material":"LH,S","price":2.33},
+  {"name":"EBV (Epstein-Barr-Virus) *","material":"S","price":null},
   {"name":"EBV PCR *","material":"E,S,Liquor,TAB","price":60.33},
   {"name":"Eiweißelektrophorese *","material":"S","price":15.42},
   {"name":"Eiweiß, gesamt","material":"LH,S","price":1.75},
@@ -195,6 +198,7 @@ const LABOR_DATA = [
   {"name":"Magnesium","material":"LH,S","price":2.33},
   {"name":"MAK (Anti-TPO)","material":"S","price":26.23},
   {"name":"Mangan *","material":"E,S,U","price":27.48},
+  {"name":"Masern-AK","material":"S","price":null},
   {"name":"Methylmalonsäure *","material":"S","price":61.67},
   {"name":"Mirtazapin *","material":"S","price":61.67},
   {"name":"Molybdän *","material":"S","price":27.48},
@@ -270,6 +274,7 @@ const statsEl = document.getElementById('stats');
 const searchInput = document.getElementById('searchInput');
 
 function fmtPrice(p) {
+  if (p === null || p === undefined) return 'Preis auf Anfrage';
   return p ? p.toFixed(2).replace('.', ',') + ' €' : '';
 }
 
