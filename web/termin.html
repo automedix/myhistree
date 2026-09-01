@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Terminbestätigung – Hausärzte im Grillepark</title>
+<style>
+:root{--primary:#4477BB;--bg:#f1f5f9;--card:#fff;--text:#1e293b;--text-light:#64748b;--border:#e2e8f0;--success:#22c55e;--warning:#f59e0b;--danger:#ef4444;--radius:12px;}
+*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;}
+body{background:var(--bg);color:var(--text);line-height:1.5;padding:20px;min-height:100vh;}
+.container{max-width:600px;margin:0 auto;}
+header{background:var(--primary);color:#fff;padding:24px;border-radius:var(--radius);margin-bottom:24px;text-align:center;}
+header h1{font-size:1.3rem;}
+header p{font-size:0.85rem;opacity:0.9;margin-top:4px;}
+.card{background:var(--card);border-radius:var(--radius);padding:24px;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,.04);border:1px solid var(--border);}
+.card h2{font-size:1.1rem;margin-bottom:16px;color:var(--text);}
+label{font-size:0.9rem;font-weight:600;color:var(--text-light);display:block;margin-bottom:6px;}
+input{width:100%;padding:12px;border:2px solid var(--border);border-radius:8px;font-size:1rem;text-align:center;}
+input:focus{outline:none;border-color:var(--primary);}
+.btn{width:100%;padding:14px;border-radius:8px;font-size:1rem;font-weight:600;border:none;cursor:pointer;margin-top:12px;}
+.btn-primary{background:var(--primary);color:#fff;}
+.btn-primary:hover{background:#3366AA;}
+.btn-success{background:var(--success);color:#fff;}
+.btn-secondary{background:var(--bg);color:var(--text);border:2px solid var(--border);}
+.btn-secondary:hover{background:#e2e8f0;}
+.status{margin:16px 0;font-size:0.95rem;min-height:20px;text-align:center;}
+.success{color:var(--success);}
+.error{color:var(--danger);}
+.warning{color:var(--warning);}
+.appointment-details{display:none;}
+.appointment-details.active{display:block;}
+.detail-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border);}
+.detail-row:last-child{border-bottom:none;}
+.detail-label{font-weight:600;color:var(--text-light);font-size:0.85rem;}
+.detail-value{font-size:0.95rem;text-align:right;}
+.checkmarks{margin-top:16px;}
+.checkmark-item{display:flex;align-items:center;gap:10px;padding:8px 0;}
+.checkmark-item .check{color:var(--success);font-size:1.2rem;}
+.notes-box{background:#f8fafc;padding:16px;border-radius:8px;margin-top:16px;font-size:0.9rem;}
+.notes-box h3{font-size:0.95rem;margin-bottom:8px;color:var(--text-light);}
+.actions{display:flex;gap:10px;margin-top:20px;flex-wrap:wrap;}
+.actions .btn{flex:1;min-width:140px;margin-top:0;}
+.ack-banner{background:var(--success);color:#fff;padding:16px;border-radius:8px;text-align:center;margin-bottom:16px;font-weight:600;display:none;}
+.ack-banner.active{display:block;}
+.urgent-banner{background:var(--danger);color:#fff;padding:12px;border-radius:8px;text-align:center;margin-bottom:16px;font-weight:600;display:none;}
+.urgent-banner.active{display:block;}
+@media print{
+  body{background:#fff;padding:0;}
+  .no-print{display:none !important;}
+  .card{box-shadow:none;border:1px solid #ddd;}
+  header{background:#1e3a5f !important;-webkit-print-color-adjust:exact;print-color-adjust:exact;}
+}
+@media(max-width:500px){
+  .actions .btn{min-width:100%;}
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>📅 Terminbestätigung</h1>
+    <p>Hausärzte im Grillepark</p>
+  </header>
+
+  <!-- DOB Verification -->
+  <div id="dobSection" class="card">
+    <h2>Identitätsprüfung</h2>
+    <p style="margin-bottom:12px;color:var(--text-light);font-size:0.9rem;">Bitte geben Sie Ihr Geburtsdatum ein, um den Termin anzuzeigen.</p>
+    <label>Ihr Geburtsdatum</label>
+    <input type="tel" id="dobInput" placeholder="tt.mm.jjjj" maxlength="10" inputmode="numeric">
+    <button class="btn btn-primary" onclick="verifyDob()">Termin anzeigen</button>
+    <div id="dobStatus" class="status"></div>
+  </div>
+
+  <!-- Acknowledge Banner -->
+  <div id="ackBanner" class="ack-banner">✓ Termin wurde zur Kenntnis genommen</div>
+
+  <!-- Urgent Banner (if < 2 days) -->
+  <div id="urgentBanner" class="urgent-banner">⚠️ Bitte bestätigen Sie diesen Termin umgehend!</div>
+
+  <!-- Appointment Details -->
+  <div id="appointmentSection" class="appointment-details">
+    <div class="card">
+      <h2 id="aptTitle">Termin</h2>
+      <div class="detail-row">
+        <span class="detail-label">Datum</span>
+        <span class="detail-value" id="aptDate">-</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Uhrzeit</span>
+        <span class="detail-value" id="aptTime">-</span>
+      </div>
+      <div class="detail-row">
+        <span class="detail-label">Einrichtung</span>
+        <span class="detail-value" id="aptFacility">-</span>
+      </div>
+      <div class="detail-row" id="locationRow" style="display:none;">
+        <span class="detail-label">Anmeldepunkt</span>
+        <span class="detail-value" id="aptLocation">-</span>
+      </div>
+    </div>
+
+    <!-- Checkmarks -->
+    <div class="card" id="checkmarksCard" style="display:none;">
+      <h2>Mitbringen / Hinweise</h2>
+      <div class="checkmarks" id="checkmarksList"></div>
+    </div>
+
+    <!-- Notes -->
+    <div class="card" id="notesCard" style="display:none;">
+      <div class="notes-box">
+        <h3>Zusätzliche Hinweise</h3>
+        <p id="aptNotes"></p>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="card no-print">
+      <div class="actions">
+        <button class="btn btn-success" id="ackBtn" onclick="acknowledge()">Termin bestätigen</button>
+        <button class="btn btn-secondary" onclick="downloadIcs()">📅 Kalender</button>
+        <button class="btn btn-secondary" onclick="window.print()">🖨️ Drucken</button>
+      </div>
+      <div id="actionStatus" class="status"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const API_BASE = '/api';
+const params = new URLSearchParams(location.search);
+const APT_ID = params.get('id') || '';
+let SESSION_TOKEN = localStorage.getItem('apt_session_' + APT_ID) || '';
+let APT_DATA = null;
+
+// DOB autoformat
+document.getElementById('dobInput').addEventListener('input', (e) => {
+  let v = e.target.value.replace(/\D/g, '');
+  if (v.length > 2) v = v.slice(0, 2) + '.' + v.slice(2);
+  if (v.length > 5) v = v.slice(0, 5) + '.' + v.slice(5, 9);
+  e.target.value = v;
+});
+
+async function verifyDob() {
+  const status = document.getElementById('dobStatus');
+  const dob = document.getElementById('dobInput').value;
+  if (!/^\d{2}\.\d{2}\.\d{4}$/.test(dob)) {
+    status.innerHTML = '<span class="error">Bitte TT.MM.JJJJ eingeben</span>';
+    return;
+  }
+  status.innerHTML = '<span style="color:var(--text-light)">Prüfe...</span>';
+  try {
+    const r = await fetch(`${API_BASE}/patient/appointments/${APT_ID}/verify`, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ dob })
+    });
+    const d = await r.json();
+    if (d.verified) {
+      SESSION_TOKEN = d.sessionToken;
+      localStorage.setItem('apt_session_' + APT_ID, SESSION_TOKEN);
+      status.innerHTML = '';
+      document.getElementById('dobSection').style.display = 'none';
+      loadAppointment();
+    } else {
+      status.innerHTML = '<span class="error">Falsches Geburtsdatum</span>';
+    }
+  } catch (e) {
+    status.innerHTML = '<span class="error">Fehler: ' + e.message + '</span>';
+  }
+}
+
+async function loadAppointment() {
+  try {
+    const r = await fetch(`${API_BASE}/patient/appointments/${APT_ID}`, {
+      headers: { 'x-session-token': SESSION_TOKEN }
+    });
+    if (!r.ok) throw new Error('Session expired');
+    APT_DATA = await r.json();
+    renderAppointment();
+  } catch (e) {
+    document.getElementById('dobSection').style.display = 'block';
+    document.getElementById('dobStatus').innerHTML = '<span class="error">Session abgelaufen – bitte erneut eingeben</span>';
+    localStorage.removeItem('apt_session_' + APT_ID);
+    SESSION_TOKEN = '';
+  }
+}
+
+function renderAppointment() {
+  const data = APT_DATA;
+  if (!data) return;
+
+  // Title
+  document.getElementById('aptTitle').textContent = data.title || 'Termin';
+
+  // Date (format DE)
+  const dateObj = data.appointment_date ? new Date(data.appointment_date + 'T00:00:00') : null;
+  document.getElementById('aptDate').textContent = dateObj ? dateObj.toLocaleDateString('de-DE', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '-';
+
+  // Time
+  document.getElementById('aptTime').textContent = data.appointment_time || '-';
+
+  // Facility
+  document.getElementById('aptFacility').textContent = data.facility_name || '-';
+
+  // Location
+  if (data.facility_location) {
+    document.getElementById('aptLocation').textContent = data.facility_location;
+    document.getElementById('locationRow').style.display = 'flex';
+  }
+
+  // Checkmarks
+  const checkmarks = data.checkmarks || [];
+  if (checkmarks.length > 0) {
+    const list = document.getElementById('checkmarksList');
+    const labelMap = {
+      'versichertenkarte': 'Versichertenkarte mitbringen',
+      'ueberweisung': 'Überweisung mitbringen',
+      'einweisung': 'Einweisung mitbringen',
+      'nuechtern': 'Nüchtern erscheinen',
+      'blutdruckprotokoll': 'Blutdruckprotokoll mitbringen',
+      'medikamentenliste': 'Aktuelle Medikamentenliste mitbringen',
+      'allergiepass': 'Allergiepass mitbringen',
+      'impfpass': 'Impfpass mitbringen'
+    };
+    list.innerHTML = checkmarks.map(cm => `<div class="checkmark-item"><span class="check">☑</span><span>${labelMap[cm] || cm}</span></div>`).join('');
+    document.getElementById('checkmarksCard').style.display = 'block';
+  }
+
+  // Notes
+  if (data.notes) {
+    document.getElementById('aptNotes').textContent = data.notes;
+    document.getElementById('notesCard').style.display = 'block';
+  }
+
+  // Check if already acknowledged
+  if (data.status === 'acknowledged') {
+    document.getElementById('ackBanner').classList.add('active');
+    document.getElementById('ackBtn').style.display = 'none';
+  } else {
+    // Check urgency (< 2 days)
+    if (dateObj) {
+      const now = new Date();
+      const daysUntil = Math.ceil((dateObj - now) / (1000 * 60 * 60 * 24));
+      if (daysUntil <= 2 && daysUntil >= 0) {
+        document.getElementById('urgentBanner').classList.add('active');
+      }
+    }
+  }
+
+  document.getElementById('appointmentSection').classList.add('active');
+}
+
+async function acknowledge() {
+  const status = document.getElementById('actionStatus');
+  try {
+    const r = await fetch(`${API_BASE}/patient/appointments/${APT_ID}/acknowledge`, {
+      method: 'POST', headers: { 'x-session-token': SESSION_TOKEN }
+    });
+    const d = await r.json();
+    if (d.ok) {
+      document.getElementById('ackBanner').classList.add('active');
+      document.getElementById('ackBtn').style.display = 'none';
+      document.getElementById('urgentBanner').classList.remove('active');
+      status.innerHTML = '<span class="success">✓ Bestätigt</span>';
+    } else {
+      status.innerHTML = '<span class="error">Fehler: ' + (d.error || 'Unbekannt') + '</span>';
+    }
+  } catch (e) {
+    status.innerHTML = '<span class="error">Fehler: ' + e.message + '</span>';
+  }
+}
+
+function downloadIcs() {
+  if (!APT_ID) return;
+  window.open(`${API_BASE}/patient/appointments/${APT_ID}/ics`, '_blank');
+}
+
+// If session exists, try loading directly
+if (SESSION_TOKEN) {
+  document.getElementById('dobSection').style.display = 'none';
+  loadAppointment();
+}
+</script>
+</body>
+</html>

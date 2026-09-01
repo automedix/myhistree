@@ -358,6 +358,28 @@ export function initSchema() {
     CREATE INDEX IF NOT EXISTS idx_patients_pvs ON patients(pvs_patient_id);
     CREATE INDEX IF NOT EXISTS idx_email_verif_encounter ON email_verifications(encounter_id);
     CREATE INDEX IF NOT EXISTS idx_encounters_status ON encounters(status);
+
+    CREATE TABLE IF NOT EXISTS appointments (
+      id TEXT PRIMARY KEY DEFAULT (lower(hex(randomblob(16)))),
+      practice_id TEXT REFERENCES practices(id),
+      patient_firstname TEXT NOT NULL,
+      patient_lastname TEXT NOT NULL,
+      patient_dob TEXT NOT NULL,
+      patient_email TEXT,
+      title TEXT NOT NULL,
+      facility_name TEXT NOT NULL,
+      facility_location TEXT,
+      appointment_date TEXT NOT NULL,
+      appointment_time TEXT,
+      notes TEXT,
+      checkmarks TEXT DEFAULT '[]',
+      status TEXT DEFAULT 'pending',
+      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+      acknowledged_at TEXT,
+      created_by TEXT DEFAULT 'practice'
+    );
+    CREATE INDEX IF NOT EXISTS idx_appointments_practice ON appointments(practice_id);
+    CREATE INDEX IF NOT EXISTS idx_appointments_status ON appointments(status);
   `);
 
   for (const migration of MIGRATIONS) {

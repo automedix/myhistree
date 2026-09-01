@@ -1751,4 +1751,196 @@ export default async function apiRoutes(fastify: FastifyInstance) {
         const url = `${process.env.BASE_URL || process.env.URL_BASE || ''}/attest.html?id=${id}`;
         return { url };
     });
+
+    // ═════════════════════════════════════════════════════════════════
+    // APPOINTMENTS (TERMINMANAGER)
+    // ═════════════════════════════════════════════════════════════════
+
+    // Admin: list appointments
+    fastify.get("/admin/appointments", { onRequest: requireAuth }, async (request, reply) => {
+        const user = (request as any).user;
+        const practiceId = user.practice_id || "demo-practice";
+        const rows = db.prepare(`SELECT id, title, patient_firstname, patient_lastname, patient_dob, patient_email,
+            facility_name, appointment_date, appointment_time, status, created_at, acknowledged_at
+            FROM appointments WHERE practice_id = ? ORDER BY appointment_date DESC, appointment_time DESC`).all(practiceId) as any[];
+        return rows;
+    });
+
+    // Admin: create appointment
+    fastify.post("/admin/appointments", { onRequest: requireAuth }, async (request, reply) => {
+        const user = (request as any).user;
+        const practiceId = user.practice_id || "demo-practice";
+        const body = request.body as any;
+
+        // Validate required fields
+        if (!body.patient_firstname || !body.patient_lastname || !body.patient_dob || !body.title || !body.facility_name || !body.appointment_date) {
+            return reply.status(400).send({ error: "Missing required fields" });
+        }
+        // Normalize DOB
+        let dobNormalized = body.patient_dob;
+        if (/^\d{2}\.\d{2}\.\d{4}$/.test(body.patient_dob)) {
+            const p = body.patient_dob.split('.');
+            dobNormalized = `${p[2]}-${p[1]}-${p[0]}`;
+        }
+
+        const id = randomUUID().replace(/-/g, "");
+        const checkmarks = JSON.stringify(body.checkmarks || []);
+
+        db.prepare(`INSERT INTO appointments (id, practice_id, patient_firstname, patient_lastname, patient_dob, patient_email,
+            title, facility_name, facility_location, appointment_date, appointment_time, notes, checkmarks, status)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+            .run(id, practiceId, body.patient_firstname, body.patient_lastname, dobNormalized,
+                body.patient_email || null, body.title, body.facility_name, body.facility_location || null,
+                body.appointment_date, body.appointment_time || null, body.notes || null, checkmarks, 'pending');
+
+        logAudit("CREATE_APPOINTMENT", id, `Patient: ${body.patient_firstname} ${body.patient_lastname}, Termin: ${body.appointment_date} ${body.appointment_time || ''}`, user.practice_id, request.ip);
+        return { id, status: 'pending' };
+    });
+
+    // Admin: get single appointment
+    fastify.get("/admin/appointments/:id", { onRequest: requireAuth }, async (request, reply) => {
+        const { id } = request.params as any;
+        const row = db.prepare("SELECT * FROM appointments WHERE id = ?").get(id) as any;
+        if (!row) return reply.status(404).send({ error: "Appointment not found" });
+        // Parse checkmarks
+        try { row.checkmarks = JSON.parse(row.checkmarks || '[]'); } catch { row.checkmarks = []; }
+        return row;
+    });
+
+    // Admin: update appointment
+    fastify.put("/admin/appointments/:id", { onRequest: requireAuth }, async (request, reply) => {
+        const { id } = request.params as any;
+        const body = request.body as any;
+        const existing = db.prepare("SELECT id FROM appointments WHERE id = ?").get(id) as any;
+        if (!existing) return reply.status(404).send({ error: "Appointment not found" });
+
+        const fields: string[] = [];
+        const values: any[] = [];
+
+        if (body.patient_firstname !== undefined) { fields.push("patient_firstname = ?"); values.push(body.patient_firstname); }
+        if (body.patient_lastname !== undefined) { fields.push("patient_lastname = ?"); values.push(body.patient_lastname); }
+        if (body.patient_email !== undefined) { fields.push("patient_email = ?"); values.push(body.patient_email); }
+        if (body.title !== undefined) { fields.push("title = ?"); values.push(body.title); }
+        if (body.facility_name !== undefined) { fields.push("facility_name = ?"); values.push(body.facility_name); }
+        if (body.facility_location !== undefined) { fields.push("facility_location = ?"); values.push(body.facility_location); }
+        if (body.appointment_date !== undefined) { fields.push("appointment_date = ?"); values.push(body.appointment_date); }
+        if (body.appointment_time !== undefined) { fields.push("appointment_time = ?"); values.push(body.appointment_time); }
+        if (body.notes !== undefined) { fields.push("notes = ?"); values.push(body.notes); }
+        if (body.checkmarks !== undefined) { fields.push("checkmarks = ?"); values.push(JSON.stringify(body.checkmarks)); }
+        if (body.status !== undefined) { fields.push("status = ?"); values.push(body.status); }
+
+        if (fields.length === 0) return reply.status(400).send({ error: "No fields to update" });
+        values.push(id);
+
+        db.prepare(`UPDATE appointments SET ${fields.join(", ")} WHERE id = ?`).run(...values);
+        return { ok: true };
+    });
+
+    // Admin: delete appointment
+    fastify.delete("/admin/appointments/:id", { onRequest: requireAuth }, async (request, reply) => {
+        const { id } = request.params as any;
+        db.prepare("DELETE FROM appointments WHERE id = ?").run(id);
+        return { ok: true };
+    });
+
+    // Admin: generate patient link
+    fastify.post("/admin/appointments/:id/link", { onRequest: requireAuth }, async (request, reply) => {
+        const { id } = request.params as any;
+        const row = db.prepare("SELECT id FROM appointments WHERE id = ?").get(id) as any;
+        if (!row) return reply.status(404).send({ error: "Appointment not found" });
+        const url = `${process.env.BASE_URL || process.env.URL_BASE || ''}/termin.html?id=${id}`;
+        return { url };
+    });
+
+    // ─── Patient-facing Appointment Flow ─────────────────────────────
+
+    // Patient: get public appointment data (no DOB required)
+    fastify.get("/patient/appointments/:id/public", async (request, reply) => {
+        const { id } = request.params as any;
+        const row = db.prepare(`SELECT id, title, facility_name, facility_location, appointment_date, appointment_time,
+            notes, checkmarks, status, created_at FROM appointments WHERE id = ?`).get(id) as any;
+        if (!row) return reply.status(404).send({ error: "Not found" });
+        try { row.checkmarks = JSON.parse(row.checkmarks || '[]'); } catch { row.checkmarks = []; }
+        // Don't expose patient name or DOB here
+        return row;
+    });
+
+    // Patient: verify DOB and get session token
+    fastify.post("/patient/appointments/:id/verify", async (request, reply) => {
+        const { id } = request.params as any;
+        const { dob } = request.body as any;
+        const row = db.prepare("SELECT patient_dob FROM appointments WHERE id = ?").get(id) as any;
+        if (!row) return reply.status(404).send({ error: "Not found" });
+
+        let normalizedDob = dob;
+        if (/^\d{2}\.\d{2}\.\d{4}$/.test(dob)) {
+            const p = dob.split('.');
+            normalizedDob = `${p[2]}-${p[1]}-${p[0]}`;
+        }
+
+        if (normalizedDob !== row.patient_dob) {
+            return reply.status(403).send({ verified: false, error: "Falsches Geburtsdatum" });
+        }
+
+        const sessionToken = randomUUID().replace(/-/g, "");
+        const expiresAt = new Date();
+        expiresAt.setHours(expiresAt.getHours() + 24);
+        db.prepare("INSERT INTO download_tokens (token, doc_id, doc_type, file_key, created_at) VALUES (?, ?, ?, ?, ?)")
+            .run(sessionToken, id, 'appointment_session', 'appointment', expiresAt.toISOString());
+
+        return { verified: true, sessionToken };
+    });
+
+    // Patient: get full appointment data (with session token)
+    fastify.get("/patient/appointments/:id", async (request, reply) => {
+        const { id } = request.params as any;
+        const sessionToken = request.headers['x-session-token'] as string;
+        if (!sessionToken) return reply.status(401).send({ error: "Session required" });
+
+        const session = db.prepare("SELECT * FROM download_tokens WHERE token = ? AND doc_id = ? AND doc_type = 'appointment_session'").get(sessionToken, id) as any;
+        if (!session) return reply.status(403).send({ error: "Invalid session" });
+
+        const row = db.prepare("SELECT * FROM appointments WHERE id = ?").get(id) as any;
+        if (!row) return reply.status(404).send({ error: "Not found" });
+        try { row.checkmarks = JSON.parse(row.checkmarks || '[]'); } catch { row.checkmarks = []; }
+        return row;
+    });
+
+    // Patient: acknowledge appointment
+    fastify.post("/patient/appointments/:id/acknowledge", async (request, reply) => {
+        const { id } = request.params as any;
+        const sessionToken = request.headers['x-session-token'] as string;
+        if (!sessionToken) return reply.status(401).send({ error: "Session required" });
+
+        const session = db.prepare("SELECT * FROM download_tokens WHERE token = ? AND doc_id = ? AND doc_type = 'appointment_session'").get(sessionToken, id) as any;
+        if (!session) return reply.status(403).send({ error: "Invalid session" });
+
+        const now = new Date().toISOString();
+        db.prepare("UPDATE appointments SET status = 'acknowledged', acknowledged_at = ? WHERE id = ?").run(now, id);
+        return { ok: true, status: 'acknowledged' };
+    });
+
+    // Patient: download ICS file
+    fastify.get("/patient/appointments/:id/ics", async (request, reply) => {
+        const { id } = request.params as any;
+        const row = db.prepare("SELECT title, facility_name, facility_location, appointment_date, appointment_time, notes FROM appointments WHERE id = ?").get(id) as any;
+        if (!row) return reply.status(404).send({ error: "Not found" });
+
+        const startDate = row.appointment_date.replace(/-/g, '');
+        const startTime = (row.appointment_time || '0000').replace(/:/g, '');
+        const dtStart = `${startDate}T${startTime}00`;
+        // Estimate end time (30 min default)
+        const endHour = parseInt(row.appointment_time?.split(':')[0] || '0') + 1;
+        const endMin = row.appointment_time?.split(':')[1] || '00';
+        const dtEnd = `${startDate}T${String(endHour).padStart(2,'0')}${endMin}00`;
+
+        const notesEscaped = (row.notes || '').replace(/\\/g, "\\\\").replace(/\n/g, "\\n").replace(/;/g, "\\;").replace(/,/g, "\\,");
+        const location = [row.facility_name, row.facility_location].filter(Boolean).join(" - ").replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,");
+
+        const ics = `BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//Hausärzte im Grillepark//Terminmanager//DE\nBEGIN:VEVENT\nDTSTART:${dtStart}\nDTEND:${dtEnd}\nSUMMARY:${row.title.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,")}\nLOCATION:${location}\nDESCRIPTION:${notesEscaped}\nEND:VEVENT\nEND:VCALENDAR`;
+
+        reply.header("Content-Type", "text/calendar");
+        reply.header("Content-Disposition", `attachment; filename="termin_${id}.ics"`);
+        return reply.send(ics);
+    });
 }

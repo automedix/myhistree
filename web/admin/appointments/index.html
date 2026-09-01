@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Terminmanager – Hausärzte im Grillepark</title>
+<style>
+:root{--primary:#4477BB;--primary-dark:#3366AA;--bg:#f1f5f9;--card:#fff;--text:#1e293b;--text-light:#64748b;--border:#e2e8f0;--success:#22c55e;--warning:#f59e0b;--danger:#ef4444;--radius:12px;}
+*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;}
+body{background:var(--bg);color:var(--text);line-height:1.5;}
+.container{max-width:1200px;margin:0 auto;padding:20px;}
+header{background:var(--primary);color:#fff;padding:16px 20px;border-radius:var(--radius);margin-bottom:24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;}
+header h1{font-size:1.3rem;}
+header .version{font-size:0.8rem;opacity:0.8;}
+header a{color:#fff;text-decoration:none;font-size:0.9rem;padding:6px 12px;background:rgba(255,255,255,0.15);border-radius:6px;}
+header a:hover{background:rgba(255,255,255,0.25);}
+.tabs{display:flex;gap:8px;margin-bottom:20px;flex-wrap:wrap;}
+.tab{padding:10px 18px;border:none;background:var(--primary);color:#fff;font-size:0.95rem;font-weight:600;cursor:pointer;border-radius:8px;}
+.tab.active{background:var(--primary-dark);}
+.tab-content{display:none;}
+.tab-content.active{display:block;}
+.card{background:var(--card);border-radius:var(--radius);padding:20px;margin-bottom:20px;box-shadow:0 2px 8px rgba(0,0,0,.04);border:1px solid var(--border);}
+.card h2{font-size:1.1rem;margin-bottom:16px;}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
+@media(max-width:600px){.form-row{grid-template-columns:1fr;}}
+label{font-size:0.9rem;font-weight:600;color:var(--text-light);display:block;margin-bottom:4px;}
+input,select,textarea{width:100%;padding:10px 12px;border:2px solid var(--border);border-radius:8px;font-size:0.95rem;font-family:inherit;}
+input:focus,select:focus,textarea:focus{outline:none;border-color:var(--primary);}
+textarea{min-height:80px;resize:vertical;}
+.btn{padding:10px 18px;border-radius:8px;font-size:0.95rem;font-weight:600;border:none;cursor:pointer;}
+.btn-primary{background:var(--primary);color:#fff;}
+.btn-primary:hover{background:var(--primary-dark);}
+.btn-secondary{background:var(--bg);color:var(--text);border:2px solid var(--border);}
+.btn-sm{padding:6px 12px;font-size:0.8rem;}
+.btn-success{background:var(--success);color:#fff;}
+.btn-danger{background:var(--danger);color:#fff;}
+.checkmarks-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px;}
+.checkmark-item{display:flex;align-items:center;gap:8px;padding:6px;background:#f8fafc;border-radius:6px;cursor:pointer;}
+.checkmark-item:hover{background:#f1f5f9;}
+.checkmark-item input{width:auto;}
+table{width:100%;border-collapse:collapse;font-size:0.9rem;}
+th,td{text-align:left;padding:10px;border-bottom:1px solid var(--border);}
+th{font-weight:600;color:var(--text-light);font-size:0.8rem;text-transform:uppercase;letter-spacing:.5px;}
+tr:hover{background:#f8fafc;}
+.status-dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;}
+.status-green{background:var(--success);}
+.status-yellow{background:var(--warning);}
+.status-red{background:var(--danger);}
+.status-grey{background:var(--text-light);}
+.url-box{background:#f1f5f9;padding:12px;border-radius:8px;font-family:ui-monospace,monospace;font-size:0.85rem;word-break:break-all;margin:8px 0;}
+.copy-btn{background:var(--bg);color:var(--text);border:2px solid var(--border);padding:4px 10px;border-radius:4px;cursor:pointer;font-size:12px;}
+.copy-btn:hover{background:var(--primary);color:#fff;border-color:var(--primary);}
+.copy-btn.copied{background:var(--success);color:#fff;border-color:var(--success);}
+.empty{color:var(--text-light);text-align:center;padding:40px;}
+#status{margin:12px 0;font-size:14px;min-height:20px;}
+.success{color:var(--success);}
+.error{color:var(--danger);}
+.modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(30,41,59,0.8);display:none;align-items:center;justify-content:center;z-index:9999;}
+.modal-overlay.active{display:flex;}
+.modal-box{background:var(--card);padding:32px;border-radius:var(--radius);max-width:600px;width:90%;max-height:90vh;overflow-y:auto;box-shadow:0 20px 60px rgba(0,0,0,0.3);}
+.modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;}
+.modal-header h2{font-size:1.2rem;}
+.close-btn{background:none;border:none;font-size:1.5rem;cursor:pointer;color:var(--text-light);}
+.close-btn:hover{color:var(--text);}
+</style>
+</head>
+<body>
+<div class="container">
+<header>
+  <h1>📅 Terminmanager</h1>
+  <div style="display:flex;align-items:center;gap:12px"><span class="version">Hausärzte im Grillepark</span><a href="/admin/">← Admin</a></div>
+</header>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('list')">Termin-Liste</button>
+  <button class="tab" onclick="switchTab('create')">Neuer Termin</button>
+</div>
+
+<!-- LIST -->
+<div id="tab-list" class="tab-content active">
+<div class="card">
+  <h2>Termine</h2>
+  <div id="aptListStatus"></div>
+  <table>
+    <thead><tr><th>Status</th><th>Patient</th><th>Termin</th><th>Einrichtung</th><th>Link</th><th></th></tr></thead>
+    <tbody id="aptList"><tr><td colspan="6" class="empty">Lade...</td></tr></tbody>
+  </table>
+</div>
+</div>
+
+<!-- CREATE -->
+<div id="tab-create" class="tab-content">
+<div class="card">
+  <h2>Neuen Termin erstellen</h2>
+  <div class="form-row">
+    <div><label>Vorname Patient *</label><input type="text" id="aptFirstname" placeholder="Max"></div>
+    <div><label>Nachname Patient *</label><input type="text" id="aptLastname" placeholder="Mustermann"></div>
+  </div>
+  <div class="form-row">
+    <div><label>Geburtsdatum * (TT.MM.JJJJ)</label><input type="tel" id="aptDob" placeholder="01.01.1990" maxlength="10"></div>
+    <div><label>E-Mail (optional)</label><input type="email" id="aptEmail" placeholder="max@mustermann.de"></div>
+  </div>
+  <div class="form-row">
+    <div><label>Termin-Titel *</label><input type="text" id="aptTitle" placeholder="z.B. MRT LWS"></div>
+    <div><label>Datum *</label><input type="date" id="aptDate"></div>
+  </div>
+  <div class="form-row">
+    <div><label>Uhrzeit</label><input type="time" id="aptTime"></div>
+    <div><label>Einrichtung * (z.B. Radiologie Minden)</label><input type="text" id="aptFacility" placeholder="Praxis/Klinik Name"></div>
+  </div>
+  <div class="form-row">
+    <div style="grid-column:1/-1"><label>Anmeldepunkt (optional)</label><input type="text" id="aptLocation" placeholder="z.B. Leitstelle 2, Patientenaufnahme"></div>
+  </div>
+  <div class="form-row">
+    <div style="grid-column:1/-1"><label>Hinweise für Patienten (optional)</label><textarea id="aptNotes" placeholder="Bringen Sie ein Handtuch mit..."></textarea></div>
+  </div>
+  <div style="margin-bottom:12px"><label>Checkmarks (was der Patient mitbringen soll)</label></div>
+  <div class="checkmarks-grid" id="checkmarksGrid">
+    <label class="checkmark-item"><input type="checkbox" value="versichertenkarte"> Versichertenkarte</label>
+    <label class="checkmark-item"><input type="checkbox" value="ueberweisung"> Überweisung</label>
+    <label class="checkmark-item"><input type="checkbox" value="einweisung"> Einweisung</label>
+    <label class="checkmark-item"><input type="checkbox" value="nuechtern"> Nüchtern</label>
+    <label class="checkmark-item"><input type="checkbox" value="blutdruckprotokoll"> Blutdruckprotokoll</label>
+    <label class="checkmark-item"><input type="checkbox" value="medikamentenliste"> Medikamentenliste</label>
+    <label class="checkmark-item"><input type="checkbox" value="allergiepass"> Allergiepass</label>
+    <label class="checkmark-item"><input type="checkbox" value="impfpass"> Impfpass</label>
+  </div>
+  <div style="margin-top:16px"><button class="btn btn-primary" onclick="createAppointment()">Termin erstellen</button></div>
+  <div id="status"></div>
+  <div id="createdLink" style="margin-top:16px;display:none">
+    <div class="url-box" id="linkBox"></div>
+    <button class="btn btn-sm btn-secondary" onclick="copyLink()">Link kopieren</button>
+    <button class="btn btn-sm btn-success" onclick="sendEmail()" id="sendEmailBtn" style="display:none">Per Email versenden</button>
+  </div>
+</div>
+</div>
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal">
+  <div class="modal-box">
+    <div class="modal-header"><h2>Termin-Link</h2><button class="close-btn" onclick="closeModal()">×</button></div>
+    <div id="modalContent"></div>
+  </div>
+</div>
+</div>
+
+<script>
+const API_BASE='/api';
+let APT_DATA=[];
+let CURRENT_LINK='';
+
+// DOB autoformat
+document.getElementById('aptDob').addEventListener('input',(e)=>{let v=e.target.value.replace(/\D/g,'');if(v.length>2)v=v.slice(0,2)+'.'+v.slice(2);if(v.length>5)v=v.slice(0,5)+'.'+v.slice(5,9);e.target.value=v;});
+
+function switchTab(id){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c=>c.classList.remove('active'));
+  event.target.classList.add('active');
+  document.getElementById('tab-'+id).classList.add('active');
+  if(id==='list') loadAppointments();
+}
+
+function fmtDate(d){if(!d)return'-';const o=new Date(d+'T00:00:00');return o.toLocaleDateString('de-DE',{weekday:'short',day:'numeric',month:'short'});}
+function fmtStatus(s,dateStr){
+  if(s==='acknowledged')return'<span class="status-dot status-green"></span>Bestätigt';
+  if(s==='cancelled')return'<span class="status-dot status-grey"></span>Storniert';
+  const days=dateStr?Math.ceil((new Date(dateStr+'T00:00:00')-new Date())/(86400000)):99;
+  if(days<=2&&days>=0)return'<span class="status-dot status-red"></span>Dringend ('+days+'d)';
+  return'<span class="status-dot status-yellow"></span>Ausstehend';
+}
+function getStatusClass(s,dateStr){
+  if(s==='acknowledged')return'status-green';
+  if(s==='cancelled')return'status-grey';
+  const days=dateStr?Math.ceil((new Date(dateStr+'T00:00:00')-new Date())/(86400000)):99;
+  if(days<=2&&days>=0)return'status-red';
+  return'status-yellow';
+}
+
+async function loadAppointments(){
+  const el=document.getElementById('aptList');
+  const st=document.getElementById('aptListStatus');
+  try{
+    const r=await fetch(API_BASE+'/admin/appointments',{headers:{'Authorization':'Bearer '+localStorage.getItem('token')}});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const d=await r.json();
+    APT_DATA=d;
+    if(!Array.isArray(d)||d.length===0){el.innerHTML='<tr><td colspan="6" class="empty">Keine Termine</td></tr>';return;}
+    el.innerHTML=d.map(a=>`<tr style="border-left:4px solid ${a.status==='acknowledged'?'var(--success)':a.status==='cancelled'?'var(--text-light)':(Math.ceil((new Date(a.appointment_date+'T00:00:00')-new Date())/86400000)<=2&&Math.ceil((new Date(a.appointment_date+'T00:00:00')-new Date())/86400000)>=0)?'var(--danger)':'var(--warning)'}" data-id="${a.id}"><td>${fmtStatus(a.status,a.appointment_date)}</td><td>${a.patient_firstname||''} ${a.patient_lastname||''}</td><td>${fmtDate(a.appointment_date)} ${a.appointment_time||''}</td><td>${a.facility_name||''}</td><td><button class="btn btn-sm btn-secondary" onclick="showLink('${a.id}')">Link</button></td><td><button class="btn btn-sm btn-danger" onclick="deleteApt('${a.id}')">Löschen</button></td></tr>`).join('');
+  }catch(e){st.innerHTML='<span class="error">Fehler: '+e.message+'</span>';}
+}
+
+async function createAppointment(){
+  const s=document.getElementById('status');
+  try{
+    const body={
+      patient_firstname:document.getElementById('aptFirstname').value.trim(),
+      patient_lastname:document.getElementById('aptLastname').value.trim(),
+      patient_dob:document.getElementById('aptDob').value.trim(),
+      patient_email:document.getElementById('aptEmail').value.trim()||null,
+      title:document.getElementById('aptTitle').value.trim(),
+      appointment_date:document.getElementById('aptDate').value,
+      appointment_time:document.getElementById('aptTime').value||null,
+      facility_name:document.getElementById('aptFacility').value.trim(),
+      facility_location:document.getElementById('aptLocation').value.trim()||null,
+      notes:document.getElementById('aptNotes').value.trim()||null,
+      checkmarks:Array.from(document.querySelectorAll('#checkmarksGrid input:checked')).map(cb=>cb.value)
+    };
+    if(!body.patient_firstname||!body.patient_lastname||!body.patient_dob||!body.title||!body.facility_name||!body.appointment_date)throw new Error('Bitte alle Pflichtfelder ausfüllen');
+    if(!/^\d{2}\.\d{2}\.\d{4}$/.test(body.patient_dob))throw new Error('Geburtsdatum TT.MM.JJJJ');
+    s.innerHTML='<span style="color:var(--text-light)">Erstelle...</span>';
+    const r=await fetch(API_BASE+'/admin/appointments',{method:'POST',headers:{'Content-Type':'application/json','Authorization':'Bearer '+localStorage.getItem('token')},body:JSON.stringify(body)});
+    const d=await r.json();
+    if(d.error)throw new Error(d.error);
+    s.innerHTML='<span class="success">✓ Termin erstellt!</span>';
+    // Get link
+    const lr=await fetch(API_BASE+'/admin/appointments/'+d.id+'/link',{method:'POST',headers:{'Authorization':'Bearer '+localStorage.getItem('token')}});
+    const ld=await lr.json();
+    CURRENT_LINK=ld.url;
+    document.getElementById('linkBox').textContent=ld.url;
+    document.getElementById('createdLink').style.display='block';
+    if(body.patient_email){document.getElementById('sendEmailBtn').style.display='inline-block';}
+    // Reset form
+    ['aptFirstname','aptLastname','aptDob','aptEmail','aptTitle','aptDate','aptTime','aptFacility','aptLocation','aptNotes'].forEach(id=>document.getElementById(id).value='');
+    document.querySelectorAll('#checkmarksGrid input').forEach(cb=>cb.checked=false);
+    loadAppointments();
+  }catch(e){s.innerHTML='<span class="error">Fehler: '+e.message+'</span>';}
+}
+
+function copyLink(){
+  if(!CURRENT_LINK)return;
+  navigator.clipboard.writeText(CURRENT_LINK).then(()=>{
+    const btn=event.target;const old=btn.textContent;btn.textContent='✓ Kopiert!';btn.classList.add('copied');
+    setTimeout(()=>{btn.textContent=old;btn.classList.remove('copied');},2000);
+  });
+}
+
+async function sendEmail(){
+  // Placeholder for email sending — would integrate with existing email module
+  alert('Email-Versand wird implementiert (SMTP-Integration)');
+}
+
+async function showLink(id){
+  const row=APT_DATA.find(a=>a.id===id);
+  if(!row)return;
+  const r=await fetch(API_BASE+'/admin/appointments/'+id+'/link',{method:'POST',headers:{'Authorization':'Bearer '+localStorage.getItem('token')}});
+  const d=await r.json();
+  document.getElementById('modalContent').innerHTML=`<div class="url-box">${d.url}</div><p><strong>Patient:</strong> ${row.patient_firstname} ${row.patient_lastname}</p><p><strong>Termin:</strong> ${fmtDate(row.appointment_date)} ${row.appointment_time||''}</p><p><strong>Einrichtung:</strong> ${row.facility_name}</p><button class="btn btn-sm btn-secondary" onclick="navigator.clipboard.writeText('${d.url}');this.textContent='✓ Kopiert!';setTimeout(()=>this.textContent='Link kopieren',2000)">Link kopieren</button>`;
+  document.getElementById('modal').classList.add('active');
+}
+
+function closeModal(){document.getElementById('modal').classList.remove('active');}
+
+async function deleteApt(id){
+  if(!confirm('Termin wirklich löschen?'))return;
+  try{
+    await fetch(API_BASE+'/admin/appointments/'+id,{method:'DELETE',headers:{'Authorization':'Bearer '+localStorage.getItem('token')}});
+    loadAppointments();
+  }catch(e){alert('Fehler: '+e.message);}
+}
+
+// Init
+loadAppointments();
+</script>
+</body>
+</html>
