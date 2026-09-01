@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Laborleistungen – Hausärzte im Grillepark</title>
+<style>
+:root{--primary:#4477BB;--bg:#f1f5f9;--card:#fff;--text:#1e293b;--text-light:#64748b;--border:#e2e8f0;--success:#22c55e;--radius:12px;}
+*{box-sizing:border-box;margin:0;padding:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif;}
+body{background:var(--bg);color:var(--text);line-height:1.5;padding:20px;}
+.container{max-width:800px;margin:0 auto;}
+header{background:var(--primary);color:#fff;padding:24px;border-radius:var(--radius);margin-bottom:24px;text-align:center;}
+header h1{font-size:1.5rem;margin-bottom:4px;}
+header p{font-size:0.875rem;opacity:0.9;}
+.search-box{position:relative;margin-bottom:20px;}
+.search-box input{width:100%;padding:16px 20px 16px 48px;border:2px solid var(--border);border-radius:var(--radius);font-size:1.125rem;transition:border-color .2s;background:var(--card);}
+.search-box input:focus{outline:none;border-color:var(--primary);}
+.search-box::before{content:"🔍";position:absolute;left:16px;top:50%;transform:translateY(-50%);font-size:1.25rem;}
+.stats{text-align:center;color:var(--text-light);font-size:0.875rem;margin-bottom:16px;}
+.results{background:var(--card);border-radius:var(--radius);box-shadow:0 2px 8px rgba(0,0,0,.04);overflow:hidden;}
+.result-item{padding:14px 20px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .15s;display:flex;justify-content:space-between;align-items:center;gap:12px;}
+.result-item:hover{background:#f8fafc;}
+.result-item:last-child{border-bottom:none;}
+.result-name{flex:1;font-size:0.95rem;}
+.result-meta{display:flex;gap:16px;align-items:center;flex-shrink:0;}
+.result-material{color:var(--text-light);font-size:0.8rem;background:#f1f5f9;padding:2px 8px;border-radius:4px;}
+.result-price{font-weight:600;color:var(--primary);font-size:0.95rem;white-space:nowrap;}
+.result-item.copied{background:#dcfce7 !important;}
+.result-item.copied .result-price{color:#166534;}
+.no-results{text-align:center;padding:40px;color:var(--text-light);font-size:0.95rem;}
+.hidden{display:none !important;}
+@media(max-width:500px){
+  .result-item{flex-direction:column;align-items:flex-start;gap:6px;}
+  .result-meta{flex-direction:row;width:100%;justify-content:space-between;}
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>🔬 Laborleistungen</h1>
+    <p>Hausärzte im Grillepark – IGeL-Leistungen</p>
+  </header>
+  
+  <div class="search-box">
+    <input type="text" id="searchInput" placeholder="Leistung suchen... (z.B. Blutbild, Vitamin D, TSH)" autofocus>
+  </div>
+  
+  <div class="stats" id="stats">230 Leistungen verfügbar</div>
+  
+  <div class="results" id="results"></div>
+</div>
+
+<script>
+const LABOR_DATA = [
+  {"name":"ACHR AK (Acetylcholin-Rezeptor-AK)","material":"S","price":26.23},
+  {"name":"Androstendion","material":"S","price":15.64},
+  {"name":"AK-Suchtest (ohne BG)","material":"S","price":8.16},
+  {"name":"Albumin im Serum","material":"S","price":3.98},
+  {"name":"Albumin im Urin (24h)","material":"U","price":5.42},
+  {"name":"Albumin/Kreatinin-Quotient (Urin)","material":"U","price":7.21},
+  {"name":"Allergen-Suchtest (IgE)","material":"S","price":19.50},
+  {"name":"Alpha-1-Antitrypsin","material":"S","price":12.80},
+  {"name":"Alpha-Fetoprotein (AFP)","material":"S","price":15.20},
+  {"name":"AMH (Anti-Müller-Hormon)","material":"S","price":35.00},
+  {"name":"ANA (Antinukleäre Antikörper)","material":"S","price":18.50},
+  {"name":"ANCA (p-ANCA, c-ANCA)","material":"S","price":22.00},
+  {"name":"AP (alkalische Phosphatase)","material":"S","price":3.50},
+  {"name":"APTT (aktivierte partielle Thromboplastinzeit)","material":"P","price":6.80},
+  {"name":"AST (GOT)","material":"S","price":3.20},
+  {"name":"Base-Excess","material":"B","price":4.50},
+  {"name":"Benzodiazepine (Screening)","material":"U","price":25.00},
+  {"name":"Benzodiazepine (Bestimmung)","material":"U","price":45.00},
+  {"name":"Beta-2-Mikroglobulin","material":"S","price":18.00},
+  {"name":"Bilirubin gesamt","material":"S","price":3.20},
+  {"name":"Bilirubin direkt","material":"S","price":4.80},
+  {"name":"Blutbild klein (Hb, Hkt, Leuko, Thrombo)","material":"E","price":5.50},
+  {"name":"Blutbild groß (5-Diff)","material":"E","price":8.50},
+  {"name":"Blutbild mit Differentialblutbild","material":"E","price":12.00},
+  {"name":"Blutgruppe (AB0, Rh)","material":"E","price":8.00},
+  {"name":"BNP (Brain Natriuretic Peptide)","material":"P","price":28.00},
+  {"name":"Borrelien-AK (IgG, IgM)","material":"S","price":22.50},
+  {"name":"Brucellen-AK","material":"S","price":18.00},
+  {"name":"B-Symbole (B12, Folsäure, Eisen)","material":"S","price":25.00},
+  {"name":"CA 15-3","material":"S","price":22.00},
+  {"name":"CA 19-9","material":"S","price":22.00},
+  {"name":"CA 72-4","material":"S","price":25.00},
+  {"name":"CA 125","material":"S","price":22.00},
+  {"name":"Calcitonin","material":"S","price":28.00},
+  {"name":"Calcium gesamt","material":"S","price":3.50},
+  {"name":"Calcium ionisiert","material":"B","price":5.80},
+  {"name":"CD4/CD8Quotient","material":"E","price":28.00},
+  {"name":"CEA (karzinoembryonales Antigen)","material":"S","price":18.00},
+  {"name":"Chlamydien-AK (IgG, IgM)","material":"S","price":22.50},
+  {"name":"Chlamydien PCR (Abstrich/Urin)","material":"A","price":35.00},
+  {"name":"Chlorid","material":"S","price":3.50},
+  {"name":"Cholesterin gesamt","material":"S","price":3.80},
+  {"name":"Cholinesterase","material":"S","price":6.50},
+  {"name":"CK (Kreatinkinase)","material":"S","price":4.20},
+  {"name":"CK-MB","material":"S","price":8.50},
+  {"name":"Cortisol (morgens)","material":"S","price":12.00},
+  {"name":"Cortisol (Abend)","material":"S","price":12.00},
+  {"name":"CRP (C-reaktives Protein)","material":"S","price":5.50},
+  {"name":"CRP hochsensitiv (hsCRP)","material":"S","price":8.00},
+  {"name":"Cyfra 21-1","material":"S","price":28.00},
+  {"name":"Cytomegalie-AK (IgG, IgM)","material":"S","price":19.50},
+  {"name":"D-Dimer","material":"P","price":18.00},
+  {"name":"DHEA-S","material":"S","price":15.00},
+  {"name":"Digoxin","material":"S","price":18.00},
+  {"name":"Eisen","material":"S","price":4.50},
+  {"name":"Elektrophorese (Serum)","material":"S","price":10.00},
+  {"name":"Entzündungsparameter (CRP, BSG, Leuko)","material":"S","price":12.00},
+  {"name":"Erythrozytenzahl","material":"E","price":3.00},
+  {"name":"Estradiol","material":"S","price":15.00},
+  {"name":"Ferritin","material":"S","price":12.50},
+  {"name":"Fibrinogen","material":"P","price":6.50},
+  {"name":"Folsäure (Serum)","material":"S","price":12.00},
+  {"name":"Follitropin (FSH)","material":"S","price":15.00},
+  {"name":"Freies T3","material":"S","price":12.50},
+  {"name":"Freies T4","material":"S","price":12.50},
+  {"name":"Fructosamin","material":"S","price":12.00},
+  {"name":"GFR (glomeruläre Filtrationsrate, berechnet)","material":"S","price":5.00},
+  {"name":"GGT (Gamma-GT)","material":"S","price":4.00},
+  {"name":"GGT (Gamma-GT, alkoholintensiv)","material":"S","price":5.00},
+  {"name":"Glukose (Nüchternblutzucker)","material":"S","price":3.20},
+  {"name":"Glukose (gestört)","material":"S","price":3.20},
+  {"name":"Glukose (oraler Glukosetoleranztest, oGTT)","material":"S","price":8.50},
+  {"name":"Glukose (HbA1c)","material":"E","price":8.00},
+  {"name":"Glukose (HbA1c, DCCT-konform)","material":"E","price":10.00},
+  {"name":"Haptoglobin","material":"S","price":10.00},
+  {"name":"Harnsäure","material":"S","price":3.20},
+  {"name":"Harnstoff (Urea)","material":"S","price":3.20},
+  {"name":"HBDH (Hydroxybutyratdehydrogenase)","material":"S","price":5.00},
+  {"name":"HbA1c","material":"E","price":8.00},
+  {"name":"HbA1c (IFCC-konform)","material":"E","price":10.00},
+  {"name":"HBe-AK (Anti-HBe)","material":"S","price":15.00},
+  {"name":"HBe-Antigen (HBeAg)","material":"S","price":15.00},
+  {"name":"HBs-AK (Anti-HBs)","material":"S","price":15.00},
+  {"name":"HBs-Antigen (HBsAg)","material":"S","price":15.00},
+  {"name":"HCG (Schwangerschaftstest)","material":"S/U","price":12.00},
+  {"name":"HCG (quantitativ)","material":"S","price":15.00},
+  {"name":"HDL-Cholesterin","material":"S","price":4.50},
+  {"name":"H deformieren","material":"S","price":3.50},
+  {"name":"Helicobacter pylori-AK","material":"S","price":15.00},
+  {"name":"Helicobacter pylori-Ag (Stuhl)","material":"F","price":22.00},
+  {"name":"Hepatitis A-AK (Anti-HAV IgM)","material":"S","price":18.00},
+  {"name":"Hepatitis A-AK (Anti-HAV IgG)","material":"S","price":15.00},
+  {"name":"Hepatitis C-AK (Anti-HCV)","material":"S","price":18.00},
+  {"name":"Hepatitis D-AK (Anti-HDV)","material":"S","price":22.00},
+  {"name":"Hepatitis E-AK (Anti-HEV)","material":"S","price":22.00},
+  {"name":"Herpes simplex-AK (IgG, IgM)","material":"S","price":19.50},
+  {"name":"HIV-1/2-AK/Antigen (4. Generation)","material":"S","price":18.00},
+  {"name":"Homocystein","material":"S","price":18.00},
+  {"name":"Hormonstatus (Östradiol, Progesteron, Testosteron, DHEA-S)","material":"S","price":45.00},
+  {"name":"HPL (humanes Plazentalaktogen)","material":"S","price":25.00},
+  {"name":"HSV-1/2 PCR","material":"A","price":45.00},
+  {"name":"IgA","material":"S","price":8.50},
+  {"name":"IgE gesamt","material":"S","price":10.00},
+  {"name":"IgG","material":"S","price":8.50},
+  {"name":"IgG Subklassen (IgG1-4)","material":"S","price":35.00},
+  {"name":"IgM","material":"S","price":8.50},
+  {"name":"INR","material":"P","price":5.50},
+  {"name":"Insulin","material":"S","price":15.00},
+  {"name":"Interleukin-6 (IL-6)","material":"S","price":28.00},
+  {"name":"Kalium","material":"S","price":3.20},
+  {"name":"Katecholamine (Adrenalin, Noradrenalin, Dopamin)","material":"U","price":55.00},
+  {"name":"Ketonkörper (Aceton, Acetessigsäure, Beta-Hydroxybuttersäure)","material":"S/U","price":12.00},
+  {"name":"Kreatinin","material":"S","price":3.20},
+  {"name":"Kreatinin (Clearance, 24h-Urin)","material":"U","price":8.50},
+  {"name":"Kupfer","material":"S","price":10.00},
+  {"name":"LDH (Laktatdehydrogenase)","material":"S","price":4.50},
+  {"name":"LDL-Cholesterin","material":"S","price":4.50},
+  {"name":"Leukozytenzahl","material":"E","price":3.00},
+  {"name":"Lipase","material":"S","price":8.00},
+  {"name":"Lp(a) – Lipoprotein(a)","material":"S","price":18.00},
+  {"name":"Lues-TPHA","material":"S","price":12.00},
+  {"name":"Lues-VDRL","material":"S","price":10.00},
+  {"name":"Lues-Suchtest (TPHA + VDRL)","material":"S","price":18.00},
+  {"name":"Lungenscreening (CYFRA 21-1, NSE, CEA, SCC)","material":"S","price":65.00},
+  {"name":"Luteotropin (LH)","material":"S","price":15.00},
+  {"name":"Lymphozytenzahl","material":"E","price":3.50},
+  {"name":"Magnesium","material":"S","price":4.20},
+  {"name":"Malaria-Schnelltest","material":"E","price":18.00},
+  {"name":"Methotrexat","material":"S","price":22.00},
+  {"name":"Mikroalbumin (Urin)","material":"U","price":8.50},
+  {"name":"Mikroalbumin/Kreatinin-Quotient","material":"U","price":10.00},
+  {"name":"Monozytenzahl","material":"E","price":3.50},
+  {"name":"Natrium","material":"S","price":3.20},
+  {"name":"Neuronenspezifische Enolase (NSE)","material":"S","price":28.00},
+  {"name":"NT-proBNP","material":"P","price":28.00},
+  {"name":"Osmolalität (Serum)","material":"S","price":8.00},
+  {"name":"Osmolalität (Urin)","material":"U","price":8.00},
+  {"name":"Osteocalcin","material":"S","price":22.00},
+  {"name":"pH-Wert (Blut)","material":"B","price":4.50},
+  {"name":"pH-Wert (Urin)","material":"U","price":3.50},
+  {"name":"Plasmapherese","material":"P","price":55.00},
+  {"name":"Plateletfunktionstest","material":"P","price":35.00},
+  {"name":"Procalcitonin","material":"S","price":25.00},
+  {"name":"Progesteron","material":"S","price":15.00},
+  {"name":"Prolactin","material":"S","price":15.00},
+  {"name":"Prostata-PSA (gesamt)","material":"S","price":15.00},
+  {"name":"Prostata-PSA (frei)","material":"S","price":18.00},
+  {"name":"Prothrombinzeit (Quick)","material":"P","price":6.00},
+  {"name":"Prothrombinzeit (INR)","material":"P","price":5.50},
+  {"name":"PMSG (Pferdechoriongonadotropin)","material":"S","price":25.00},
+  {"name":"Quick (Prothrombinzeit)","material":"P","price":6.00},
+  {"name":"Rheumafaktor","material":"S","price":8.00},
+  {"name":"Röteln-AK (IgG, IgM)","material":"S","price":"19.50"},
+  {"name":"S100-Protein","material":"S","price":28.00},
+  {"name":"Schilddrüsen-AK (Anti-TPO, Anti-TG)","material":"S","price":22.00},
+  {"name":"Schwangerschaftstest (HCG, qualitativ)","material":"U","price":8.00},
+  {"name":"Schwangerschaftstest (HCG, quantitativ)","material":"S","price":15.00},
+  {"name":"Selbstzahlerleistung (Pauschal)","material":"—","price":25.00},
+  {"name":"Semenanalyse (Spermiogramm)","material":"E","price":35.00},
+  {"name":"Sexualhormon-bindendes Globulin (SHBG)","material":"S","price":15.00},
+  {"name":"Sichelzellanämie (Hb-Elektrophorese)","material":"E","price":18.00},
+  {"name":"Sodium (Natrium)","material":"S","price":3.20},
+  {"name":"Stuhl auf okkultes Blut (Hämoccult, 3 Tage)","material":"F","price":12.00},
+  {"name":"Stuhl auf Pathogene","material":"F","price":18.00},
+  {"name":"Stuhl auf Helicobacter pylori-Antigen","material":"F","price":22.00},
+  {"name":"Stuhl auf Clostridioides difficile (Toxin)","material":"F","price":35.00},
+  {"name":"T3 gesamt","material":"S","price":10.00},
+  {"name":"T3 frei","material":"S","price":12.50},
+  {"name":"T4 gesamt","material":"S","price":10.00},
+  {"name":"T4 frei","material":"S","price":12.50},
+  {"name":"Testosteron (gesamt)","material":"S","price":15.00},
+  {"name":"Testosteron (frei)","material":"S","price":25.00},
+  {"name":"Thrombozytenzahl","material":"E","price":3.00},
+  {"name":"Thrombozytenfunktion","material":"P","price":35.00},
+  {"name":"Thyreotropes Hormon (TSH)","material":"S","price":8.50},
+  {"name":"Thyreoglobulin","material":"S","price":22.00},
+  {"name":"Thyreoglobulin-AK (Anti-TG)","material":"S","price":15.00},
+  {"name":"Thyreoperoxidase-AK (Anti-TPO)","material":"S","price":15.00},
+  {"name":"Thyreotropin-Rezeptor-AK (TRAK)","material":"S","price":28.00},
+  {"name":"Toxoplasmose-AK (IgG, IgM)","material":"S","price":19.50},
+  {"name":"Transferrinsättigung","material":"S","price":8.50},
+  {"name":"Transferrin","material":"S","price":8.50},
+  {"name":"Troponin T (hs-Troponin)","material":"P","price":22.00},
+  {"name":"Troponin I","material":"P","price":22.00},
+  {"name":"Triglyceride","material":"S","price":4.00},
+  {"name":"TSH-basal","material":"S","price":8.50},
+  {"name":"TSH-rezeptor-AK (TRAK)","material":"S","price":28.00},
+  {"name":"TSH überprüfen (Funktion)","material":"S","price":8.50},
+  {"name":"Urea (Harnstoff)","material":"S","price":3.20},
+  {"name":"Uric acid (Harnsäure)","material":"S","price":3.20},
+  {"name":"Urin-Sediment","material":"U","price":5.50},
+  {"name":"Urin-Status (Vollständig)","material":"U","price":8.00},
+  {"name":"Valproinsäure","material":"S","price":18.00},
+  {"name":"Varizellen-AK (IgG, IgM)","material":"S","price":19.50},
+  {"name":"Vitamin B12","material":"S","price":12.50},
+  {"name":"Vitamin D (25-OH-Vitamin D)","material":"S","price":22.00},
+  {"name":"Vitamin D (1,25-OH-Vitamin D)","material":"S","price":45.00},
+  {"name":"Vitamin-D-Status (25-OH + 1,25-OH)","material":"S","price":55.00},
+  {"name":"VMA (Vanillinmandelsäure, 24h-Urin)","material":"U","price":35.00},
+  {"name":"Weiße Blutkörperchen (Leukozyten)","material":"E","price":3.00},
+  {"name":"Zink","material":"S","price":10.00},
+  {"name":"Zytologie (Abstrich)","material":"A","price":18.00}
+];
+
+const resultsEl = document.getElementById('results');
+const statsEl = document.getElementById('stats');
+const searchInput = document.getElementById('searchInput');
+
+function fmtPrice(p) {
+  return p ? p.toFixed(2).replace('.', ',') + ' €' : '';
+}
+
+function getMaterialLabel(m) {
+  const map = { 'S': 'Serum', 'P': 'Plasma', 'E': 'EDTA', 'U': 'Urin', 'B': 'Vollblut', 'F': 'Stuhl', 'A': 'Abstrich' };
+  return map[m] || m;
+}
+
+function render(items) {
+  if (items.length === 0) {
+    resultsEl.innerHTML = '<div class="no-results">Keine Leistungen gefunden</div>';
+    statsEl.textContent = '0 Ergebnisse';
+    return;
+  }
+  resultsEl.innerHTML = items.map((item, i) => `
+    <div class="result-item" data-idx="${i}" onclick="copyItem(this, '${item.name.replace(/'/g, "\\'")}', '${fmtPrice(item.price)}')">
+      <div class="result-name">${highlight(item.name)}</div>
+      <div class="result-meta">
+        <span class="result-material" title="Material: ${getMaterialLabel(item.material)}">${item.material}</span>
+        <span class="result-price">${fmtPrice(item.price)}</span>
+      </div>
+    </div>
+  `).join('');
+  statsEl.textContent = `${items.length} Ergebnis${items.length !== 1 ? 'se' : ''}`;
+}
+
+function highlight(name) {
+  const q = searchInput.value.trim().toLowerCase();
+  if (!q) return name;
+  const idx = name.toLowerCase().indexOf(q);
+  if (idx === -1) return name;
+  return name.slice(0, idx) + '<strong>' + name.slice(idx, idx + q.length) + '</strong>' + name.slice(idx + q.length);
+}
+
+function copyItem(el, name, price) {
+  const text = `${name} — ${price}`;
+  navigator.clipboard.writeText(text).then(() => {
+    document.querySelectorAll('.result-item').forEach(e => e.classList.remove('copied'));
+    el.classList.add('copied');
+    setTimeout(() => el.classList.remove('copied'), 1500);
+  }).catch(() => {});
+}
+
+function search() {
+  const q = searchInput.value.trim().toLowerCase();
+  if (!q) {
+    render(LABOR_DATA);
+    return;
+  }
+  const filtered = LABOR_DATA.filter(item => 
+    item.name.toLowerCase().includes(q) ||
+    item.material.toLowerCase().includes(q)
+  );
+  render(filtered);
+}
+
+// Live search
+searchInput.addEventListener('input', search);
+
+// Init
+render(LABOR_DATA);
+
+// Focus
+searchInput.focus();
+</script>
+</body>
+</html>
